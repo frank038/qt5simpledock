@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# V 0.1
+# V 0.1.1
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
 from shutil import which as sh_which
@@ -363,7 +363,10 @@ class SecondaryWin(QtWidgets.QWidget):
         self.actual_virtual_desktop = ndesk
         
     def net_list(self):
-        window_list = [x for x in self.root.get_full_property(self.display.intern_atom('_NET_CLIENT_LIST'), Xatom.WINDOW).value]
+        window_list = []
+        xlist = self.root.get_full_property(self.display.intern_atom('_NET_CLIENT_LIST'), Xatom.WINDOW)
+        if xlist:
+            window_list = xlist.value.tolist()
         self.on_new_window(window_list)
         self.delete_window_destroyed(window_list)
         self.get_active_window()
@@ -508,17 +511,6 @@ class SecondaryWin(QtWidgets.QWidget):
             if item.winid == window_id:
                 item.setChecked(True)
                 break
-    
-     #------------------------------------------------
-    def sendEvent(self, win, ctype, data, mask=None):
-    #------------------------------------------------
-        """ Send a ClientMessage event to the root """
-        data = (data+[0]*(5-len(data)))[:5]
-        ev = pe.ClientMessage(window=win, client_type=ctype, data=(32,(data)))
-
-        if not mask:
-            mask = (X.SubstructureRedirectMask|X.SubstructureNotifyMask)
-        self.root.send_event(ev, event_mask=mask)
     
     # 4
     def on_btn_clicked(self):
