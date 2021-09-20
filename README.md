@@ -15,7 +15,7 @@ Features:
 - virtual desktops
 - application launchers (just copy or remove its desktop file in the applications folder; the file delete_me needs to be deleted before using this program)
 - task list with icon support and application comment while hovering on it
-- two space for periodical user messaggings (just modify the file content in the script folder)
+- two space for periodical user messaggings (just modify the files in the script folder; they accept both plain text or rich text)
 - closing applications by right mouse clicking on its icon
 - closing and restarting this program by right mouse clicking
 - customizations in the cfg_dock file.
