@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# V 0.2
+# V 0.2.6
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
 from shutil import which as sh_which
@@ -44,20 +44,24 @@ class winThread(QtCore.QThread):
     def run(self):
         while True:
             event = self.display.next_event()
-            # 
+            
+            # properties
             if (event.type == X.PropertyNotify):
                 if event.atom == self.display.intern_atom('_NET_NUMBER_OF_DESKTOPS'):
                     vd_v = self.root.get_full_property(self.display.intern_atom('_NET_NUMBER_OF_DESKTOPS'), X.AnyPropertyType).value
                     number_of_virtual_desktops = vd_v.tolist()[0]
                     self.sig.emit(["DESKTOP_NUMBER", number_of_virtual_desktops])
+                # change the current desktop
                 if event.atom == self.display.intern_atom("_NET_CURRENT_DESKTOP"):
                     cvd_v = self.root.get_full_property(self.display.intern_atom("_NET_CURRENT_DESKTOP"), X.AnyPropertyType).value
                     active_virtual_desktop = cvd_v.tolist()[0]
                     self.sig.emit(["ACTIVE_VIRTUAL_DESKTOP", active_virtual_desktop])
                 
+                # active window changed
                 if event.atom == self.display.intern_atom('_NET_ACTIVE_WINDOW'):
                     self.sig.emit(["ACTIVE_WINDOW_CHANGED", ""])
                 
+                #
                 if event.atom == self.display.intern_atom('_NET_CLIENT_LIST'):
                     self.sig.emit(["NETLIST"])
                     
@@ -176,6 +180,7 @@ class SecondaryWin(QtWidgets.QWidget):
                 #
                 pframe = QtWidgets.QFrame()
                 pframe.setFrameShape(QtWidgets.QFrame.VLine)
+                #pframe.setLineWidth(0.6)
                 self.ibox.addWidget(pframe)
             elif tasklist_position == 1:
                 self.ibox.setAlignment(QtCore.Qt.AlignCenter)
@@ -217,7 +222,7 @@ class SecondaryWin(QtWidgets.QWidget):
         #
         # current window active - window id
         self.curr_win_active = None
-        # 
+        # lista delle finestre normali
         self.wid_l = []
         # the right mouse button is pressed for menu
         self.right_button_pressed = 0
@@ -280,6 +285,7 @@ class SecondaryWin(QtWidgets.QWidget):
             self.l2p.readyReadStandardOutput.connect(self.p2ready)
             self.l2p.finished.connect(self.p2finished)
             self.l2p.start("scripts/./label2.sh")
+        
         #
         if not fixed_position:
             QtCore.QTimer.singleShot(1500, self.on_leave_event)
@@ -314,6 +320,7 @@ class SecondaryWin(QtWidgets.QWidget):
         # pp.setWorkingDirectory(os.getenv("HOME"))
         # pp.startDetached(prog)
         # subprocess.Popen(prog, cwd=os.getenv("HOME"))
+        # subprocess.run(prog, cwd=os.getenv("HOME"))
         os.system("cd {} && {} &".format(os.getenv("HOME"), prog))
     
     # to get a window property
@@ -346,6 +353,7 @@ class SecondaryWin(QtWidgets.QWidget):
     
     def threadslot(self, data):
         if data:
+            # new window
             if data[0] == "NEWWINDOW":
                 self.on_new_window()
             # active window
@@ -433,73 +441,79 @@ class SecondaryWin(QtWidgets.QWidget):
         winid = pitem[0]
         self.wid_l.append(winid)
         window = self.display.create_resource_object('window', winid)
-        icon_icon = window.get_full_property(self.display.intern_atom('_NET_WM_ICON'), 0)
-        icon_data = None
-        target = button_size
-        icon_lista = []
-        if icon_icon is not None:
-            data = icon_icon.value[:]
-            icon_width  = data[0]
-            icon_height = data[1]
-            icon_image  = data[2:data[0]*data[1]+2].tobytes()  
-            icon_data = [icon_width,icon_height,icon_image]
+        # win_name = window.get_full_property(self.display.intern_atom('WM_CLASS'), X.AnyPropertyType)
+        win_name_class = window.get_wm_class()[0]
+        if win_name_class and QtGui.QIcon.hasThemeIcon(win_name_class):
+            licon = QtGui.QIcon.fromTheme(win_name_class)
+        else:
+            icon_icon = window.get_full_property(self.display.intern_atom('_NET_WM_ICON'), 0)
+            icon_data = None
+            target = button_size
+            icon_lista = []
+            if icon_icon is not None:
+                data = icon_icon.value[:]
+                icon_width  = data[0]
+                icon_height = data[1]
+                icon_image  = data[2:data[0]*data[1]+2].tobytes()  
+                icon_data = [icon_width,icon_height,icon_image]
+                #
+                w = 0
+                h = 0
+                len_data = len(data)
+                datat = data
+                ii = 1
+                while ii:
+                    len_data = len(datat)
+                    w = datat[0]
+                    h = datat[1]
+                    icon_lista.append([w, h])
+                    if (w*h+2) < len_data: 
+                        if datat[w*h+2] > 0:
+                            datat = datat[w*h+2:]
+                    else:
+                        ii = 0
             #
-            w = 0
-            h = 0
-            len_data = len(data)
-            datat = data
-            ii = 1
-            while ii:
-                len_data = len(datat)
-                w = datat[0]
-                h = datat[1]
-                icon_lista.append([w, h])
-                if (w*h+2) < len_data: 
-                    if datat[w*h+2] > 0:
-                        datat = datat[w*h+2:]
-                else:
-                    ii = 0
-        #
-        if icon_lista:
-            item_idx = -1
-            if target > max(icon_lista)[0]:
-                target = max(icon_lista)[0]
-            for item in icon_lista:
-                if item[0] > (target - 1):
-                    item_idx = icon_lista.index(item)
-                    break
-            if item_idx > -1:
-                start_idx = 0
-                for i in range(item_idx):
-                    ww = icon_lista[i][0]
-                    hh = icon_lista[i][1]
-                    i_size = (ww*hh+2)
-                    start_idx += i_size
-            #
-            dataa = data[start_idx:]
-            wa = dataa[0]
-            ha = dataa[1]
-            icon_image = dataa[2:dataa[0]*dataa[1]+2].tobytes()
-            icon_data = [wa, ha, icon_image]
+            if icon_lista:
+                item_idx = -1
+                if target > max(icon_lista)[0]:
+                    target = max(icon_lista)[0]
+                for item in icon_lista:
+                    if item[0] > (target - 1):
+                        item_idx = icon_lista.index(item)
+                        break
+                if item_idx > -1:
+                    start_idx = 0
+                    for i in range(item_idx):
+                        ww = icon_lista[i][0]
+                        hh = icon_lista[i][1]
+                        i_size = (ww*hh+2)
+                        start_idx += i_size
+                #
+                dataa = data[start_idx:]
+                wa = dataa[0]
+                ha = dataa[1]
+                icon_image = dataa[2:dataa[0]*dataa[1]+2].tobytes()
+                icon_data = [wa, ha, icon_image]
 
-            ####
-            if icon_data:
-                w = icon_data[0]
-                h = icon_data[1]
-                img = icon_data[2]
-                image = QtGui.QImage(img, w, h, QtGui.QImage.Format_ARGB32)
+                ####
+                if icon_data:
+                    w = icon_data[0]
+                    h = icon_data[1]
+                    img = icon_data[2]
+                    image = QtGui.QImage(img, w, h, QtGui.QImage.Format_ARGB32)
+                else:
+                    image = QtGui.QImage("icons/unknown.svg")
             else:
                 image = QtGui.QImage("icons/unknown.svg")
-        else:
-            image = QtGui.QImage("icons/unknown.svg")
+            #
+            pixmap = QtGui.QPixmap(image)
+            licon = QtGui.QIcon(pixmap)
         #
         btn = QtWidgets.QPushButton()
         btn.setCheckable(True)
         btn.setFlat(True)
         btn.setAutoExclusive(True)
         btn.clicked.connect(self.on_btn_clicked)
-        pixmap = QtGui.QPixmap(image)
-        licon = QtGui.QIcon(pixmap)
         btn.setFixedSize(QtCore.QSize(dock_height, dock_height))
         btn.setIcon(licon)
         btn.setIconSize(QtCore.QSize(dock_height-8, dock_height-8))
@@ -646,7 +660,6 @@ class SecondaryWin(QtWidgets.QWidget):
                 winid = btn.winid
                 window = self.display.create_resource_object('window', winid)
                 try:
-                    # win_name = window.get_wm_name()
                     win_name = window.get_full_property(self.display.intern_atom('_NET_WM_NAME'), 0).value
                     btn.setToolTip(str(win_name.decode(encoding='UTF-8')))
                 except: pass
@@ -700,6 +713,7 @@ if __name__ == '__main__':
 
     app = QtWidgets.QApplication(sys.argv)
     ########### 
+    # 0 = left - 1 = right - 2 top - 3 bottom
     sec_position = 3
     sec_window = SecondaryWin(sec_position)
     sec_window.setWindowFlags(sec_window.windowFlags() | QtCore.Qt.X11BypassWindowManagerHint)
