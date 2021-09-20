@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# V 0.1.1
+# V 0.2
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
 from shutil import which as sh_which
@@ -31,9 +31,7 @@ class winThread(QtCore.QThread):
         self.root = self.display.screen().root
         #
         self.win_l = []
-        self.windows_list = self.get_window_list()
         self.root.change_attributes(event_mask=X.PropertyChangeMask)
-
     
     ##### to get a window property or return [None]
     def getProp(self, disp, win, prop):
@@ -42,35 +40,25 @@ class winThread(QtCore.QThread):
             return [None] if (p is None) else p.value
         except:
             return [None]
-    
-    # id di tutte le finestre
-    def get_window_list(self):
-        return [x for x in self.root.get_full_property(self.display.intern_atom('_NET_CLIENT_LIST'), Xatom.WINDOW).value]
 
     def run(self):
-        
         while True:
             event = self.display.next_event()
-            
-            # properties
+            # 
             if (event.type == X.PropertyNotify):
                 if event.atom == self.display.intern_atom('_NET_NUMBER_OF_DESKTOPS'):
                     vd_v = self.root.get_full_property(self.display.intern_atom('_NET_NUMBER_OF_DESKTOPS'), X.AnyPropertyType).value
                     number_of_virtual_desktops = vd_v.tolist()[0]
                     self.sig.emit(["DESKTOP_NUMBER", number_of_virtual_desktops])
-                # change the current desktop
                 if event.atom == self.display.intern_atom("_NET_CURRENT_DESKTOP"):
                     cvd_v = self.root.get_full_property(self.display.intern_atom("_NET_CURRENT_DESKTOP"), X.AnyPropertyType).value
                     active_virtual_desktop = cvd_v.tolist()[0]
                     self.sig.emit(["ACTIVE_VIRTUAL_DESKTOP", active_virtual_desktop])
                 
-                # active window changed
                 if event.atom == self.display.intern_atom('_NET_ACTIVE_WINDOW'):
                     self.sig.emit(["ACTIVE_WINDOW_CHANGED", ""])
                 
-                #
                 if event.atom == self.display.intern_atom('_NET_CLIENT_LIST'):
-                    print("_NET_CLIENT_LIST::", event.window, event.window.id)
                     self.sig.emit(["NETLIST"])
                     
             if stopCD:
@@ -81,10 +69,9 @@ class winThread(QtCore.QThread):
 
 ######################
 
-# 
 class SecondaryWin(QtWidgets.QWidget):
     def __init__(self, position):
-        super(SecondaryWin, self).__init__()#parent)
+        super(SecondaryWin, self).__init__()
         self.position = position
         self.setWindowTitle("qt5simpledock")
         self.setAttribute(QtCore.Qt.WA_X11NetWmWindowTypeDock)
@@ -186,6 +173,10 @@ class SecondaryWin(QtWidgets.QWidget):
             self.ibox.setSpacing(4)
             if tasklist_position == 0:
                 self.ibox.setAlignment(QtCore.Qt.AlignLeft)
+                #
+                pframe = QtWidgets.QFrame()
+                pframe.setFrameShape(QtWidgets.QFrame.VLine)
+                self.ibox.addWidget(pframe)
             elif tasklist_position == 1:
                 self.ibox.setAlignment(QtCore.Qt.AlignCenter)
             elif tasklist_position == 2:
@@ -224,7 +215,6 @@ class SecondaryWin(QtWidgets.QWidget):
                     #
                     self.list_prog.append([winid, on_desktop])
         #
-        print(self.list_prog)
         # current window active - window id
         self.curr_win_active = None
         # 
@@ -251,42 +241,65 @@ class SecondaryWin(QtWidgets.QWidget):
         if label1_script:
             self.labelw1 = QtWidgets.QLabel()
             self.abox.addWidget(self.labelw1)
-            if label1_color:
-                self.labelw1.setStyleSheet("color: {}".format(label1_color))
-            tfont = QtGui.QFont()
-            if label1_font:
-                tfont.setFamily(label1_font)
-            tfont.setPointSize(label1_font_size)
-            tfont.setWeight(label1_font_weight)
-            tfont.setItalic(label1_font_italic)
-            self.labelw1.setFont(tfont)
-            QtCore.QTimer.singleShot(100, self.update_label1)
-            timer = QtCore.QTimer(self)
-            timer.timeout.connect(self.update_label1)
-            timer.start(label1_script)
+            if label1_use_richtext:
+                self.labelw2.setTextFormat(QtCore.Qt.RichText)
+            else:
+                if label1_color:
+                    self.labelw1.setStyleSheet("color: {}".format(label1_color))
+                tfont = QtGui.QFont()
+                if label1_font:
+                    tfont.setFamily(label1_font)
+                tfont.setPointSize(label1_font_size)
+                tfont.setWeight(label1_font_weight)
+                tfont.setItalic(label1_font_italic)
+                self.labelw1.setFont(tfont)
+            #
+            self.l1p = QtCore.QProcess()
+            self.l1p.readyReadStandardOutput.connect(self.p1ready)
+            self.l1p.finished.connect(self.p1finished)
+            self.l1p.start("scripts/./label1.sh")
             
         # label 2
         if label2_script:
             self.labelw2 = QtWidgets.QLabel()
             self.abox.addWidget(self.labelw2)
-            if label2_color:
-                self.labelw2.setStyleSheet("color: {}".format(label2_color))
-            tfont = QtGui.QFont()
-            if label2_font:
-                tfont.setFamily(label2_font)
-            tfont.setPointSize(label2_font_size)
-            tfont.setWeight(label2_font_weight)
-            tfont.setItalic(label2_font_italic)
-            self.labelw2.setFont(tfont)
-            QtCore.QTimer.singleShot(100, self.update_label2)
-            timer = QtCore.QTimer(self)
-            timer.timeout.connect(self.update_label2)
-            timer.start(label2_script)
-        
+            if label2_use_richtext:
+                self.labelw2.setTextFormat(QtCore.Qt.RichText)
+            else:
+                if label2_color:
+                    self.labelw2.setStyleSheet("color: {}".format(label2_color))
+                tfont = QtGui.QFont()
+                if label2_font:
+                    tfont.setFamily(label2_font)
+                tfont.setPointSize(label2_font_size)
+                tfont.setWeight(label2_font_weight)
+                tfont.setItalic(label2_font_italic)
+                self.labelw2.setFont(tfont)
+            #
+            self.l2p = QtCore.QProcess()
+            self.l2p.readyReadStandardOutput.connect(self.p2ready)
+            self.l2p.finished.connect(self.p2finished)
+            self.l2p.start("scripts/./label2.sh")
         #
         if not fixed_position:
             QtCore.QTimer.singleShot(1500, self.on_leave_event)
-        
+    
+    def p1ready(self):
+        result = self.l1p.readAllStandardOutput().data().decode().strip("\n")
+        self.labelw1.setText(result)
+    
+    def p1finished(self):
+        self.l1p.close()
+        del self.l1p
+    
+    def p2ready(self):
+        result = self.l2p.readAllStandardOutput().data().decode().strip("\n")
+        self.labelw2.setText(result)
+    
+    def p2finished(self):
+        self.l2p.close()
+        del self.l2p
+    
     def update_label1(self):
         tt1 = subprocess.check_output(['scripts/label1.sh'])
         self.labelw1.setText(tt1.decode().strip("\n"))
@@ -297,9 +310,11 @@ class SecondaryWin(QtWidgets.QWidget):
     
     def on_pbtn(self):
         prog = self.sender().pexec
-        pp = QtCore.QProcess()
-        pp.setWorkingDirectory(os.getenv("HOME"))
-        pp.startDetached(prog)
+        # pp = QtCore.QProcess()
+        # pp.setWorkingDirectory(os.getenv("HOME"))
+        # pp.startDetached(prog)
+        # subprocess.Popen(prog, cwd=os.getenv("HOME"))
+        os.system("cd {} && {} &".format(os.getenv("HOME"), prog))
     
     # to get a window property
     def getProp(self, disp, win, prop):
@@ -312,7 +327,7 @@ class SecondaryWin(QtWidgets.QWidget):
     def contextMenuEvent(self, event):
         contextMenu = QtWidgets.QMenu(self)
         reloadAct = contextMenu.addAction("Reload")
-        quitAct = contextMenu.addAction("Quit")
+        quitAct = contextMenu.addAction("Exit")
         action = contextMenu.exec_(self.mapToGlobal(event.pos()))
         if action == quitAct:
             self.winClose()
@@ -331,7 +346,6 @@ class SecondaryWin(QtWidgets.QWidget):
     
     def threadslot(self, data):
         if data:
-            # new window
             if data[0] == "NEWWINDOW":
                 self.on_new_window()
             # active window
@@ -382,14 +396,13 @@ class SecondaryWin(QtWidgets.QWidget):
                         ppp = self.getProp(self.display, window,'DESKTOP')
                         on_desktop = ppp[0]
                         self.on_dock_items([w, on_desktop])
-                except: 
+                except:
                     pass
     
     # a window has been destroyed
     def delete_window_destroyed(self, window_list):
         for w in self.wid_l:
             if w not in window_list:
-                print("r:", w)
                 self.wid_l.remove(w)
                 self.on_remove_win(w)
 
@@ -508,6 +521,8 @@ class SecondaryWin(QtWidgets.QWidget):
             item = self.ibox.itemAt(i).widget()
             if not item:
                 continue
+            if isinstance(item, QtWidgets.QFrame):
+                continue
             if item.winid == window_id:
                 item.setChecked(True)
                 break
@@ -608,10 +623,10 @@ class SecondaryWin(QtWidgets.QWidget):
         self.btnMenu.addAction(self.close_prog)
         self.close_prog.triggered.connect(lambda:self.on_close_prog(btn))
         self.btnMenu.addSeparator()
-        self.restart_app_action = QtWidgets.QAction("Restart the program")
+        self.restart_app_action = QtWidgets.QAction("Restart")
         self.btnMenu.addAction(self.restart_app_action)
         self.restart_app_action.triggered.connect(self.restart)
-        self.close_app_action = QtWidgets.QAction("Close the program")
+        self.close_app_action = QtWidgets.QAction("Exit")
         self.btnMenu.addAction(self.close_app_action)
         self.close_app_action.triggered.connect(self.winClose)
         # show context menu
@@ -631,6 +646,7 @@ class SecondaryWin(QtWidgets.QWidget):
                 winid = btn.winid
                 window = self.display.create_resource_object('window', winid)
                 try:
+                    # win_name = window.get_wm_name()
                     win_name = window.get_full_property(self.display.intern_atom('_NET_WM_NAME'), 0).value
                     btn.setToolTip(str(win_name.decode(encoding='UTF-8')))
                 except: pass
@@ -678,12 +694,12 @@ class SecondaryWin(QtWidgets.QWidget):
         self.setGeometry(0, self.screen_size.height() - 10, WINW, dock_height)
         self.on_leave = None
     
+
 ################
 if __name__ == '__main__':
 
     app = QtWidgets.QApplication(sys.argv)
-    ########### sec_window
-    # 0 = left - 1 = right - 2 top - 3 bottom
+    ########### 
     sec_position = 3
     sec_window = SecondaryWin(sec_position)
     sec_window.setWindowFlags(sec_window.windowFlags() | QtCore.Qt.X11BypassWindowManagerHint)
@@ -711,6 +727,7 @@ if __name__ == '__main__':
             B = size.height() - reserved_space
         else:
             B = WINH
+    #
     _window.change_property(_display.intern_atom('_NET_WM_STRUT'),
                                 _display.intern_atom('CARDINAL'),
                                 32, [L, R, T, B])
@@ -741,6 +758,11 @@ if __name__ == '__main__':
     # set the icon style globally
     if icon_theme:
         QtGui.QIcon.setThemeName(icon_theme)
+    ################
+    ewmh.setWmState(_window, 1, '_NET_WM_STATE_SKIP_TASKBAR')
+    ewmh.setWmState(_window, 1, '_NET_WM_STATE_SKIP_PAGER')
+    ewmh.display.flush()
+    ewmh.display.sync()
     ################
     # 
     ret = app.exec_()
