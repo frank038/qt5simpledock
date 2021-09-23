@@ -1,3 +1,9 @@
 #!/bin/bash
 
-echo "2label2"
+i=1
+while :
+do
+	echo "22label22 "$i
+	i=$[i+1]
+	sleep 3
+done
