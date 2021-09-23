@@ -8,14 +8,15 @@ dock_height=60
 fixed_position=1
 # tasklist position: 0 left - 1 center - 2 right
 tasklist_position=0
-# space to reserve on desktop: it will not covered by windows
-reserved_space=10
+# space to reserve on desktop: it will not covered by windows (fixed_position=0 only)
+reserved_space=5
 # theme style: "" to use the default theme
 theme_style="Fusion"
 # icon theme: "" to use the default theme
 icon_theme=""
+######### label1
 # exec label1 script: 0 to disable - 1 yes
-label1_script=0
+label1_script=1
 # use html tags instead of plain text - override the next label1 options
 label1_use_richtext=0
 # label2 color: "" to default or in the form "#XXXXXX" "colour name"
@@ -28,12 +29,13 @@ label1_font_size=14
 label1_font_weight=75
 # font italic: 0 no - 1 yes
 label1_font_italic=0
+######### label2
 # execute label2 script: 0 to disable - 1 yes
 label2_script=0
 # use html tags instead of plain text - override the next label2 options
 label2_use_richtext=0
 # label2 color: "" to default or in the form "#XXXXXX" or "colour name"
-label2_color=""
+label2_color="red"
 # font to be used in the label
 label2_font=""
 # font size

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# V 0.2.6
+# V 0.3.0
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
 from shutil import which as sh_which
@@ -33,7 +33,7 @@ class winThread(QtCore.QThread):
         self.win_l = []
         self.root.change_attributes(event_mask=X.PropertyChangeMask)
     
-    ##### to get a window property or return [None]
+    ##### 
     def getProp(self, disp, win, prop):
         try:
             p = win.get_full_property(disp.intern_atom('_NET_WM_' + prop), 0)
@@ -42,9 +42,10 @@ class winThread(QtCore.QThread):
             return [None]
 
     def run(self):
+        
         while True:
             event = self.display.next_event()
-            
+                            
             # properties
             if (event.type == X.PropertyNotify):
                 if event.atom == self.display.intern_atom('_NET_NUMBER_OF_DESKTOPS'):
@@ -78,9 +79,6 @@ class SecondaryWin(QtWidgets.QWidget):
         super(SecondaryWin, self).__init__()
         self.position = position
         self.setWindowTitle("qt5simpledock")
-        self.setAttribute(QtCore.Qt.WA_X11NetWmWindowTypeDock)
-        self.setWindowFlags(self.windowFlags() | QtCore.Qt.Tool | QtCore.Qt.WindowDoesNotAcceptFocus)
-        self.setAttribute(QtCore.Qt.WA_AlwaysShowToolTips, True)
         #
         self.display = Display()
         self.root = self.display.screen().root
@@ -129,7 +127,7 @@ class SecondaryWin(QtWidgets.QWidget):
                 vbtn = QtWidgets.QPushButton()
                 vbtn.setFlat(True)
                 vbtn.setCheckable(True)
-                vbtn.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+                vbtn.setFixedSize(QtCore.QSize(int(dock_height*1.3), dock_height))
                 self.virtbox.addWidget(vbtn)
                 vbtn.desk = 0
                 vbtn.clicked.connect(self.on_vbtn_clicked)
@@ -180,7 +178,6 @@ class SecondaryWin(QtWidgets.QWidget):
                 #
                 pframe = QtWidgets.QFrame()
                 pframe.setFrameShape(QtWidgets.QFrame.VLine)
-                #pframe.setLineWidth(0.6)
                 self.ibox.addWidget(pframe)
             elif tasklist_position == 1:
                 self.ibox.setAlignment(QtCore.Qt.AlignCenter)
@@ -200,7 +197,9 @@ class SecondaryWin(QtWidgets.QWidget):
             self.fake_btn.setVisible(False)
             self.ibox.addWidget(self.fake_btn)
             self.abox.insertLayout(3, self.ibox)
-            self.abox.setStretchFactor(self.ibox,1)
+            #
+            if dock_width == 0:
+                self.abox.setStretchFactor(self.ibox,1)
         #
         ################################
         # winid - desktop
@@ -222,12 +221,12 @@ class SecondaryWin(QtWidgets.QWidget):
         #
         # current window active - window id
         self.curr_win_active = None
-        # lista delle finestre normali
+        # 
         self.wid_l = []
         # the right mouse button is pressed for menu
         self.right_button_pressed = 0
         #############
-        # self.list_prog: winid - desktop
+        # 
         icon_icon = None
         for pitem in self.list_prog:
             self.on_dock_items(pitem)
@@ -245,6 +244,7 @@ class SecondaryWin(QtWidgets.QWidget):
         # 
         if label1_script:
             self.labelw1 = QtWidgets.QLabel()
+            self.labelw1.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignVCenter)
             self.abox.addWidget(self.labelw1)
             if label1_use_richtext:
                 self.labelw2.setTextFormat(QtCore.Qt.RichText)
@@ -258,15 +258,17 @@ class SecondaryWin(QtWidgets.QWidget):
                 tfont.setWeight(label1_font_weight)
                 tfont.setItalic(label1_font_italic)
                 self.labelw1.setFont(tfont)
-            #
+            # 
             self.l1p = QtCore.QProcess()
             self.l1p.readyReadStandardOutput.connect(self.p1ready)
             self.l1p.finished.connect(self.p1finished)
             self.l1p.start("scripts/./label1.sh")
-            
+
+        #
         # label 2
         if label2_script:
             self.labelw2 = QtWidgets.QLabel()
+            self.labelw2.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignVCenter)
             self.abox.addWidget(self.labelw2)
             if label2_use_richtext:
                 self.labelw2.setTextFormat(QtCore.Qt.RichText)
@@ -285,10 +287,12 @@ class SecondaryWin(QtWidgets.QWidget):
             self.l2p.readyReadStandardOutput.connect(self.p2ready)
             self.l2p.finished.connect(self.p2finished)
             self.l2p.start("scripts/./label2.sh")
-        
         #
         if not fixed_position:
             QtCore.QTimer.singleShot(1500, self.on_leave_event)
+        #
+        if dock_width:
+            self.on_move_win()
     
     def p1ready(self):
         result = self.l1p.readAllStandardOutput().data().decode().strip("\n")
@@ -406,6 +410,9 @@ class SecondaryWin(QtWidgets.QWidget):
                         self.on_dock_items([w, on_desktop])
                 except:
                     pass
+        # 
+        if dock_width:
+            self.on_move_win()
     
     # a window has been destroyed
     def delete_window_destroyed(self, window_list):
@@ -413,6 +420,9 @@ class SecondaryWin(QtWidgets.QWidget):
             if w not in window_list:
                 self.wid_l.remove(w)
                 self.on_remove_win(w)
+        # 
+        if dock_width:
+            self.on_move_win()
 
     # 1
     # add or remove virtual desktops
@@ -422,7 +432,7 @@ class SecondaryWin(QtWidgets.QWidget):
         if n > 0:
             vbtn = QtWidgets.QPushButton()
             vbtn.setFlat(True)
-            vbtn.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+            vbtn.setFixedSize(QtCore.QSize(int(dock_height*1.3), dock_height))
             vbtn.setCheckable(True)
             vbtn.clicked.connect(self.on_vbtn_clicked)
             vbtn.desk = (ndesks - 1)
@@ -441,7 +451,6 @@ class SecondaryWin(QtWidgets.QWidget):
         winid = pitem[0]
         self.wid_l.append(winid)
         window = self.display.create_resource_object('window', winid)
-        # win_name = window.get_full_property(self.display.intern_atom('WM_CLASS'), X.AnyPropertyType)
         win_name_class = window.get_wm_class()[0]
         if win_name_class and QtGui.QIcon.hasThemeIcon(win_name_class):
             licon = QtGui.QIcon.fromTheme(win_name_class)
@@ -512,6 +521,23 @@ class SecondaryWin(QtWidgets.QWidget):
         btn = QtWidgets.QPushButton()
         btn.setCheckable(True)
         btn.setFlat(True)
+        hpalette = self.palette().dark().color().name()
+        csaa = ("QPushButton::checked { border: none;")
+        csab = ("background-color: {};".format(hpalette))
+        csac = ("border-radius: 9px; border-style: outset; padding: 5px;")
+        csad = ("text-align: center; }")
+        csae = ("QPushButton { text-align: center; padding: 5px; }")
+        csaf1 = ("QPushButton::hover:!pressed {")
+        csaf2 = ("background-color: {};".format(hpalette))
+        csaf3 = ("border-radius: 9px;"
+        "border-style: outset;"
+        "padding: 5px;"
+        "text-align: center;"
+        "padding: 5px;"
+        "}")
+        csaf = csaf1+csaf2+csaf3
+        csa = csaa+csab+csac+csad+csae+csaf
+        btn.setStyleSheet(csa)
         btn.setAutoExclusive(True)
         btn.clicked.connect(self.on_btn_clicked)
         btn.setFixedSize(QtCore.QSize(dock_height, dock_height))
@@ -535,11 +561,10 @@ class SecondaryWin(QtWidgets.QWidget):
             item = self.ibox.itemAt(i).widget()
             if not item:
                 continue
-            if isinstance(item, QtWidgets.QFrame):
-                continue
-            if item.winid == window_id:
-                item.setChecked(True)
-                break
+            if isinstance(item, QtWidgets.QPushButton):
+                if item.winid == window_id:
+                    item.setChecked(True)
+                    break
     
     # 4
     def on_btn_clicked(self):
@@ -600,16 +625,18 @@ class SecondaryWin(QtWidgets.QWidget):
         # no active window
         if window_id == 0:
             self.fake_btn.setChecked(True)
+            # self.checked_btn = None
         #
         else:
             window = self.display.create_resource_object('window', window_id)
             is_found = 0
             for i in range(self.ibox.count()):
                 btn = self.ibox.itemAt(i).widget()
-                if btn.winid == window_id:
-                    btn.setChecked(True)
-                    is_found = 1
-                    break
+                if isinstance(btn, QtWidgets.QPushButton):
+                    if btn.winid == window_id:
+                        btn.setChecked(True)
+                        is_found = 1
+                        break
             if not is_found:
                 # in case no window has been activated
                 self.fake_btn.setChecked(True)
@@ -620,13 +647,13 @@ class SecondaryWin(QtWidgets.QWidget):
         ibox_num = self.ibox.count()
         for i in range(ibox_num):
             item = self.ibox.itemAt(i).widget()
-            winid = item.winid
-            if pitem == winid:
-                self.ibox.removeWidget(item)
-                item.deleteLater()
-                break
+            if isinstance(item, QtWidgets.QPushButton):
+                winid = item.winid
+                if pitem == winid:
+                    self.ibox.removeWidget(item)
+                    item.deleteLater()
+                    break
     
-
     # right menu of each application button
     def btnClicked(self, QPos):
         self.right_button_pressed = 1
@@ -654,16 +681,19 @@ class SecondaryWin(QtWidgets.QWidget):
         self.right_button_pressed = 0
     
     
-    def eventFilter(self, btn, event):
-        if event.type() == QtCore.QEvent.HoverEnter:
-            if not self.right_button_pressed:
-                winid = btn.winid
-                window = self.display.create_resource_object('window', winid)
-                try:
-                    win_name = window.get_full_property(self.display.intern_atom('_NET_WM_NAME'), 0).value
-                    btn.setToolTip(str(win_name.decode(encoding='UTF-8')))
-                except: pass
-        return super(SecondaryWin, self).eventFilter(btn, event)
+    def eventFilter(self, widget, event):
+        if isinstance(widget, QtWidgets.QPushButton):
+            if event.type() == QtCore.QEvent.HoverEnter:
+                if not self.right_button_pressed:
+                    winid = widget.winid
+                    window = self.display.create_resource_object('window', winid)
+                    try:
+                        win_name = window.get_full_property(self.display.intern_atom('_NET_WM_NAME'), 0).value
+                        widget.setToolTip(str(win_name.decode(encoding='UTF-8')))
+                    except: pass
+        else:
+            return False
+        return super(SecondaryWin, self).eventFilter(widget, event)
     
     
     # the virtual desktop button
@@ -674,12 +704,17 @@ class SecondaryWin(QtWidgets.QWidget):
     
     # move the window when a button is added or removed
     def on_move_win(self):
-        return
+        self.adjustSize()
+        self.updateGeometry()
+        self.resize(self.sizeHint())
         #
         if self.position in [0, 1]:
             pass
         elif self.position in [2,3]:
-            sx = int((self.screen_size.width() - WINW)/2)
+            if dock_width:
+                sx = int((self.screen_size.width() - self.size().width())/2)
+            else:
+                sx = int((self.screen_size.width() - WINW)/2)
             if sec_position == 2:
                 sy = 0
             elif sec_position == 3:
@@ -693,7 +728,12 @@ class SecondaryWin(QtWidgets.QWidget):
                 self.on_leave.stop()
                 self.on_leave.deleteLater()
                 self.on_leave = None
-            self.setGeometry(0, self.screen_size.height() - dock_height, WINW, dock_height)
+            sw = self.screen_size.width()
+            if dock_width:
+                sx = int((sw - self.size().width()) / 2)
+            else:
+                sx = 0
+            self.setGeometry(sx, self.screen_size.height() - dock_height, WINW, dock_height)
         return super(SecondaryWin, self).enterEvent(event)
 
     def leaveEvent(self, event):
@@ -704,7 +744,12 @@ class SecondaryWin(QtWidgets.QWidget):
         return super(SecondaryWin, self).enterEvent(event)
     
     def on_leave_event(self):
-        self.setGeometry(0, self.screen_size.height() - 10, WINW, dock_height)
+        sw = self.screen_size.width()
+        if dock_width:
+            sx = int((sw - self.size().width()) / 2)
+        else:
+            sx = 0
+        self.setGeometry(sx, self.screen_size.height() - reserved_space, WINW, dock_height)
         self.on_leave = None
     
 
@@ -712,11 +757,13 @@ class SecondaryWin(QtWidgets.QWidget):
 if __name__ == '__main__':
 
     app = QtWidgets.QApplication(sys.argv)
-    ########### 
-    # 0 = left - 1 = right - 2 top - 3 bottom
+    ########### sec_window
     sec_position = 3
     sec_window = SecondaryWin(sec_position)
-    sec_window.setWindowFlags(sec_window.windowFlags() | QtCore.Qt.X11BypassWindowManagerHint)
+    sec_window.setAttribute(QtCore.Qt.WA_X11NetWmWindowTypeDock)
+    # self.setWindowFlags(self.windowFlags() | QtCore.Qt.Tool | QtCore.Qt.WindowDoesNotAcceptFocus)
+    sec_window.setWindowFlags(sec_window.windowFlags() | QtCore.Qt.WindowDoesNotAcceptFocus)
+    sec_window.setAttribute(QtCore.Qt.WA_AlwaysShowToolTips, True)
     screen = app.primaryScreen()
     size = screen.size()
     if dock_width:
@@ -738,7 +785,7 @@ if __name__ == '__main__':
             T = WINH
     elif sec_position == 3:
         if not fixed_position:
-            B = size.height() - reserved_space
+            B = reserved_space
         else:
             B = WINH
     #
@@ -764,6 +811,10 @@ if __name__ == '__main__':
         elif sec_position == 3:
             sy = size.height() - WINH
         sec_window.setGeometry(sx, sy, WINW, WINH)
+        if dock_width == 0:
+            sec_window.setFixedSize(WINW, WINH)
+        else:
+            sec_window.setMaximumSize(size.width(), WINH)
     ############
     # set new style globally
     if theme_style:
