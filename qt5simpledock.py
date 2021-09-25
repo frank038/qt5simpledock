@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-# V 0.3.0
+# V 0.4.0
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
-from shutil import which as sh_which
+import shutil
 from Xlib.display import Display
 from Xlib import X, Xatom, Xutil
 import Xlib.protocol.event as pe
@@ -16,6 +16,8 @@ from cfg_dock import *
 # width and height of the program
 WINW = 0
 WINH = 0
+
+_window = None
 
 #############
 stopCD = 0
@@ -42,10 +44,9 @@ class winThread(QtCore.QThread):
             return [None]
 
     def run(self):
-        
         while True:
             event = self.display.next_event()
-                            
+            
             # properties
             if (event.type == X.PropertyNotify):
                 if event.atom == self.display.intern_atom('_NET_NUMBER_OF_DESKTOPS'):
@@ -111,11 +112,36 @@ class SecondaryWin(QtWidgets.QWidget):
             self.abox.addLayout(self.ibox)
         # 3 top - 4 bottom
         elif self.position in [2,3]:
-            self.abox = QtWidgets.QHBoxLayout()
-            self.abox.setContentsMargins(0,0,0,0)
-            self.abox.setDirection(QtWidgets.QBoxLayout.LeftToRight)
-            self.abox.setSpacing(0)
-            self.setLayout(self.abox)
+            if with_compositor:
+                self.mainBox = QtWidgets.QHBoxLayout()
+                self.setLayout(self.mainBox)
+                #
+                self.abox = QtWidgets.QHBoxLayout()
+                self.abox.setContentsMargins(0,0,0,0)
+                self.abox.setDirection(QtWidgets.QBoxLayout.LeftToRight)
+                self.abox.setSpacing(0)
+                #
+                self.frame=QtWidgets.QFrame(self)
+                self.frame.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+                self.frame.setLayout(self.abox)
+                self.mainBox.addWidget(self.frame)
+                self.frame.setStyleSheet("background: palette(window); border-radius:{}px".format(border_radius))
+                self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+                #
+                self.mainBox.setContentsMargins(10,10,10,10)
+                shadow_effect = QtWidgets.QGraphicsDropShadowEffect(
+                        blurRadius=blur_radius,
+                        offset=QtCore.QPointF(5, 5)
+                    )
+                self.setGraphicsEffect(shadow_effect)
+                #
+            else:
+                self.abox = QtWidgets.QHBoxLayout()
+                self.abox.setContentsMargins(0,0,0,0)
+                self.abox.setDirection(QtWidgets.QBoxLayout.LeftToRight)
+                self.abox.setSpacing(0)
+                self.setLayout(self.abox)
+            #
             ## virtual desktop box
             self.virtbox = QtWidgets.QHBoxLayout()
             self.virtbox.setContentsMargins(0,0,0,0)
@@ -166,8 +192,11 @@ class SecondaryWin(QtWidgets.QWidget):
                     pbtn.setToolTip(fname or pexec)
                     pbtn.setIcon(picon)
                     pbtn.pexec = pexec
+                    pbtn.pdesktop = ffile
                     self.prog_box.addWidget(pbtn)
                     pbtn.clicked.connect(self.on_pbtn)
+                    pbtn.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+                    pbtn.customContextMenuRequested.connect(self.pbtnClicked)
             #
             ## application icons box
             self.ibox = QtWidgets.QHBoxLayout()
@@ -197,10 +226,8 @@ class SecondaryWin(QtWidgets.QWidget):
             self.fake_btn.setVisible(False)
             self.ibox.addWidget(self.fake_btn)
             self.abox.insertLayout(3, self.ibox)
-            #
             if dock_width == 0:
                 self.abox.setStretchFactor(self.ibox,1)
-        #
         ################################
         # winid - desktop
         self.list_prog = []
@@ -216,17 +243,22 @@ class SecondaryWin(QtWidgets.QWidget):
                 if prop.value.tolist()[0] == self.display.intern_atom('_NET_WM_WINDOW_TYPE_NORMAL'):
                     ppp = self.getProp(self.display,window,'DESKTOP')
                     on_desktop = ppp[0]
+                    # the exec name
+                    win_name_t = window.get_wm_class()
+                    if win_name_t is not None:
+                        win_exec = str(win_name_t[0])
+                    else:
+                        win_exec == "Unknown"
                     #
-                    self.list_prog.append([winid, on_desktop])
+                    self.list_prog.append([winid, on_desktop, win_exec])
         #
         # current window active - window id
         self.curr_win_active = None
-        # 
         self.wid_l = []
         # the right mouse button is pressed for menu
         self.right_button_pressed = 0
         #############
-        # 
+        # self.list_prog: winid - desktop
         icon_icon = None
         for pitem in self.list_prog:
             self.on_dock_items(pitem)
@@ -282,7 +314,7 @@ class SecondaryWin(QtWidgets.QWidget):
                 tfont.setWeight(label2_font_weight)
                 tfont.setItalic(label2_font_italic)
                 self.labelw2.setFont(tfont)
-            #
+            ###
             self.l2p = QtCore.QProcess()
             self.l2p.readyReadStandardOutput.connect(self.p2ready)
             self.l2p.finished.connect(self.p2finished)
@@ -357,7 +389,6 @@ class SecondaryWin(QtWidgets.QWidget):
     
     def threadslot(self, data):
         if data:
-            # new window
             if data[0] == "NEWWINDOW":
                 self.on_new_window()
             # active window
@@ -407,7 +438,14 @@ class SecondaryWin(QtWidgets.QWidget):
                     if not self.display.intern_atom("_NET_WM_STATE_SKIP_TASKBAR") in window.get_full_property(self.display.intern_atom("_NET_WM_STATE"), Xatom.ATOM).value:
                         ppp = self.getProp(self.display, window,'DESKTOP')
                         on_desktop = ppp[0]
-                        self.on_dock_items([w, on_desktop])
+                         # the exec name
+                        win_name_t = window.get_wm_class()
+                        if win_name_t is not None:
+                            win_exec = str(win_name_t[0])
+                        else:
+                            win_exec == "Unknown"
+                        #
+                        self.on_dock_items([w, on_desktop, win_exec])
                 except:
                     pass
         # 
@@ -521,6 +559,7 @@ class SecondaryWin(QtWidgets.QWidget):
         btn = QtWidgets.QPushButton()
         btn.setCheckable(True)
         btn.setFlat(True)
+        #
         hpalette = self.palette().dark().color().name()
         csaa = ("QPushButton::checked { border: none;")
         csab = ("background-color: {};".format(hpalette))
@@ -538,6 +577,7 @@ class SecondaryWin(QtWidgets.QWidget):
         csaf = csaf1+csaf2+csaf3
         csa = csaa+csab+csac+csad+csae+csaf
         btn.setStyleSheet(csa)
+        #
         btn.setAutoExclusive(True)
         btn.clicked.connect(self.on_btn_clicked)
         btn.setFixedSize(QtCore.QSize(dock_height, dock_height))
@@ -545,6 +585,7 @@ class SecondaryWin(QtWidgets.QWidget):
         btn.setIconSize(QtCore.QSize(dock_height-8, dock_height-8))
         btn.winid = pitem[0]
         btn.desktop = pitem[1]
+        btn.pexec = pitem[2]
         btn.installEventFilter(self)
         if pitem[1] == 0:
             self.ibox.addWidget(btn)
@@ -625,7 +666,6 @@ class SecondaryWin(QtWidgets.QWidget):
         # no active window
         if window_id == 0:
             self.fake_btn.setChecked(True)
-            # self.checked_btn = None
         #
         else:
             window = self.display.create_resource_object('window', window_id)
@@ -654,6 +694,146 @@ class SecondaryWin(QtWidgets.QWidget):
                     item.deleteLater()
                     break
     
+    # check if the application is already in the launcher
+    def on_pin(self, pexec):
+        if pexec == "Unknown":
+            return 0
+        ## add the applications to prog_box
+        progs = os.listdir("applications")
+        if progs:
+            for ffile in progs:
+                entry = DesktopEntry.DesktopEntry(os.path.join("applications", ffile))
+                pgexec = entry.getExec().split()[0]
+                # the program is already pinned
+                if pgexec == pexec:
+                    return 0
+            #
+            return 1
+        #
+        else:
+            return 1
+        
+    # add the application in the launcher
+    def on_pin_add_pin(self, pexec):
+        app_dirs = ["/usr/share/applications", "/usr/local/share/applications", os.path.expanduser("~")+"/.local/share/applications"]
+        # full desktop file path - exec - name - icon
+        app_found = []
+        for ddir in app_dirs:
+            if os.path.exists(ddir):
+                ffiles = os.listdir(ddir)
+                for ffile in ffiles:
+                    if ffile.split(".")[1] != "desktop":
+                        continue
+                    #
+                    try:
+                        entry = DesktopEntry.DesktopEntry(os.path.join(ddir, ffile))
+                        pgexec = entry.getExec().split()
+                        # the program is already pinned
+                        if pgexec:
+                            if pgexec[0] == pexec:
+                                fname = entry.getName()
+                                ficon = entry.getIcon()
+                                app_found.append([os.path.join(ddir, ffile), pgexec, fname, ficon or "unknown"])
+                    except Exception as E:
+                        dlg = showDialog(1, str(E), self)
+                        result = dlg.exec_()
+                        dlg.close()
+        #
+        if len(app_found) == 1:
+            # copy the application in the folder applications
+            shutil.copy(app_found[0][0], "applications"+"/"+os.path.basename(app_found[0][0]))
+            # add the button
+            pbtn = QtWidgets.QPushButton()
+            pbtn.setFlat(True)
+            icon = app_found[0][3]
+            fname = app_found[0][2]
+            picon = QtGui.QIcon.fromTheme(icon)
+            if picon.isNull():
+                image = QtGui.QImage(icon)
+                if image.isNull():
+                    image = QtGui.QImage("icons/unknown.svg")
+                pixmap = QtGui.QPixmap(image)
+                picon = QtGui.QIcon(pixmap)
+            pbtn.setFixedSize(QtCore.QSize(dock_height, dock_height))
+            pbtn.setIcon(picon)
+            pbtn.setIconSize(pbtn.size())
+            pbtn.setToolTip(fname or pexec)
+            pbtn.setIcon(picon)
+            pbtn.pexec = pexec
+            pbtn.pdesktop = os.path.basename(app_found[0][0])
+            self.prog_box.addWidget(pbtn)
+            pbtn.clicked.connect(self.on_pbtn)
+            pbtn.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+            pbtn.customContextMenuRequested.connect(self.pbtnClicked)
+        elif len(app_found) > 1:
+            idx = None
+            dlg = chooseDialog(app_found, self)
+            result = dlg.exec_()
+            if result == QtWidgets.QDialog.Accepted:
+                # index - string
+                idx = int(dlg.getItem())
+                dlg.close()
+            else:
+                dlg.close()
+            if idx:
+                shutil.copy(app_found[idx][0], "applications"+"/"+os.path.basename(app_found[idx][0]))
+                # add the button
+                pbtn = QtWidgets.QPushButton()
+                pbtn.setFlat(True)
+                icon = app_found[idx][3]
+                fname = app_found[idx][2]
+                picon = QtGui.QIcon.fromTheme(icon)
+                if picon.isNull():
+                    image = QtGui.QImage(icon)
+                    if image.isNull():
+                        image = QtGui.QImage("icons/unknown.svg")
+                    pixmap = QtGui.QPixmap(image)
+                    picon = QtGui.QIcon(pixmap)
+                pbtn.setFixedSize(QtCore.QSize(dock_height, dock_height))
+                pbtn.setIcon(picon)
+                pbtn.setIconSize(pbtn.size())
+                pbtn.setToolTip(fname or pexec)
+                pbtn.setIcon(picon)
+                pbtn.pexec = pexec
+                pbtn.pdesktop = os.path.basename(app_found[idx][0])
+                self.prog_box.addWidget(pbtn)
+                pbtn.clicked.connect(self.on_pbtn)
+                pbtn.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+                pbtn.customContextMenuRequested.connect(self.pbtnClicked)
+        elif len(app_found) == 0:
+            # message
+            dlg = showDialog(1, "No file desktop found.", self)
+            result = dlg.exec_()
+            dlg.close()
+    
+    # right menu of each launcher program button
+    def pbtnClicked(self, QPos):
+        pbtn = self.sender()
+        # create context menu
+        self.pbtnMenu = QtWidgets.QMenu(self)
+        self.unpin_prog = QtWidgets.QAction("Unpin")
+        self.pbtnMenu.addAction(self.unpin_prog)
+        self.unpin_prog.triggered.connect(lambda:self.on_unpin_prog(pbtn.pdesktop))
+        # show context menu
+        self.pbtnMenu.exec_(self.sender().mapToGlobal(QPos)) 
+    
+    # unpin the program from the launchbar
+    def on_unpin_prog(self, pdesktop):
+        try:
+            os.remove("applications"+"/"+pdesktop)
+            for i in range(len(self.prog_box)):
+                item = self.prog_box.itemAt(i)
+                if isinstance(item.widget(), QtWidgets.QPushButton):
+                    widget = item.widget()
+                    if widget.pdesktop == pdesktop:
+                        item.widget().deleteLater()
+                        break
+        except Exception as E:
+            # message
+            dlg = showDialog(1, str(E), self)
+            result = dlg.exec_()
+            dlg.close()
+    
     # right menu of each application button
     def btnClicked(self, QPos):
         self.right_button_pressed = 1
@@ -663,8 +843,14 @@ class SecondaryWin(QtWidgets.QWidget):
         self.close_prog = QtWidgets.QAction("Close")
         self.btnMenu.addAction(self.close_prog)
         self.close_prog.triggered.connect(lambda:self.on_close_prog(btn))
+        # 
+        ret = self.on_pin(btn.pexec)
+        if ret:
+            self.pin_ac = QtWidgets.QAction("Pin")
+            self.btnMenu.addAction(self.pin_ac)
+            self.pin_ac.triggered.connect(lambda:self.on_pin_add_pin(btn.pexec))
         self.btnMenu.addSeparator()
-        self.restart_app_action = QtWidgets.QAction("Restart")
+        self.restart_app_action = QtWidgets.QAction("Reload")
         self.btnMenu.addAction(self.restart_app_action)
         self.restart_app_action.triggered.connect(self.restart)
         self.close_app_action = QtWidgets.QAction("Exit")
@@ -719,7 +905,11 @@ class SecondaryWin(QtWidgets.QWidget):
                 sy = 0
             elif sec_position == 3:
                 sy = self.screen_size.height() - WINH
-            self.move(sx, sy)
+            # 
+            if with_compositor:
+                self.move(sx, sy - 20)
+            else:
+                self.move(sx, sy)
 
     
     def enterEvent(self, event):
@@ -728,12 +918,11 @@ class SecondaryWin(QtWidgets.QWidget):
                 self.on_leave.stop()
                 self.on_leave.deleteLater()
                 self.on_leave = None
-            sw = self.screen_size.width()
-            if dock_width:
-                sx = int((sw - self.size().width()) / 2)
-            else:
-                sx = 0
-            self.setGeometry(sx, self.screen_size.height() - dock_height, WINW, dock_height)
+            #
+            ewmh.setWmState(_window, 0, '_NET_WM_STATE_BELOW')
+            ewmh.setWmState(_window, 1, '_NET_WM_STATE_ABOVE')
+            ewmh.display.flush()
+            ewmh.display.sync()
         return super(SecondaryWin, self).enterEvent(event)
 
     def leaveEvent(self, event):
@@ -744,15 +933,83 @@ class SecondaryWin(QtWidgets.QWidget):
         return super(SecondaryWin, self).enterEvent(event)
     
     def on_leave_event(self):
-        sw = self.screen_size.width()
-        if dock_width:
-            sx = int((sw - self.size().width()) / 2)
-        else:
-            sx = 0
-        self.setGeometry(sx, self.screen_size.height() - reserved_space, WINW, dock_height)
+        ewmh.setWmState(_window, 0, '_NET_WM_STATE_ABOVE')
+        ewmh.setWmState(_window, 1, '_NET_WM_STATE_BELOW')
+        ewmh.display.flush()
+        ewmh.display.sync()
         self.on_leave = None
     
+############## 
 
+class chooseDialog(QtWidgets.QDialog):
+    def __init__(self, progs, parent):
+        super().__init__(parent)
+        self.setWindowTitle("Info")
+        self.progs = progs
+        QBtn = QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
+        self.buttonBox = QtWidgets.QDialogButtonBox(QBtn)
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
+        
+        self.layout = QtWidgets.QVBoxLayout()
+        message = QtWidgets.QLabel("Choose which application to add:")
+        self.layout.addWidget(message)
+        #
+        self.TWD = QtWidgets.QTreeWidget()
+        self.TWD.setHeaderLabels(["Applications"])
+        self.TWD.setAlternatingRowColors(False)
+        self.TWD.itemClicked.connect(self.fitem)
+        self.layout.addWidget(self.TWD)
+        #
+        self.item_accepted = None
+        for iitem in self.progs:
+            idx = self.progs.index(iitem)
+            tl = QtWidgets.QTreeWidgetItem([" ".join(iitem[1]), str(idx)])
+            self.TWD.addTopLevelItem(tl)
+        #
+        self.layout.addWidget(self.buttonBox)
+        #
+        self.setLayout(self.layout)
+        self.updateGeometry()
+        qr = self.frameGeometry()
+        cp = QtWidgets.QDesktopWidget().availableGeometry().center()
+        qr.moveCenter(cp)
+        self.move(qr.topLeft())
+    
+    def fitem(self, item, col):
+        self.item_accepted = item.text(1)
+    
+    def getItem(self):
+        return self.item_accepted
+
+
+class showDialog(QtWidgets.QDialog):
+    def __init__(self, dtype, lcontent, parent):
+        super().__init__(parent)
+        
+        self.setWindowTitle("Info")
+        
+        if dtype == 1:
+            QBtn = QtWidgets.QDialogButtonBox.Ok
+        elif dtype == 2:
+            QBtn = QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
+
+        self.buttonBox = QtWidgets.QDialogButtonBox(QBtn)
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
+
+        self.layout = QtWidgets.QVBoxLayout()
+        message = QtWidgets.QLabel(lcontent)
+        self.layout.addWidget(message)
+        self.layout.addWidget(self.buttonBox)
+        self.setLayout(self.layout)
+        
+        qr = self.frameGeometry()
+        cp = QtWidgets.QDesktopWidget().availableGeometry().center()
+        qr.moveCenter(cp)
+        self.move(qr.topLeft())
+
+        
 ################
 if __name__ == '__main__':
 
@@ -760,10 +1017,9 @@ if __name__ == '__main__':
     ########### sec_window
     sec_position = 3
     sec_window = SecondaryWin(sec_position)
-    sec_window.setAttribute(QtCore.Qt.WA_X11NetWmWindowTypeDock)
-    # self.setWindowFlags(self.windowFlags() | QtCore.Qt.Tool | QtCore.Qt.WindowDoesNotAcceptFocus)
     sec_window.setWindowFlags(sec_window.windowFlags() | QtCore.Qt.WindowDoesNotAcceptFocus)
     sec_window.setAttribute(QtCore.Qt.WA_AlwaysShowToolTips, True)
+    sec_window.setAttribute(QtCore.Qt.WA_X11NetWmWindowTypeDock)
     screen = app.primaryScreen()
     size = screen.size()
     if dock_width:
@@ -787,8 +1043,11 @@ if __name__ == '__main__':
         if not fixed_position:
             B = reserved_space
         else:
-            B = WINH
-    #
+            if with_compositor:
+                B = WINH + 10
+            else:
+                B = WINH
+    # 
     _window.change_property(_display.intern_atom('_NET_WM_STRUT'),
                                 _display.intern_atom('CARDINAL'),
                                 32, [L, R, T, B])
@@ -799,6 +1058,7 @@ if __name__ == '__main__':
                            [L, R, T, B, 0, 0, 0, 0, x, y, T, B],
                            X.PropModeReplace)
     _display.sync()
+    #
     sec_window.show()
     #############
     # move and center the window
@@ -809,8 +1069,12 @@ if __name__ == '__main__':
         if sec_position == 2:
             sy = 0
         elif sec_position == 3:
-            sy = size.height() - WINH
-        sec_window.setGeometry(sx, sy, WINW, WINH)
+            if with_compositor:
+                sy = size.height() - WINH - 20
+            else:
+                sy = size.height() - WINH
+        # 
+        sec_window.move(sx, sy)
         if dock_width == 0:
             sec_window.setFixedSize(WINW, WINH)
         else:
