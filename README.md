@@ -13,7 +13,7 @@ This program needs:
 
 Features:
 - virtual desktops
-- application launchers (using the menu applications can be pinned and unpinned; the file delete_me needs to be deleted before using this program)
+- application launchers (using the menu applications can be pinned and unpinned - a valid desktop file is required; the file delete_me needs to be deleted before using this program)
 - task list with icon support and application comment while hovering on it
 - two space for periodical user messaggings (just modify the files in the script folder; they accept both plain text or rich text; see the sample files)
 - closing applications by right mouse clicking on its icon
