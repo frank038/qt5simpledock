@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# V 0.4.0
+# V 0.5.0
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
 import shutil
@@ -204,10 +204,10 @@ class SecondaryWin(QtWidgets.QWidget):
             self.ibox.setSpacing(4)
             if tasklist_position == 0:
                 self.ibox.setAlignment(QtCore.Qt.AlignLeft)
-                #
-                pframe = QtWidgets.QFrame()
-                pframe.setFrameShape(QtWidgets.QFrame.VLine)
-                self.ibox.addWidget(pframe)
+                # #
+                # pframe = QtWidgets.QFrame()
+                # pframe.setFrameShape(QtWidgets.QFrame.VLine)
+                # self.ibox.addWidget(pframe)
             elif tasklist_position == 1:
                 self.ibox.setAlignment(QtCore.Qt.AlignCenter)
             elif tasklist_position == 2:
@@ -486,6 +486,8 @@ class SecondaryWin(QtWidgets.QWidget):
     # 2
     # add a button
     def on_dock_items(self, pitem):
+        if pitem[2] in SKIP_APP:
+            return
         winid = pitem[0]
         self.wid_l.append(winid)
         window = self.display.create_resource_object('window', winid)
@@ -567,7 +569,7 @@ class SecondaryWin(QtWidgets.QWidget):
         csad = ("text-align: center; }")
         csae = ("QPushButton { text-align: center; padding: 5px; }")
         csaf1 = ("QPushButton::hover:!pressed {")
-        csaf2 = ("background-color: {};".format(hpalette))
+        csaf2 = ("background-color: {};".format("#DF5E0B"))
         csaf3 = ("border-radius: 9px;"
         "border-style: outset;"
         "padding: 5px;"
@@ -884,6 +886,7 @@ class SecondaryWin(QtWidgets.QWidget):
     
     # the virtual desktop button
     def on_vbtn_clicked(self):
+        self.sender().setChecked(True)
         vdesk = self.sender().desk
         ewmh.setCurrentDesktop(vdesk)
         ewmh.display.flush()

@@ -20,6 +20,8 @@ with_compositor=0
 border_radius=15
 #
 blur_radius=15
+# application to be skipped from the dock (executables between double quotes with comma separator)
+SKIP_APP=[]
 ######### label1
 # exec label1 script: 0 to disable - 1 yes
 label1_script=1
