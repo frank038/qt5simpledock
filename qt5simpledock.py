@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# V 0.5.0
+# V 0.5.5
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
 import shutil
@@ -175,7 +175,13 @@ class SecondaryWin(QtWidgets.QWidget):
                     entry = DesktopEntry.DesktopEntry(os.path.join("applications", ffile))
                     fname = entry.getName()
                     icon = entry.getIcon()
-                    pexec = entry.getExec().split()[0]
+                    pexec_temp = entry.getExec()
+                    if pexec_temp:
+                        pexec = pexec_temp.split()[0]
+                    else:
+                        continue
+                    fpath = ""
+                    fpath = entry.getPath()
                     #
                     pbtn = QtWidgets.QPushButton()
                     pbtn.setFlat(True)
@@ -193,6 +199,7 @@ class SecondaryWin(QtWidgets.QWidget):
                     pbtn.setIcon(picon)
                     pbtn.pexec = pexec
                     pbtn.pdesktop = ffile
+                    pbtn.ppath = fpath
                     self.prog_box.addWidget(pbtn)
                     pbtn.clicked.connect(self.on_pbtn)
                     pbtn.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
@@ -350,14 +357,19 @@ class SecondaryWin(QtWidgets.QWidget):
         tt2 = subprocess.check_output(['scripts/label2.sh'])
         self.labelw2.setText(tt2.decode().strip("\n"))
     
+    # launch the application from the prog_box
     def on_pbtn(self):
         prog = self.sender().pexec
+        path = self.sender().ppath
         # pp = QtCore.QProcess()
         # pp.setWorkingDirectory(os.getenv("HOME"))
         # pp.startDetached(prog)
         # subprocess.Popen(prog, cwd=os.getenv("HOME"))
         # subprocess.run(prog, cwd=os.getenv("HOME"))
-        os.system("cd {} && {} &".format(os.getenv("HOME"), prog))
+        if path:
+            os.system("cd {} && {} & cd {} &".format(path, prog, os.getenv("HOME")))
+        else:
+            os.system("cd {} && {} &".format(os.getenv("HOME"), prog))
     
     # to get a window property
     def getProp(self, disp, win, prop):
@@ -705,7 +717,15 @@ class SecondaryWin(QtWidgets.QWidget):
         if progs:
             for ffile in progs:
                 entry = DesktopEntry.DesktopEntry(os.path.join("applications", ffile))
-                pgexec = entry.getExec().split()[0]
+                pgexec_temp = ""
+                try:
+                    pgexec_temp = entry.getTryExec()
+                except:
+                    pass
+                if pgexec_temp:
+                    pgexec = os.path.basename(pgexec_temp)
+                else:
+                    pgexec = entry.getExec().split()[0]
                 # the program is already pinned
                 if pgexec == pexec:
                     return 0
@@ -729,13 +749,27 @@ class SecondaryWin(QtWidgets.QWidget):
                     #
                     try:
                         entry = DesktopEntry.DesktopEntry(os.path.join(ddir, ffile))
-                        pgexec = entry.getExec().split()
+                        pgexec_temp = ""
+                        try:
+                            pgexec_temp = entry.getTryExec()
+                        except Exception as E:
+                            pass
+                        if pgexec_temp:
+                            pgexec = os.path.basename(pgexec_temp)
+                        else:
+                            try:
+                                pgexeca = entry.getExec()
+                                if pgexeca:
+                                    pgexec = pgexeca.split()[0]
+                            except:
+                                pass
                         # the program is already pinned
                         if pgexec:
-                            if pgexec[0] == pexec:
+                            if pgexec == pexec:
                                 fname = entry.getName()
                                 ficon = entry.getIcon()
-                                app_found.append([os.path.join(ddir, ffile), pgexec, fname, ficon or "unknown"])
+                                fpath = entry.getPath()
+                                app_found.append([os.path.join(ddir, ffile), pgexec, fname, ficon or "unknown", fpath or ""])
                     except Exception as E:
                         dlg = showDialog(1, str(E), self)
                         result = dlg.exec_()
@@ -749,6 +783,7 @@ class SecondaryWin(QtWidgets.QWidget):
             pbtn.setFlat(True)
             icon = app_found[0][3]
             fname = app_found[0][2]
+            fpath = app_found[0][4]
             picon = QtGui.QIcon.fromTheme(icon)
             if picon.isNull():
                 image = QtGui.QImage(icon)
@@ -763,6 +798,7 @@ class SecondaryWin(QtWidgets.QWidget):
             pbtn.setIcon(picon)
             pbtn.pexec = pexec
             pbtn.pdesktop = os.path.basename(app_found[0][0])
+            pbtn.ppath = fpath
             self.prog_box.addWidget(pbtn)
             pbtn.clicked.connect(self.on_pbtn)
             pbtn.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
@@ -1051,9 +1087,9 @@ if __name__ == '__main__':
             else:
                 B = WINH
     # 
-    _window.change_property(_display.intern_atom('_NET_WM_STRUT'),
-                                _display.intern_atom('CARDINAL'),
-                                32, [L, R, T, B])
+    # _window.change_property(_display.intern_atom('_NET_WM_STRUT'),
+                                # _display.intern_atom('CARDINAL'),
+                                # 32, [L, R, T, B])
     x = 0
     y = x+WINW-1
     _window.change_property(_display.intern_atom('_NET_WM_STRUT_PARTIAL'),
@@ -1091,10 +1127,10 @@ if __name__ == '__main__':
     if icon_theme:
         QtGui.QIcon.setThemeName(icon_theme)
     ################
-    ewmh.setWmState(_window, 1, '_NET_WM_STATE_SKIP_TASKBAR')
-    ewmh.setWmState(_window, 1, '_NET_WM_STATE_SKIP_PAGER')
-    ewmh.display.flush()
-    ewmh.display.sync()
+    # ewmh.setWmState(_window, 1, '_NET_WM_STATE_SKIP_TASKBAR')
+    # ewmh.setWmState(_window, 1, '_NET_WM_STATE_SKIP_PAGER')
+    # ewmh.display.flush()
+    # ewmh.display.sync()
     ################
     # 
     ret = app.exec_()
