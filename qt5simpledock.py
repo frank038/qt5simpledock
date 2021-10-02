@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# V 0.5.6
+# V 0.5.7
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
 import shutil
@@ -494,9 +494,10 @@ class SecondaryWin(QtWidgets.QWidget):
                 self.virtbox.addWidget(vbtn)
         elif n < 0:
             # remove the virtual desktop widget
-            item = self.virtbox.itemAt(curr_ndesks-1).widget()
-            self.virtbox.removeWidget(item)
-            item.deleteLater()
+            for i in range(abs(n)):
+                item = self.virtbox.itemAt(curr_ndesks-1-i).widget()
+                self.virtbox.removeWidget(item)
+                item.deleteLater()
         # check the button
         for i in range(self.virtbox.count()):
             item = self.virtbox.itemAt(i).widget()
