@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# V 0.5.5
+# V 0.5.6
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
 import shutil
@@ -18,6 +18,7 @@ WINW = 0
 WINH = 0
 
 _window = None
+windowID = None
 
 #############
 stopCD = 0
@@ -152,13 +153,12 @@ class SecondaryWin(QtWidgets.QWidget):
             if show_virt_desk:
                 vbtn = QtWidgets.QPushButton()
                 vbtn.setFlat(True)
+                # vbtn.setAutoExclusive(True)
                 vbtn.setCheckable(True)
                 vbtn.setFixedSize(QtCore.QSize(int(dock_height*1.3), dock_height))
                 self.virtbox.addWidget(vbtn)
                 vbtn.desk = 0
                 vbtn.clicked.connect(self.on_vbtn_clicked)
-                if self.active_virtual_desktop == 0:
-                    vbtn.setChecked(True)
                 self.on_virt_desk(self.num_virtual_desktops)
             #
             ## program box
@@ -443,6 +443,9 @@ class SecondaryWin(QtWidgets.QWidget):
     # a new window has apparead
     def on_new_window(self, window_list):
         for w in window_list:
+            #
+            if windowID not in self.wid_l:
+                self.wid_l.append(windowID)
             if w not in self.wid_l:
                 window = self.display.create_resource_object('window', w)
                 #
@@ -480,20 +483,27 @@ class SecondaryWin(QtWidgets.QWidget):
         curr_ndesks = self.virtbox.count()
         n = ndesks - curr_ndesks
         if n > 0:
-            vbtn = QtWidgets.QPushButton()
-            vbtn.setFlat(True)
-            vbtn.setFixedSize(QtCore.QSize(int(dock_height*1.3), dock_height))
-            vbtn.setCheckable(True)
-            vbtn.clicked.connect(self.on_vbtn_clicked)
-            vbtn.desk = (ndesks - 1)
-            if self.active_virtual_desktop == (ndesks - 1):
-                vbtn.setChecked(True)
-            self.virtbox.addWidget(vbtn)
+            for i in range(n):
+                vbtn = QtWidgets.QPushButton()
+                vbtn.setFlat(True)
+                vbtn.setFixedSize(QtCore.QSize(int(dock_height*1.3), dock_height))
+                # vbtn.setAutoExclusive(True)
+                vbtn.setCheckable(True)
+                vbtn.clicked.connect(self.on_vbtn_clicked)
+                vbtn.desk = (curr_ndesks + i)
+                self.virtbox.addWidget(vbtn)
         elif n < 0:
             # remove the virtual desktop widget
             item = self.virtbox.itemAt(curr_ndesks-1).widget()
             self.virtbox.removeWidget(item)
             item.deleteLater()
+        # check the button
+        for i in range(self.virtbox.count()):
+            item = self.virtbox.itemAt(i).widget()
+            if item.desk == self.active_virtual_desktop:
+                item.setChecked(True)
+            else:
+                item.setChecked(False)
     
     # 2
     # add a button
