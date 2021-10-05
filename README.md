@@ -24,6 +24,6 @@ Features:
 In the image below from the left: the dock with the virtual desktops, one application launcher, the tasklist with two programs in it and two messages.
 ![My image](https://github.com/frank038/qt5simpledock/blob/main/screenshot.png)
 
-In this image: with_compositor and with_transparency options both enabled; with_transparency option enabled. A compositor is required.
+In this image: with_compositor and with_transparency options both enabled; with_transparency option enabled only. A compositor is required.
 
 ![My image](https://github.com/frank038/qt5simpledock/blob/main/screenshot2.png)
