@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# V 0.5.7
+# V 0.6.0
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
 import shutil
@@ -17,8 +17,8 @@ from cfg_dock import *
 WINW = 0
 WINH = 0
 
-_window = None
-windowID = None
+this_window = None
+this_windowID = None
 
 #############
 stopCD = 0
@@ -126,7 +126,10 @@ class SecondaryWin(QtWidgets.QWidget):
                 self.frame.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
                 self.frame.setLayout(self.abox)
                 self.mainBox.addWidget(self.frame)
-                self.frame.setStyleSheet("background: palette(window); border-radius:{}px".format(border_radius))
+                if with_transparency:
+                    self.frame.setStyleSheet("background-color:rgba(255,255,255,0.5) ; border-radius:{}px".format(border_radius))
+                else:
+                    self.frame.setStyleSheet("background: palette(window); border-radius:{}px".format(border_radius))
                 self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
                 #
                 self.mainBox.setContentsMargins(10,10,10,10)
@@ -141,7 +144,19 @@ class SecondaryWin(QtWidgets.QWidget):
                 self.abox.setContentsMargins(0,0,0,0)
                 self.abox.setDirection(QtWidgets.QBoxLayout.LeftToRight)
                 self.abox.setSpacing(0)
-                self.setLayout(self.abox)
+                if with_transparency:
+                    self.aaabox = QtWidgets.QHBoxLayout()
+                    self.aaabox.setContentsMargins(0,0,0,0)
+                    self.aaabox.setSpacing(0)
+                    self.setLayout(self.aaabox)
+                    self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
+                    bwidget = QtWidgets.QWidget()
+                    bwidget.setObjectName('bwidget')
+                    bwidget.setStyleSheet('QWidget#bwidget{background-color: rgba(255,255,255,0.5)}')
+                    self.aaabox.addWidget(bwidget)
+                    bwidget.setLayout(self.abox)
+                else:
+                    self.setLayout(self.abox)
             #
             ## virtual desktop box
             self.virtbox = QtWidgets.QHBoxLayout()
@@ -156,6 +171,21 @@ class SecondaryWin(QtWidgets.QWidget):
                 # vbtn.setAutoExclusive(True)
                 vbtn.setCheckable(True)
                 vbtn.setFixedSize(QtCore.QSize(int(dock_height*1.3), dock_height))
+                if with_transparency:
+                    csaa = ("QPushButton::checked { border: none;")
+                    csab = ("background-color: {};".format("rgba(255,255,255,0.1)"))
+                    csac = ("border-radius: 9px; border-style: outset; padding: 5px;")
+                    csad = ("text-align: center; }")
+                    csae = ("QPushButton { text-align: center; padding: 5px; background-color:rgba(255,255,255,0.0)}")
+                    csa = csaa+csab+csac+csad+csae
+                    vbtn.setStyleSheet(csa)
+                elif with_compositor:
+                    hpalette = self.palette().dark().color().name()
+                    csaa = ("QPushButton::checked { border: none;")
+                    csab = ("background-color: {};".format(hpalette))
+                    csac = ("}")
+                    csa = csaa+csab+csac
+                    vbtn.setStyleSheet(csa)
                 self.virtbox.addWidget(vbtn)
                 vbtn.desk = 0
                 vbtn.clicked.connect(self.on_vbtn_clicked)
@@ -185,6 +215,12 @@ class SecondaryWin(QtWidgets.QWidget):
                     #
                     pbtn = QtWidgets.QPushButton()
                     pbtn.setFlat(True)
+                    if with_compositor and with_transparency:
+                        csae = ("QPushButton { text-align: center; padding: 5px; background-color:rgba(255,255,255,0.0)}")
+                        pbtn.setStyleSheet(csae)
+                    elif with_transparency:
+                        csae = ("QPushButton { text-align: center; padding: 5px; background-color:rgba(255,255,255,0.0)}")
+                        pbtn.setStyleSheet(csae)
                     picon = QtGui.QIcon.fromTheme(icon)
                     if picon.isNull():
                         image = QtGui.QImage(icon)
@@ -289,7 +325,13 @@ class SecondaryWin(QtWidgets.QWidget):
                 self.labelw2.setTextFormat(QtCore.Qt.RichText)
             else:
                 if label1_color:
-                    self.labelw1.setStyleSheet("color: {}".format(label1_color))
+                    if with_transparency:
+                        self.labelw1.setStyleSheet("color: {}; background-color:rgba(255,255,255,0.0)".format(label1_color))
+                    else:
+                        self.labelw1.setStyleSheet("color: {}".format(label1_color))
+                else:
+                    if with_transparency:
+                        self.labelw1.setStyleSheet("background-color:rgba(255,255,255,0.0)")
                 tfont = QtGui.QFont()
                 if label1_font:
                     tfont.setFamily(label1_font)
@@ -313,7 +355,13 @@ class SecondaryWin(QtWidgets.QWidget):
                 self.labelw2.setTextFormat(QtCore.Qt.RichText)
             else:
                 if label2_color:
-                    self.labelw2.setStyleSheet("color: {}".format(label2_color))
+                    if with_transparency:
+                        self.labelw2.setStyleSheet("color: {}; background-color:rgba(255,255,255,0.0)".format(label2_color))
+                    else:
+                        self.labelw2.setStyleSheet("color: {}".format(label2_color))
+                else:
+                    if with_transparency:
+                        self.labelw2.setStyleSheet("background-color:rgba(255,255,255,0.0)")
                 tfont = QtGui.QFont()
                 if label2_font:
                     tfont.setFamily(label2_font)
@@ -444,8 +492,8 @@ class SecondaryWin(QtWidgets.QWidget):
     def on_new_window(self, window_list):
         for w in window_list:
             #
-            if windowID not in self.wid_l:
-                self.wid_l.append(windowID)
+            if this_windowID not in self.wid_l:
+                self.wid_l.append(this_windowID)
             if w not in self.wid_l:
                 window = self.display.create_resource_object('window', w)
                 #
@@ -489,6 +537,21 @@ class SecondaryWin(QtWidgets.QWidget):
                 vbtn.setFixedSize(QtCore.QSize(int(dock_height*1.3), dock_height))
                 # vbtn.setAutoExclusive(True)
                 vbtn.setCheckable(True)
+                if with_transparency:
+                    csaa = ("QPushButton::checked { border: none;")
+                    csab = ("background-color: {};".format("rgba(255,255,255,0.1)"))
+                    csac = ("border-radius: 9px; border-style: outset; padding: 5px;")
+                    csad = ("text-align: center; }")
+                    csae = ("QPushButton { text-align: center; padding: 5px; background-color:rgba(255,255,255,0.0)}")
+                    csa = csaa+csab+csac+csad+csae
+                    vbtn.setStyleSheet(csa)
+                elif with_compositor:
+                    hpalette = self.palette().dark().color().name()
+                    csaa = ("QPushButton::checked { border: none;")
+                    csab = ("background-color: {};".format(hpalette))
+                    csac = ("}")
+                    csa = csaa+csab+csac
+                    vbtn.setStyleSheet(csa)
                 vbtn.clicked.connect(self.on_vbtn_clicked)
                 vbtn.desk = (curr_ndesks + i)
                 self.virtbox.addWidget(vbtn)
@@ -590,7 +653,12 @@ class SecondaryWin(QtWidgets.QWidget):
         csab = ("background-color: {};".format(hpalette))
         csac = ("border-radius: 9px; border-style: outset; padding: 5px;")
         csad = ("text-align: center; }")
-        csae = ("QPushButton { text-align: center; padding: 5px; }")
+        if with_compositor and with_transparency:
+            csae = ("QPushButton { text-align: center; padding: 5px; background-color:rgba(255,255,255,0.0)}")
+        elif with_transparency:
+            csae = ("QPushButton { text-align: center; padding: 5px; background-color:rgba(255,255,255,0.0)}")
+        else:
+            csae = ("QPushButton { text-align: center; padding: 5px;}")
         csaf1 = ("QPushButton::hover:!pressed {")
         csaf2 = ("background-color: {};".format("#DF5E0B"))
         csaf3 = ("border-radius: 9px;"
@@ -969,8 +1037,8 @@ class SecondaryWin(QtWidgets.QWidget):
                 self.on_leave.deleteLater()
                 self.on_leave = None
             #
-            ewmh.setWmState(_window, 0, '_NET_WM_STATE_BELOW')
-            ewmh.setWmState(_window, 1, '_NET_WM_STATE_ABOVE')
+            ewmh.setWmState(this_window, 0, '_NET_WM_STATE_BELOW')
+            ewmh.setWmState(this_window, 1, '_NET_WM_STATE_ABOVE')
             ewmh.display.flush()
             ewmh.display.sync()
         return super(SecondaryWin, self).enterEvent(event)
@@ -983,8 +1051,8 @@ class SecondaryWin(QtWidgets.QWidget):
         return super(SecondaryWin, self).enterEvent(event)
     
     def on_leave_event(self):
-        ewmh.setWmState(_window, 0, '_NET_WM_STATE_ABOVE')
-        ewmh.setWmState(_window, 1, '_NET_WM_STATE_BELOW')
+        ewmh.setWmState(this_window, 0, '_NET_WM_STATE_ABOVE')
+        ewmh.setWmState(this_window, 1, '_NET_WM_STATE_BELOW')
         ewmh.display.flush()
         ewmh.display.sync()
         self.on_leave = None
@@ -1077,9 +1145,9 @@ if __name__ == '__main__':
     else:
         WINW = size.width()
     WINH = dock_height
-    windowID = int(sec_window.winId())
+    this_windowID = int(sec_window.winId())
     _display = Display()
-    _window = _display.create_resource_object('window', windowID)
+    this_window = _display.create_resource_object('window', this_windowID)
     L = 0
     R = 0
     T = 0
@@ -1098,12 +1166,12 @@ if __name__ == '__main__':
             else:
                 B = WINH
     # 
-    # _window.change_property(_display.intern_atom('_NET_WM_STRUT'),
-                                # _display.intern_atom('CARDINAL'),
-                                # 32, [L, R, T, B])
+    this_window.change_property(_display.intern_atom('_NET_WM_STRUT'),
+                                _display.intern_atom('CARDINAL'),
+                                32, [L, R, T, B])
     x = 0
     y = x+WINW-1
-    _window.change_property(_display.intern_atom('_NET_WM_STRUT_PARTIAL'),
+    this_window.change_property(_display.intern_atom('_NET_WM_STRUT_PARTIAL'),
                            _display.intern_atom('CARDINAL'), 32,
                            [L, R, T, B, 0, 0, 0, 0, x, y, T, B],
                            X.PropModeReplace)
@@ -1138,8 +1206,8 @@ if __name__ == '__main__':
     if icon_theme:
         QtGui.QIcon.setThemeName(icon_theme)
     ################
-    # ewmh.setWmState(_window, 1, '_NET_WM_STATE_SKIP_TASKBAR')
-    # ewmh.setWmState(_window, 1, '_NET_WM_STATE_SKIP_PAGER')
+    # ewmh.setWmState(this_window, 1, '_NET_WM_STATE_SKIP_TASKBAR')
+    # ewmh.setWmState(this_window, 1, '_NET_WM_STATE_SKIP_PAGER')
     # ewmh.display.flush()
     # ewmh.display.sync()
     ################

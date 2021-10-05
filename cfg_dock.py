@@ -15,11 +15,15 @@ theme_style="Fusion"
 # icon theme: "" to use the default theme
 icon_theme=""
 # use with a compositor: 0 no - 1 yes
+# this option add rounded borders
 with_compositor=0
-#
+# border radius
 border_radius=15
-#
+# amount of effect
 blur_radius=15
+# enable transparency: 0 no - 1 yes
+# a compositor is required; the with_compositor option is not mandatory
+with_transparency=0
 # application to be skipped from the dock (executables between double quotes with comma separator)
 SKIP_APP=[]
 ######### label1
@@ -32,7 +36,7 @@ label1_color="green"
 # font to be used in the label
 label1_font=""
 # font size
-label1_font_size=14
+label1_font_size=13
 # font weight: Thin 0 - ExtraLight 12 - Light 25 - Normal 50 - Medium 57 - DemiBold 63 - Bold 75 - ExtraBold 81 - Black 87
 label1_font_weight=75
 # font italic: 0 no - 1 yes
