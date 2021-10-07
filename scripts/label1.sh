@@ -1,2 +1,2 @@
 #!/bin/bash
-echo "11label11 "$i
+echo "11label11"
