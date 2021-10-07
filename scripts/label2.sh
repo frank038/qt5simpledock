@@ -1,9 +1,4 @@
 #!/bin/bash
 
-i=1
-while :
-do
-	echo "22label22 "$i
-	i=$[i+1]
-	sleep 3
-done
+echo "<body style='white-space: pre'><i><font color=red size=2 face=Times>hello</font></i>&#10;&#13;a</body>"
+
