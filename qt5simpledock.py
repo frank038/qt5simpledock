@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# V 0.6.0
+# V 0.8.0
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
 import shutil
@@ -22,7 +22,7 @@ this_windowID = None
 
 #############
 stopCD = 0
-
+data_run = 1
 # 
 class winThread(QtCore.QThread):
     
@@ -75,6 +75,43 @@ class winThread(QtCore.QThread):
 
 
 ######################
+
+# label1
+class label1Thread(QtCore.QThread):
+    
+    label1sig = QtCore.pyqtSignal(list)
+    
+    def __init__(self, label1_data):
+        super(label1Thread, self).__init__()
+        # script - loop
+        self.label1_data = label1_data
+    
+    def run(self):
+        while data_run:
+            data = subprocess.check_output([self.label1_data[0]], shell=True, encoding='utf-8').strip("\n")
+            self.label1sig.emit([data])
+            time.sleep(self.label1_data[1])
+            if not data_run:
+                break
+        
+# label2
+class label2Thread(QtCore.QThread):
+    
+    label2sig = QtCore.pyqtSignal(list)
+    
+    def __init__(self, label2_data):
+        super(label2Thread, self).__init__()
+        # script - loop
+        self.label2_data = label2_data
+    
+    def run(self):
+        while data_run:
+            data = subprocess.check_output([self.label2_data[0]], shell=True, encoding='utf-8').strip("\n")
+            self.label2sig.emit([data])
+            time.sleep(self.label2_data[1])
+            if not data_run:
+                break
+
 
 class SecondaryWin(QtWidgets.QWidget):
     def __init__(self, position):
@@ -164,32 +201,35 @@ class SecondaryWin(QtWidgets.QWidget):
             self.virtbox.setSpacing(4)
             self.virtbox.desk = "v"
             self.abox.insertLayout(0, self.virtbox)
-            show_virt_desk = 1
-            if show_virt_desk:
-                vbtn = QtWidgets.QPushButton()
-                vbtn.setFlat(True)
-                # vbtn.setAutoExclusive(True)
-                vbtn.setCheckable(True)
-                vbtn.setFixedSize(QtCore.QSize(int(dock_height*1.3), dock_height))
-                if with_transparency:
-                    csaa = ("QPushButton::checked { border: none;")
-                    csab = ("background-color: {};".format("rgba(255,255,255,0.1)"))
-                    csac = ("border-radius: 9px; border-style: outset; padding: 5px;")
-                    csad = ("text-align: center; }")
-                    csae = ("QPushButton { text-align: center; padding: 5px; background-color:rgba(255,255,255,0.0)}")
-                    csa = csaa+csab+csac+csad+csae
-                    vbtn.setStyleSheet(csa)
-                elif with_compositor:
-                    hpalette = self.palette().dark().color().name()
-                    csaa = ("QPushButton::checked { border: none;")
-                    csab = ("background-color: {};".format(hpalette))
-                    csac = ("}")
-                    csa = csaa+csab+csac
-                    vbtn.setStyleSheet(csa)
+            #
+            vbtn = QtWidgets.QPushButton()
+            vbtn.setFlat(True)
+            # vbtn.setAutoExclusive(True)
+            vbtn.setCheckable(True)
+            vbtn.setFixedSize(QtCore.QSize(int(dock_height*1.3), dock_height))
+            if with_transparency:
+                csaa = ("QPushButton::checked { border: none;")
+                csab = ("background-color: {};".format("rgba(255,255,255,0.1)"))
+                csac = ("border-radius: 9px; border-style: outset; padding: 5px;")
+                csad = ("text-align: center; }")
+                csae = ("QPushButton { text-align: center; padding: 5px; background-color:rgba(255,255,255,0.0)}")
+                csa = csaa+csab+csac+csad+csae
+                vbtn.setStyleSheet(csa)
+            elif with_compositor:
+                hpalette = self.palette().dark().color().name()
+                csaa = ("QPushButton::checked { border: none;")
+                csab = ("background-color: {};".format(hpalette))
+                csac = ("}")
+                csa = csaa+csab+csac
+                vbtn.setStyleSheet(csa)
+            if virtual_desktops:
                 self.virtbox.addWidget(vbtn)
-                vbtn.desk = 0
-                vbtn.clicked.connect(self.on_vbtn_clicked)
-                self.on_virt_desk(self.num_virtual_desktops)
+            else:
+                self.abox.addSpacing(8)
+                self.abox.insertSpacing(100, 8)
+            vbtn.desk = 0
+            vbtn.clicked.connect(self.on_vbtn_clicked)
+            self.on_virt_desk(self.num_virtual_desktops)
             #
             ## program box
             self.prog_box = QtWidgets.QHBoxLayout()
@@ -228,7 +268,8 @@ class SecondaryWin(QtWidgets.QWidget):
                             image = QtGui.QImage("icons/unknown.svg")
                         pixmap = QtGui.QPixmap(image)
                         picon = QtGui.QIcon(pixmap)
-                    pbtn.setFixedSize(QtCore.QSize(dock_height, dock_height))
+                    # pbtn.setFixedSize(QtCore.QSize(dock_height, dock_height))
+                    pbtn.setFixedSize(QtCore.QSize(button_size, button_size))
                     pbtn.setIcon(picon)
                     pbtn.setIconSize(pbtn.size())
                     pbtn.setToolTip(fname or pexec)
@@ -322,7 +363,9 @@ class SecondaryWin(QtWidgets.QWidget):
             self.labelw1.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignVCenter)
             self.abox.addWidget(self.labelw1)
             if label1_use_richtext:
-                self.labelw2.setTextFormat(QtCore.Qt.RichText)
+                self.labelw1.setTextFormat(QtCore.Qt.RichText)
+                if with_transparency:
+                    self.labelw1.setStyleSheet("background-color:rgba(255,255,255,0.0)")
             else:
                 if label1_color:
                     if with_transparency:
@@ -340,11 +383,14 @@ class SecondaryWin(QtWidgets.QWidget):
                 tfont.setItalic(label1_font_italic)
                 self.labelw1.setFont(tfont)
             # 
-            self.l1p = QtCore.QProcess()
-            self.l1p.readyReadStandardOutput.connect(self.p1ready)
-            self.l1p.finished.connect(self.p1finished)
-            self.l1p.start("scripts/./label1.sh")
-
+            # self.l1p = QtCore.QProcess()
+            # self.l1p.readyReadStandardOutput.connect(self.p1ready)
+            # self.l1p.finished.connect(self.p1finished)
+            # self.l1p.start("scripts/./label1.sh")
+            #
+            self.label1thread = label1Thread(["scripts/./label1.sh", label1_interval])
+            self.label1thread.label1sig.connect(self.on_label1)
+            self.label1thread.start()
         #
         # label 2
         if label2_script:
@@ -353,6 +399,8 @@ class SecondaryWin(QtWidgets.QWidget):
             self.abox.addWidget(self.labelw2)
             if label2_use_richtext:
                 self.labelw2.setTextFormat(QtCore.Qt.RichText)
+                if with_transparency:
+                    self.labelw2.setStyleSheet("background-color:rgba(255,255,255,0.0)")
             else:
                 if label2_color:
                     if with_transparency:
@@ -370,10 +418,14 @@ class SecondaryWin(QtWidgets.QWidget):
                 tfont.setItalic(label2_font_italic)
                 self.labelw2.setFont(tfont)
             ###
-            self.l2p = QtCore.QProcess()
-            self.l2p.readyReadStandardOutput.connect(self.p2ready)
-            self.l2p.finished.connect(self.p2finished)
-            self.l2p.start("scripts/./label2.sh")
+            # self.l2p = QtCore.QProcess()
+            # self.l2p.readyReadStandardOutput.connect(self.p2ready)
+            # self.l2p.finished.connect(self.p2finished)
+            # self.l2p.start("scripts/./label2.sh")
+            #
+            self.label2thread = label2Thread(["scripts/./label2.sh", label2_interval])
+            self.label2thread.label2sig.connect(self.on_label2)
+            self.label2thread.start()
         #
         if not fixed_position:
             QtCore.QTimer.singleShot(1500, self.on_leave_event)
@@ -381,29 +433,29 @@ class SecondaryWin(QtWidgets.QWidget):
         if dock_width:
             self.on_move_win()
     
-    def p1ready(self):
-        result = self.l1p.readAllStandardOutput().data().decode().strip("\n")
-        self.labelw1.setText(result)
+    def on_label1(self, data):
+        if data:
+            self.labelw1.setText(data[0])
     
-    def p1finished(self):
-        self.l1p.close()
-        del self.l1p
+    # def p1ready(self):
+        # result = self.l1p.readAllStandardOutput().data().decode().strip("\n")
+        # self.labelw1.setText(result)
     
-    def p2ready(self):
-        result = self.l2p.readAllStandardOutput().data().decode().strip("\n")
-        self.labelw2.setText(result)
+    # def p1finished(self):
+        # self.l1p.close()
+        # del self.l1p
     
-    def p2finished(self):
-        self.l2p.close()
-        del self.l2p
+    def on_label2(self, data):
+        if data:
+            self.labelw2.setText(data[0])
     
-    def update_label1(self):
-        tt1 = subprocess.check_output(['scripts/label1.sh'])
-        self.labelw1.setText(tt1.decode().strip("\n"))
+    # def p2ready(self):
+        # result = self.l2p.readAllStandardOutput().data().decode().strip("\n")
+        # self.labelw2.setText(result)
     
-    def update_label2(self):
-        tt2 = subprocess.check_output(['scripts/label2.sh'])
-        self.labelw2.setText(tt2.decode().strip("\n"))
+    # def p2finished(self):
+        # self.l2p.close()
+        # del self.l2p
     
     # launch the application from the prog_box
     def on_pbtn(self):
@@ -440,6 +492,8 @@ class SecondaryWin(QtWidgets.QWidget):
     def winClose(self):
         global stopCD
         stopCD = 1
+        global data_run
+        data_run = 0
         time.sleep(1)
         QtWidgets.qApp.quit()
 
@@ -473,10 +527,11 @@ class SecondaryWin(QtWidgets.QWidget):
     def active_virtual_desktop_changed(self, ndesk):
         for i in range(self.virtbox.count()):
             vbtn = self.virtbox.itemAt(i).widget()
-            if vbtn.desk == ndesk:
-                vbtn.setChecked(True)
-            else:
-                vbtn.setChecked(False)
+            if isinstance(vbtn, QtWidgets.QPushButton):
+                if vbtn.desk == ndesk:
+                    vbtn.setChecked(True)
+                else:
+                    vbtn.setChecked(False)
         self.actual_virtual_desktop = ndesk
         
     def net_list(self):
@@ -554,20 +609,23 @@ class SecondaryWin(QtWidgets.QWidget):
                     vbtn.setStyleSheet(csa)
                 vbtn.clicked.connect(self.on_vbtn_clicked)
                 vbtn.desk = (curr_ndesks + i)
-                self.virtbox.addWidget(vbtn)
+                if virtual_desktops:
+                    self.virtbox.addWidget(vbtn)
         elif n < 0:
             # remove the virtual desktop widget
             for i in range(abs(n)):
                 item = self.virtbox.itemAt(curr_ndesks-1-i).widget()
-                self.virtbox.removeWidget(item)
-                item.deleteLater()
+                if isinstance(item, QtWidgets.QPushButton):
+                    self.virtbox.removeWidget(item)
+                    item.deleteLater()
         # check the button
         for i in range(self.virtbox.count()):
             item = self.virtbox.itemAt(i).widget()
-            if item.desk == self.active_virtual_desktop:
-                item.setChecked(True)
-            else:
-                item.setChecked(False)
+            if isinstance(item, QtWidgets.QPushButton):
+                if item.desk == self.active_virtual_desktop:
+                    item.setChecked(True)
+                else:
+                    item.setChecked(False)
     
     # 2
     # add a button
@@ -673,9 +731,11 @@ class SecondaryWin(QtWidgets.QWidget):
         #
         btn.setAutoExclusive(True)
         btn.clicked.connect(self.on_btn_clicked)
-        btn.setFixedSize(QtCore.QSize(dock_height, dock_height))
+        # btn.setFixedSize(QtCore.QSize(dock_height, dock_height))
+        btn.setFixedSize(QtCore.QSize(button_size, button_size))
         btn.setIcon(licon)
-        btn.setIconSize(QtCore.QSize(dock_height-8, dock_height-8))
+        # btn.setIconSize(QtCore.QSize(dock_height-8, dock_height-8))
+        btn.setIconSize(QtCore.QSize(button_size-button_padding, button_size-button_padding))
         btn.winid = pitem[0]
         btn.desktop = pitem[1]
         btn.pexec = pitem[2]
@@ -690,15 +750,17 @@ class SecondaryWin(QtWidgets.QWidget):
     # 3
     # get the active window when the program starts
     def get_active_window_first(self):
-        window_id = self.root.get_full_property(self.display.intern_atom('_NET_ACTIVE_WINDOW'), X.AnyPropertyType).value[0]
-        for i in range(self.ibox.count()):
-            item = self.ibox.itemAt(i).widget()
-            if not item:
-                continue
-            if isinstance(item, QtWidgets.QPushButton):
-                if item.winid == window_id:
-                    item.setChecked(True)
-                    break
+        window_id_temp = self.root.get_full_property(self.display.intern_atom('_NET_ACTIVE_WINDOW'), X.AnyPropertyType)
+        if window_id_temp:
+            window_id = window_id_temp.value[0]
+            for i in range(self.ibox.count()):
+                item = self.ibox.itemAt(i).widget()
+                if not item:
+                    continue
+                if isinstance(item, QtWidgets.QPushButton):
+                    if item.winid == window_id:
+                        item.setChecked(True)
+                        break
     
     # 4
     def on_btn_clicked(self):
@@ -755,24 +817,26 @@ class SecondaryWin(QtWidgets.QWidget):
     # 5    
     # get the active window
     def get_active_window(self):
-        window_id = self.root.get_full_property(self.display.intern_atom('_NET_ACTIVE_WINDOW'), X.AnyPropertyType).value[0]
-        # no active window
-        if window_id == 0:
-            self.fake_btn.setChecked(True)
-        #
-        else:
-            window = self.display.create_resource_object('window', window_id)
-            is_found = 0
-            for i in range(self.ibox.count()):
-                btn = self.ibox.itemAt(i).widget()
-                if isinstance(btn, QtWidgets.QPushButton):
-                    if btn.winid == window_id:
-                        btn.setChecked(True)
-                        is_found = 1
-                        break
-            if not is_found:
-                # in case no window has been activated
+        window_id_temp = self.root.get_full_property(self.display.intern_atom('_NET_ACTIVE_WINDOW'), X.AnyPropertyType)
+        if window_id_temp:
+            window_id = window_id_temp.value[0]
+            # no active window
+            if window_id == 0:
                 self.fake_btn.setChecked(True)
+            #
+            else:
+                window = self.display.create_resource_object('window', window_id)
+                is_found = 0
+                for i in range(self.ibox.count()):
+                    btn = self.ibox.itemAt(i).widget()
+                    if isinstance(btn, QtWidgets.QPushButton):
+                        if btn.winid == window_id:
+                            btn.setChecked(True)
+                            is_found = 1
+                            break
+                if not is_found:
+                    # in case no window has been activated
+                    self.fake_btn.setChecked(True)
         
     # 6
     # remove the buttons
@@ -870,7 +934,8 @@ class SecondaryWin(QtWidgets.QWidget):
                     image = QtGui.QImage("icons/unknown.svg")
                 pixmap = QtGui.QPixmap(image)
                 picon = QtGui.QIcon(pixmap)
-            pbtn.setFixedSize(QtCore.QSize(dock_height, dock_height))
+            # pbtn.setFixedSize(QtCore.QSize(dock_height, dock_height))
+            pbtn.setFixedSize(QtCore.QSize(button_size, button_size))
             pbtn.setIcon(picon)
             pbtn.setIconSize(pbtn.size())
             pbtn.setToolTip(fname or pexec)
@@ -906,7 +971,8 @@ class SecondaryWin(QtWidgets.QWidget):
                         image = QtGui.QImage("icons/unknown.svg")
                     pixmap = QtGui.QPixmap(image)
                     picon = QtGui.QIcon(pixmap)
-                pbtn.setFixedSize(QtCore.QSize(dock_height, dock_height))
+                # pbtn.setFixedSize(QtCore.QSize(dock_height, dock_height))
+                pbtn.setFixedSize(QtCore.QSize(button_size, button_size))
                 pbtn.setIcon(picon)
                 pbtn.setIconSize(pbtn.size())
                 pbtn.setToolTip(fname or pexec)

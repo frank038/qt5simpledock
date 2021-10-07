@@ -1,5 +1,9 @@
 # icon button max size to get from application
-button_size=48
+button_size=56
+# padding - space between button and icon (size icon: button_size - button_padding)
+button_padding=8
+# show virtual desktops: 0 no - 1 yes
+virtual_desktops=1
 # the width of the dock: 0 to full width
 dock_width=0
 # the height of the dock
@@ -28,7 +32,9 @@ with_transparency=0
 SKIP_APP=[]
 ######### label1
 # exec label1 script: 0 to disable - 1 yes
-label1_script=1
+label1_script=0
+# seconds to wait for executing the script again
+label1_interval=3
 # use html tags instead of plain text - override the next label1 options
 label1_use_richtext=0
 # label2 color: "" to default or in the form "#XXXXXX" "colour name"
@@ -44,8 +50,10 @@ label1_font_italic=0
 ######### label2
 # execute label2 script: 0 to disable - 1 yes
 label2_script=0
+# seconds to wait for executing the script again
+label2_interval=3
 # use html tags instead of plain text - override the next label2 options
-label2_use_richtext=0
+label2_use_richtext=1
 # label2 color: "" to default or in the form "#XXXXXX" or "colour name"
 label2_color=""
 # font to be used in the label
@@ -56,5 +64,5 @@ label2_font_size=9
 label2_font_weight=75
 # font italic: 0 no - 1 yes
 label2_font_italic=0
-# some window managers could be broken on minimizing and or activating: 1 yes - 0 no
+# some window managers could behave differently on minimizing and or activating: 1 yes - 0 no
 broken_wm=0
