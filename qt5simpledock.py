@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# V 0.8.0
+# V 0.8.1
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
 import shutil
@@ -239,6 +239,8 @@ class SecondaryWin(QtWidgets.QWidget):
             self.abox.insertLayout(2, self.prog_box)
             ## add the applications to prog_box
             progs = os.listdir("applications")
+            # args to remove from the exec entry
+            execArgs = [" %f", " %F", " %u", " %U", " %d", " %D", " %n", " %N", " %k", " %v"]
             if progs:
                 for ffile in progs:
                     pexec = ""
@@ -246,7 +248,11 @@ class SecondaryWin(QtWidgets.QWidget):
                     fname = entry.getName()
                     icon = entry.getIcon()
                     pexec_temp = entry.getExec()
+                    #
                     if pexec_temp:
+                        for aargs in execArgs:
+                            if aargs in pexec_temp:
+                                pexec_temp = pexec_temp.strip(aargs)
                         pexec = pexec_temp.split()[0]
                     else:
                         continue
@@ -268,13 +274,12 @@ class SecondaryWin(QtWidgets.QWidget):
                             image = QtGui.QImage("icons/unknown.svg")
                         pixmap = QtGui.QPixmap(image)
                         picon = QtGui.QIcon(pixmap)
-                    # pbtn.setFixedSize(QtCore.QSize(dock_height, dock_height))
                     pbtn.setFixedSize(QtCore.QSize(button_size, button_size))
                     pbtn.setIcon(picon)
                     pbtn.setIconSize(pbtn.size())
                     pbtn.setToolTip(fname or pexec)
                     pbtn.setIcon(picon)
-                    pbtn.pexec = pexec
+                    pbtn.pexec = pexec_temp
                     pbtn.pdesktop = ffile
                     pbtn.ppath = fpath
                     self.prog_box.addWidget(pbtn)
@@ -569,6 +574,7 @@ class SecondaryWin(QtWidgets.QWidget):
         # 
         if dock_width:
             self.on_move_win()
+
     
     # a window has been destroyed
     def delete_window_destroyed(self, window_list):
@@ -736,6 +742,7 @@ class SecondaryWin(QtWidgets.QWidget):
         btn.setIcon(licon)
         # btn.setIconSize(QtCore.QSize(dock_height-8, dock_height-8))
         btn.setIconSize(QtCore.QSize(button_size-button_padding, button_size-button_padding))
+        btn.setMinimumSize(QtCore.QSize(button_size, button_size))
         btn.winid = pitem[0]
         btn.desktop = pitem[1]
         btn.pexec = pitem[2]
@@ -883,6 +890,8 @@ class SecondaryWin(QtWidgets.QWidget):
         app_dirs = ["/usr/share/applications", "/usr/local/share/applications", os.path.expanduser("~")+"/.local/share/applications"]
         # full desktop file path - exec - name - icon
         app_found = []
+        # args to remove from the exec entry
+        execArgs = [" %f", " %F", " %u", " %U", " %d", " %D", " %n", " %N", " %k", " %v"]
         for ddir in app_dirs:
             if os.path.exists(ddir):
                 ffiles = os.listdir(ddir)
@@ -898,21 +907,26 @@ class SecondaryWin(QtWidgets.QWidget):
                         except Exception as E:
                             pass
                         if pgexec_temp:
-                            pgexec = os.path.basename(pgexec_temp)
-                        else:
-                            try:
-                                pgexeca = entry.getExec()
-                                if pgexeca:
-                                    pgexec = pgexeca.split()[0]
-                            except:
-                                pass
-                        # the program is already pinned
-                        if pgexec:
-                            if pgexec == pexec:
+                            pgexec_temp = os.path.basename(pgexec_temp)
+                        # else:
+                        try:
+                            pgexeca = entry.getExec()
+                            if pgexeca:
+                                for aargs in execArgs:
+                                    if aargs in pgexeca:
+                                        pgexeca = pgexeca.strip(aargs)
+                                pgexec = pgexeca.split()[0]
+                        except:
+                            pass
+                        # 
+                        if pgexec_temp or pgexec:
+                            # if pgexec == pexec:
+                            if pgexec_temp == pexec or pgexec == pexec:
                                 fname = entry.getName()
                                 ficon = entry.getIcon()
                                 fpath = entry.getPath()
-                                app_found.append([os.path.join(ddir, ffile), pgexec, fname, ficon or "unknown", fpath or ""])
+                                # desktop file - exec - name - icon - program path
+                                app_found.append([os.path.join(ddir, ffile), pgexeca, fname, ficon or "unknown", fpath or ""])
                     except Exception as E:
                         dlg = showDialog(1, str(E), self)
                         result = dlg.exec_()
@@ -927,20 +941,13 @@ class SecondaryWin(QtWidgets.QWidget):
             icon = app_found[0][3]
             fname = app_found[0][2]
             fpath = app_found[0][4]
-            picon = QtGui.QIcon.fromTheme(icon)
-            if picon.isNull():
-                image = QtGui.QImage(icon)
-                if image.isNull():
-                    image = QtGui.QImage("icons/unknown.svg")
-                pixmap = QtGui.QPixmap(image)
-                picon = QtGui.QIcon(pixmap)
-            # pbtn.setFixedSize(QtCore.QSize(dock_height, dock_height))
+            picon = QtGui.QIcon.fromTheme(icon, QtGui.QIcon("icons/unknown.svg"))
             pbtn.setFixedSize(QtCore.QSize(button_size, button_size))
             pbtn.setIcon(picon)
             pbtn.setIconSize(pbtn.size())
             pbtn.setToolTip(fname or pexec)
             pbtn.setIcon(picon)
-            pbtn.pexec = pexec
+            pbtn.pexec = app_found[0][1]
             pbtn.pdesktop = os.path.basename(app_found[0][0])
             pbtn.ppath = fpath
             self.prog_box.addWidget(pbtn)
@@ -964,21 +971,15 @@ class SecondaryWin(QtWidgets.QWidget):
                 pbtn.setFlat(True)
                 icon = app_found[idx][3]
                 fname = app_found[idx][2]
-                picon = QtGui.QIcon.fromTheme(icon)
-                if picon.isNull():
-                    image = QtGui.QImage(icon)
-                    if image.isNull():
-                        image = QtGui.QImage("icons/unknown.svg")
-                    pixmap = QtGui.QPixmap(image)
-                    picon = QtGui.QIcon(pixmap)
-                # pbtn.setFixedSize(QtCore.QSize(dock_height, dock_height))
+                picon = QtGui.QIcon.fromTheme(icon, QtGui.QIcon("icons/unknown.svg"))
                 pbtn.setFixedSize(QtCore.QSize(button_size, button_size))
                 pbtn.setIcon(picon)
                 pbtn.setIconSize(pbtn.size())
                 pbtn.setToolTip(fname or pexec)
                 pbtn.setIcon(picon)
-                pbtn.pexec = pexec
+                pbtn.pexec = app_found[0][1]
                 pbtn.pdesktop = os.path.basename(app_found[idx][0])
+                pbtn.ppath = fpath
                 self.prog_box.addWidget(pbtn)
                 pbtn.clicked.connect(self.on_pbtn)
                 pbtn.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
@@ -1154,7 +1155,9 @@ class chooseDialog(QtWidgets.QDialog):
         self.layout.addWidget(self.buttonBox)
         #
         self.setLayout(self.layout)
+        self.adjustSize()
         self.updateGeometry()
+        self.resize(self.sizeHint())
         qr = self.frameGeometry()
         cp = QtWidgets.QDesktopWidget().availableGeometry().center()
         qr.moveCenter(cp)
@@ -1188,6 +1191,9 @@ class showDialog(QtWidgets.QDialog):
         self.layout.addWidget(self.buttonBox)
         self.setLayout(self.layout)
         
+        self.adjustSize()
+        self.updateGeometry()
+        self.resize(self.sizeHint())
         qr = self.frameGeometry()
         cp = QtWidgets.QDesktopWidget().availableGeometry().center()
         qr.moveCenter(cp)
