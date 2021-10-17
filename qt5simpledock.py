@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# V 0.8.2
+# V 0.8.3
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
 import shutil
@@ -164,9 +164,9 @@ class SecondaryWin(QtWidgets.QWidget):
                 self.frame.setLayout(self.abox)
                 self.mainBox.addWidget(self.frame)
                 if with_transparency:
-                    self.frame.setStyleSheet("background-color:rgba(255,255,255,0.5) ; border-radius:{}px".format(border_radius))
+                    self.frame.setStyleSheet("background-color:rgba(255,255,255,0.5); border-top-left-radius:{0}px; border-top-right-radius:{0}px".format(border_radius))
                 else:
-                    self.frame.setStyleSheet("background: palette(window); border-radius:{}px".format(border_radius))
+                    self.frame.setStyleSheet("background: palette(window); border-top-left-radius:{0}px; border-top-right-radius:{0}px".format(border_radius))
                 self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
                 #
                 self.mainBox.setContentsMargins(10,10,10,10)
@@ -1092,7 +1092,7 @@ class SecondaryWin(QtWidgets.QWidget):
                 sy = self.screen_size.height() - WINH
             # 
             if with_compositor:
-                self.move(sx, sy - 20)
+                self.move(sx, sy - 10)
             else:
                 self.move(sx, sy)
 
@@ -1260,7 +1260,7 @@ if __name__ == '__main__':
             sy = 0
         elif sec_position == 3:
             if with_compositor:
-                sy = size.height() - WINH - 20
+                sy = size.height() - WINH - 10
             else:
                 sy = size.height() - WINH
         # 
