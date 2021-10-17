@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# V 0.8.1
+# V 0.8.2
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
 import shutil
@@ -1265,10 +1265,8 @@ if __name__ == '__main__':
                 sy = size.height() - WINH
         # 
         sec_window.move(sx, sy)
-        if dock_width == 0:
-            sec_window.setFixedSize(WINW, WINH)
-        else:
-            sec_window.setMaximumSize(size.width(), WINH)
+        sec_window.resize(WINW, WINH)
+        sec_window.setMaximumWidth(size.width())
     ############
     # set new style globally
     if theme_style:
