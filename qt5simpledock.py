@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# V 0.8.3
+# V 0.8.4
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
 import shutil
@@ -293,10 +293,6 @@ class SecondaryWin(QtWidgets.QWidget):
             self.ibox.setSpacing(4)
             if tasklist_position == 0:
                 self.ibox.setAlignment(QtCore.Qt.AlignLeft)
-                # #
-                # pframe = QtWidgets.QFrame()
-                # pframe.setFrameShape(QtWidgets.QFrame.VLine)
-                # self.ibox.addWidget(pframe)
             elif tasklist_position == 1:
                 self.ibox.setAlignment(QtCore.Qt.AlignCenter)
             elif tasklist_position == 2:
@@ -906,8 +902,8 @@ class SecondaryWin(QtWidgets.QWidget):
                             pgexec_temp = entry.getTryExec()
                         except Exception as E:
                             pass
-                        if pgexec_temp:
-                            pgexec_temp = os.path.basename(pgexec_temp)
+                        # if pgexec_temp:
+                            # pgexec_temp = os.path.basename(pgexec_temp)
                         # else:
                         try:
                             pgexeca = entry.getExec()
@@ -921,7 +917,7 @@ class SecondaryWin(QtWidgets.QWidget):
                         # 
                         if pgexec_temp or pgexec:
                             # if pgexec == pexec:
-                            if pgexec_temp == pexec or pgexec == pexec:
+                            if os.path.basename(pgexec_temp) == pexec or os.path.basename(pgexec) == pexec:
                                 fname = entry.getName()
                                 ficon = entry.getIcon()
                                 fpath = entry.getPath()
