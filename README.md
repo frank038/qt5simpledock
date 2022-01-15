@@ -2,7 +2,9 @@
 A simple dock.
 In early stage of development. V. 0.8.4
 
-Free to use and modify
+Free to use and modify.
+
+Works fine with Openbox. Xfwm is also supported (see the config file).
 
 This program needs:
 - python3
