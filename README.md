@@ -1,6 +1,6 @@
 # qt5simpledock
 A simple dock.
-In early stage of development. V. 0.8.4
+In early stage of development. V. 0.9.0
 
 Free to use and modify.
 
@@ -18,6 +18,7 @@ Features:
 - application launchers (using the contextual menu, applications can be pinned and unpinned - a valid desktop file is required; the file delete_me in the folder 'applications' needs to be deleted before using this program)
 - task list with icon support and application comment while hovering on it
 - two slots for periodical custom messagges (just modify the files in the script folder; they accept both plain text or rich text; see the sample files)
+- system tray icon support
 - closing applications by right mouse clicking on its icon
 - closing and restarting this program by right mouse clicking
 - customizations in the cfg_dock file
