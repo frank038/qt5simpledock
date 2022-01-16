@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# V 0.9.0
+# V 0.9.0.1
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
 import shutil
@@ -478,7 +478,7 @@ class SecondaryWin(QtWidgets.QWidget):
             self.frame_box.addWidget(lbl)
         elif aa[0] == "b":
             self.frame_counter -= 1
-            self. frame_counter = max(0, self.frame_counter)
+            self.frame_counter = max(0, self.frame_counter)
             if self.frame_box.count():
                 self.frame_box.takeAt(0).widget().deleteLater()
         #
@@ -1230,11 +1230,11 @@ class trayThread(QtCore.QThread):
             manager      = dsp.intern_atom("MANAGER")
             selection    = dsp.intern_atom("_NET_SYSTEM_TRAY_S%d" % dsp.get_default_screen())
             ## Selection owner window
-            self.selowin = scr.root.create_window(-1, -1, 50, 50, 0, self.screen.root_depth)
+            # self.selowin = scr.root.create_window(-1, -1, 50, 50, 0, self.screen.root_depth)
+            self.selowin = scr.root.create_window(0, 0, tbutton_size, tbutton_size, 0, self.screen.root_depth)
             self.selowin.set_selection_owner(selection, X.CurrentTime)
-            self.sendEvent(self.root, manager,[X.CurrentTime, selection,
-                self.selowin.id], (X.StructureNotifyMask))
-            
+            self.sendEvent(self.root, manager,[X.CurrentTime, selection, self.selowin.id], (X.StructureNotifyMask))
+            #
             self.loop(self.display, self.root, self.selowin, self.panel)
             
         """ Send a ClientMessage event to the root """
@@ -1252,7 +1252,8 @@ class trayThread(QtCore.QThread):
             curr_x   = 0
             tray     = None
             #
-            curr_x += 2
+            # curr_x += 2
+            curr_x += 0
             tray = panel[TRAY]
             #
             if tray:
@@ -1264,6 +1265,9 @@ class trayThread(QtCore.QThread):
                     ty = int((P_HEIGHT-theight)/2)
                     tobj = self.display.create_resource_object("window", t)
                     tobj.configure(onerror=self.error, x=tx, y=ty, width=twidth, height=theight)
+                    # tray icon background color
+                    tobj.change_attributes(background_pixel = self.background)
+                    #
                     tobj.map(onerror=self.error)
                     curr_x += twidth
 
@@ -1303,7 +1307,7 @@ class trayThread(QtCore.QThread):
                         #
                         # update
                         self.updatePanel(root, win, panel)
-
+                #
 
 ############## 
 
