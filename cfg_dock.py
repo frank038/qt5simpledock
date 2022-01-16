@@ -1,9 +1,13 @@
-# icon button max size to get from application
+# icon button max size to get from application (even number)
 button_size=56
 # padding - space between button and icon (size icon: button_size - button_padding)
 button_padding=8
 # show virtual desktops: 0 no - 1 yes
 virtual_desktops=1
+# use the builtin tray: 0 no - 1 yes
+use_tray = 0
+# tray icon size (even number)
+tbutton_size = button_size
 # the width of the dock: 0 to full width
 dock_width=0
 # the height of the dock
@@ -30,6 +34,8 @@ blur_radius=15
 with_transparency=0
 # application to be skipped from the dock (executables between double quotes with comma separator)
 SKIP_APP=[]
+# some window managers could behave differently on minimizing and or activating: 1 yes - 0 no
+alternate_wm=0
 ######### label1
 # exec label1 script: 0 to disable - 1 yes
 label1_script=0
@@ -64,5 +70,3 @@ label2_font_size=9
 label2_font_weight=75
 # font italic: 0 no - 1 yes
 label2_font_italic=0
-# some window managers could behave differently on minimizing and or activating: 1 yes - 0 no
-broken_wm=0
