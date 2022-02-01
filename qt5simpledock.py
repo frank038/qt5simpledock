@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# V 0.9.0.2
+# V 0.9.0.3
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
 import shutil
@@ -333,7 +333,10 @@ class SecondaryWin(QtWidgets.QWidget):
         for winid in winid_list:
             window = self.display.create_resource_object('window', winid)
             #
-            prop = window.get_full_property(self.display.intern_atom('_NET_WM_WINDOW_TYPE'), X.AnyPropertyType)
+            try:
+                prop = window.get_full_property(self.display.intern_atom('_NET_WM_WINDOW_TYPE'), X.AnyPropertyType)
+            except:
+                prop = None
             #
             if prop:
                 if self.display.intern_atom('_NET_WM_WINDOW_TYPE_DOCK') in prop.value.tolist():
@@ -650,7 +653,10 @@ class SecondaryWin(QtWidgets.QWidget):
             if w not in self.wid_l:
                 window = self.display.create_resource_object('window', w)
                 ########### skip unmanaged windows
-                prop = window.get_full_property(self.display.intern_atom('_NET_WM_WINDOW_TYPE'), X.AnyPropertyType)
+                try:
+                    prop = window.get_full_property(self.display.intern_atom('_NET_WM_WINDOW_TYPE'), X.AnyPropertyType)
+                except:
+                    prop = None
                 #
                 if prop:
                     if self.display.intern_atom('_NET_WM_WINDOW_TYPE_DOCK') in prop.value.tolist():
