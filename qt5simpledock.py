@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# V 0.9.0.1
+# V 0.9.0.2
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
 import shutil
@@ -332,11 +332,36 @@ class SecondaryWin(QtWidgets.QWidget):
         winid_list = self.root.get_full_property(self.display.intern_atom('_NET_CLIENT_LIST'), X.AnyPropertyType).value
         for winid in winid_list:
             window = self.display.create_resource_object('window', winid)
-            
+            #
             prop = window.get_full_property(self.display.intern_atom('_NET_WM_WINDOW_TYPE'), X.AnyPropertyType)
-            
+            #
             if prop:
-                if prop.value.tolist()[0] == self.display.intern_atom('_NET_WM_WINDOW_TYPE_NORMAL'):
+                if self.display.intern_atom('_NET_WM_WINDOW_TYPE_DOCK') in prop.value.tolist():
+                    continue
+                elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_DESKTOP') in prop.value.tolist():
+                    continue
+                # elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_DIALOG') in prop.value.tolist():
+                    # continue
+                # elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_UTILITY') in prop.value.tolist():
+                    # continue
+                elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_TOOLBAR') in prop.value.tolist():
+                    continue
+                elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_MENU') in prop.value.tolist():
+                    continue
+                elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_SPLASH') in prop.value.tolist():
+                    continue
+                elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_DND') in prop.value.tolist():
+                    continue
+                elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_NOTIFICATION') in prop.value.tolist():
+                    continue
+                elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_DROPDOWN_MENU') in prop.value.tolist():
+                    continue
+                elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_COMBO') in prop.value.tolist():
+                    continue
+                elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_POPUP_MENU') in prop.value.tolist():
+                    continue
+                #
+                if self.display.intern_atom('_NET_WM_WINDOW_TYPE_NORMAL') in prop.value.tolist():
                     ppp = self.getProp(self.display,window,'DESKTOP')
                     on_desktop = ppp[0]
                     # the exec name
@@ -468,19 +493,34 @@ class SecondaryWin(QtWidgets.QWidget):
     
     
     def tthreadslot(self, aa):
-        if aa[0] == "a":
-            self.frame_counter += 1
-            #
-            lbl = QtWidgets.QLabel("")
-            lbl.setContentsMargins(0, 0, 0, 0)
-            lbl.setStyleSheet("background-color: palette(window)")
-            lbl.setMinimumSize(tbutton_size, tbutton_size)
-            self.frame_box.addWidget(lbl)
-        elif aa[0] == "b":
-            self.frame_counter -= 1
-            self.frame_counter = max(0, self.frame_counter)
-            if self.frame_box.count():
-                self.frame_box.takeAt(0).widget().deleteLater()
+        # if aa[0] == "a":
+            # self.frame_counter += 1
+            # #
+            # lbl = QtWidgets.QLabel("")
+            # lbl.setContentsMargins(0, 0, 0, 0)
+            # lbl.setStyleSheet("background-color: palette(window)")
+            # lbl.setMinimumSize(tbutton_size, tbutton_size)
+            # self.frame_box.addWidget(lbl)
+        # elif aa[0] == "b":
+            # self.frame_counter -= 1
+            # self.frame_counter = max(0, self.frame_counter)
+            # if self.frame_box.count():
+                # self.frame_box.takeAt(0).widget().deleteLater()
+        if isinstance(aa[0], int):
+            num_lbl = self.frame_box.count()
+            if aa[0] > num_lbl:
+                while aa[0] > num_lbl:
+                    lbl = QtWidgets.QLabel("")
+                    lbl.setContentsMargins(0, 0, 0, 0)
+                    lbl.setStyleSheet("background-color: palette(window)")
+                    lbl.setMinimumSize(tbutton_size, tbutton_size)
+                    self.frame_box.addWidget(lbl)
+                    num_lbl += 1
+            elif aa[0] < num_lbl:
+                while num_lbl > aa[0]:
+                    if self.frame_box.count():
+                        self.frame_box.takeAt(0).widget().deleteLater()
+                        num_lbl -= 1
         #
         self.tframe.adjustSize()
         self.tframe.updateGeometry()
@@ -609,6 +649,36 @@ class SecondaryWin(QtWidgets.QWidget):
                 self.wid_l.append(this_windowID)
             if w not in self.wid_l:
                 window = self.display.create_resource_object('window', w)
+                ########### skip unmanaged windows
+                prop = window.get_full_property(self.display.intern_atom('_NET_WM_WINDOW_TYPE'), X.AnyPropertyType)
+                #
+                if prop:
+                    if self.display.intern_atom('_NET_WM_WINDOW_TYPE_DOCK') in prop.value.tolist():
+                        continue
+                    elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_DESKTOP') in prop.value.tolist():
+                        continue
+                    # elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_DIALOG') in prop.value.tolist():
+                        # continue
+                    # elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_UTILITY') in prop.value.tolist():
+                        # continue
+                    elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_TOOLBAR') in prop.value.tolist():
+                        continue
+                    elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_MENU') in prop.value.tolist():
+                        continue
+                    elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_SPLASH') in prop.value.tolist():
+                        continue
+                    elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_DND') in prop.value.tolist():
+                        continue
+                    elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_NOTIFICATION') in prop.value.tolist():
+                        continue
+                    elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_DROPDOWN_MENU') in prop.value.tolist():
+                        continue
+                    elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_COMBO') in prop.value.tolist():
+                        continue
+                    elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_POPUP_MENU') in prop.value.tolist():
+                        continue
+                #
+                ###########
                 #
                 try:
                     if not self.display.intern_atom("_NET_WM_STATE_SKIP_TASKBAR") in window.get_full_property(self.display.intern_atom("_NET_WM_STATE"), Xatom.ATOM).value:
@@ -1257,6 +1327,7 @@ class trayThread(QtCore.QThread):
             tray = panel[TRAY]
             #
             if tray:
+                tti = 0
                 for tid in tray.order:
                     t = tid
                     tx = curr_x
@@ -1270,6 +1341,9 @@ class trayThread(QtCore.QThread):
                     #
                     tobj.map(onerror=self.error)
                     curr_x += twidth
+                    tti += 1
+                #
+                self.par.sig.emit([tti])
 
         """ Event loop - handle events as they occur until we're killed """ 
         def loop(self, dsp, root, win, panel):
