@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# V 0.9.0.3
+# V 0.9.0.4
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
 import shutil
@@ -364,7 +364,9 @@ class SecondaryWin(QtWidgets.QWidget):
                 elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_POPUP_MENU') in prop.value.tolist():
                     continue
                 #
-                if self.display.intern_atom('_NET_WM_WINDOW_TYPE_NORMAL') in prop.value.tolist():
+                # if self.display.intern_atom('_NET_WM_WINDOW_TYPE_NORMAL') in prop.value.tolist():
+            try:
+                if not self.display.intern_atom("_NET_WM_STATE_SKIP_TASKBAR") in window.get_full_property(self.display.intern_atom("_NET_WM_STATE"), Xatom.ATOM).value:
                     ppp = self.getProp(self.display,window,'DESKTOP')
                     on_desktop = ppp[0]
                     # the exec name
@@ -375,6 +377,8 @@ class SecondaryWin(QtWidgets.QWidget):
                         win_exec == "Unknown"
                     #
                     self.list_prog.append([winid, on_desktop, win_exec])
+            except:
+                pass
         #
         # current window active - window id
         self.curr_win_active = None
@@ -684,6 +688,7 @@ class SecondaryWin(QtWidgets.QWidget):
                     elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_POPUP_MENU') in prop.value.tolist():
                         continue
                 #
+                    # if self.display.intern_atom('_NET_WM_WINDOW_TYPE_NORMAL') in prop.value.tolist():
                 ###########
                 #
                 try:
