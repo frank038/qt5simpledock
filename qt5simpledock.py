@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# V 0.9.0.4
+# V 0.9.1
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
 import shutil
@@ -130,15 +130,25 @@ class SecondaryWin(QtWidgets.QWidget):
         self.root = self.display.screen().root
         #
         ## the number of virtual desktops
-        atom_vs = self.display.intern_atom('_NET_NUMBER_OF_DESKTOPS')
-        vd_v = self.root.get_full_property(atom_vs, X.AnyPropertyType).value
-        self.num_virtual_desktops = vd_v.tolist()[0]
-        ## the active virtual desktop - 0 is 1 etc.
-        atom_cvd = self.display.intern_atom("_NET_CURRENT_DESKTOP")
-        vd_cv = self.root.get_full_property(atom_cvd, X.AnyPropertyType).value
-        self.active_virtual_desktop = vd_cv.tolist()[0]
-        # actual virtual desktop
-        self.actual_virtual_desktop = self.active_virtual_desktop
+        global virtual_desktops
+        if virtual_desktops:
+            try:
+                atom_vs = self.display.intern_atom('_NET_NUMBER_OF_DESKTOPS')
+                vd_v = self.root.get_full_property(atom_vs, X.AnyPropertyType).value
+                self.num_virtual_desktops = vd_v.tolist()[0]
+                # the active virtual desktop - 0 is 1 etc.
+                atom_cvd = self.display.intern_atom("_NET_CURRENT_DESKTOP")
+                vd_cv = self.root.get_full_property(atom_cvd, X.AnyPropertyType).value
+                self.active_virtual_desktop = vd_cv.tolist()[0]
+                # actual virtual desktop
+                self.actual_virtual_desktop = self.active_virtual_desktop
+            except:
+                virtual_desktops = 0
+                self.active_virtual_desktop = 0
+                self.actual_virtual_desktop = 0
+        else:
+            self.active_virtual_desktop = 0
+            self.actual_virtual_desktop = 0
         #######
         screen = app.primaryScreen()
         self.screen_size = screen.size()
@@ -203,40 +213,41 @@ class SecondaryWin(QtWidgets.QWidget):
                     self.setLayout(self.abox)
             #
             ## virtual desktop box
-            self.virtbox = QtWidgets.QHBoxLayout()
-            self.virtbox.setContentsMargins(0,0,0,0)
-            self.virtbox.setSpacing(4)
-            self.virtbox.desk = "v"
-            self.abox.insertLayout(0, self.virtbox)
-            #
-            vbtn = QtWidgets.QPushButton()
-            vbtn.setFlat(True)
-            # vbtn.setAutoExclusive(True)
-            vbtn.setCheckable(True)
-            vbtn.setFixedSize(QtCore.QSize(int(dock_height*1.3), dock_height))
-            if with_transparency:
-                csaa = ("QPushButton::checked { border: none;")
-                csab = ("background-color: {};".format("rgba(255,255,255,0.1)"))
-                csac = ("border-radius: 9px; border-style: outset; padding: 5px;")
-                csad = ("text-align: center; }")
-                csae = ("QPushButton { text-align: center; padding: 5px; background-color:rgba(255,255,255,0.0)}")
-                csa = csaa+csab+csac+csad+csae
-                vbtn.setStyleSheet(csa)
-            elif with_compositor:
-                hpalette = self.palette().dark().color().name()
-                csaa = ("QPushButton::checked { border: none;")
-                csab = ("background-color: {};".format(hpalette))
-                csac = ("}")
-                csa = csaa+csab+csac
-                vbtn.setStyleSheet(csa)
             if virtual_desktops:
-                self.virtbox.addWidget(vbtn)
-            else:
-                self.abox.addSpacing(8)
-                self.abox.insertSpacing(100, 8)
-            vbtn.desk = 0
-            vbtn.clicked.connect(self.on_vbtn_clicked)
-            self.on_virt_desk(self.num_virtual_desktops)
+                self.virtbox = QtWidgets.QHBoxLayout()
+                self.virtbox.setContentsMargins(0,0,0,0)
+                self.virtbox.setSpacing(4)
+                self.virtbox.desk = "v"
+                self.abox.insertLayout(0, self.virtbox)
+                #
+                vbtn = QtWidgets.QPushButton()
+                vbtn.setFlat(True)
+                # vbtn.setAutoExclusive(True)
+                vbtn.setCheckable(True)
+                vbtn.setFixedSize(QtCore.QSize(int(dock_height*1.3), dock_height))
+                if with_transparency:
+                    csaa = ("QPushButton::checked { border: none;")
+                    csab = ("background-color: {};".format("rgba(255,255,255,0.1)"))
+                    csac = ("border-radius: 9px; border-style: outset; padding: 5px;")
+                    csad = ("text-align: center; }")
+                    csae = ("QPushButton { text-align: center; padding: 5px; background-color:rgba(255,255,255,0.0)}")
+                    csa = csaa+csab+csac+csad+csae
+                    vbtn.setStyleSheet(csa)
+                elif with_compositor:
+                    hpalette = self.palette().dark().color().name()
+                    csaa = ("QPushButton::checked { border: none;")
+                    csab = ("background-color: {};".format(hpalette))
+                    csac = ("}")
+                    csa = csaa+csab+csac
+                    vbtn.setStyleSheet(csa)
+                if virtual_desktops:
+                    self.virtbox.addWidget(vbtn)
+                else:
+                    self.abox.addSpacing(8)
+                    self.abox.insertSpacing(100, 8)
+                vbtn.desk = 0
+                vbtn.clicked.connect(self.on_vbtn_clicked)
+                self.on_virt_desk(self.num_virtual_desktops)
             #
             ## program box
             self.prog_box = QtWidgets.QHBoxLayout()
@@ -329,56 +340,61 @@ class SecondaryWin(QtWidgets.QWidget):
         self.list_prog = []
         # desktop in which the program appared
         on_desktop = 0
-        winid_list = self.root.get_full_property(self.display.intern_atom('_NET_CLIENT_LIST'), X.AnyPropertyType).value
-        for winid in winid_list:
-            window = self.display.create_resource_object('window', winid)
-            #
-            try:
-                prop = window.get_full_property(self.display.intern_atom('_NET_WM_WINDOW_TYPE'), X.AnyPropertyType)
-            except:
-                prop = None
-            #
-            if prop:
-                if self.display.intern_atom('_NET_WM_WINDOW_TYPE_DOCK') in prop.value.tolist():
-                    continue
-                elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_DESKTOP') in prop.value.tolist():
-                    continue
-                # elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_DIALOG') in prop.value.tolist():
-                    # continue
-                # elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_UTILITY') in prop.value.tolist():
-                    # continue
-                elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_TOOLBAR') in prop.value.tolist():
-                    continue
-                elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_MENU') in prop.value.tolist():
-                    continue
-                elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_SPLASH') in prop.value.tolist():
-                    continue
-                elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_DND') in prop.value.tolist():
-                    continue
-                elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_NOTIFICATION') in prop.value.tolist():
-                    continue
-                elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_DROPDOWN_MENU') in prop.value.tolist():
-                    continue
-                elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_COMBO') in prop.value.tolist():
-                    continue
-                elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_POPUP_MENU') in prop.value.tolist():
-                    continue
+        winid_list_temp = self.root.get_full_property(self.display.intern_atom('_NET_CLIENT_LIST'), X.AnyPropertyType)
+        if winid_list_temp:
+            winid_list = winid_list_temp.value
+            for winid in winid_list:
+                window = self.display.create_resource_object('window', winid)
+                #
+                try:
+                    prop = window.get_full_property(self.display.intern_atom('_NET_WM_WINDOW_TYPE'), X.AnyPropertyType)
+                except:
+                    prop = None
+                #
+                if prop:
+                    if self.display.intern_atom('_NET_WM_WINDOW_TYPE_DOCK') in prop.value.tolist():
+                        continue
+                    elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_DESKTOP') in prop.value.tolist():
+                        continue
+                    # elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_DIALOG') in prop.value.tolist():
+                        # continue
+                    # elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_UTILITY') in prop.value.tolist():
+                        # continue
+                    elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_TOOLBAR') in prop.value.tolist():
+                        continue
+                    elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_MENU') in prop.value.tolist():
+                        continue
+                    elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_SPLASH') in prop.value.tolist():
+                        continue
+                    elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_DND') in prop.value.tolist():
+                        continue
+                    elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_NOTIFICATION') in prop.value.tolist():
+                        continue
+                    elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_DROPDOWN_MENU') in prop.value.tolist():
+                        continue
+                    elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_COMBO') in prop.value.tolist():
+                        continue
+                    elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_POPUP_MENU') in prop.value.tolist():
+                        continue
                 #
                 # if self.display.intern_atom('_NET_WM_WINDOW_TYPE_NORMAL') in prop.value.tolist():
-            try:
-                if not self.display.intern_atom("_NET_WM_STATE_SKIP_TASKBAR") in window.get_full_property(self.display.intern_atom("_NET_WM_STATE"), Xatom.ATOM).value:
-                    ppp = self.getProp(self.display,window,'DESKTOP')
-                    on_desktop = ppp[0]
-                    # the exec name
-                    win_name_t = window.get_wm_class()
-                    if win_name_t is not None:
-                        win_exec = str(win_name_t[0])
-                    else:
-                        win_exec == "Unknown"
-                    #
-                    self.list_prog.append([winid, on_desktop, win_exec])
-            except:
-                pass
+                try:
+                    if not self.display.intern_atom("_NET_WM_STATE_SKIP_TASKBAR") in window.get_full_property(self.display.intern_atom("_NET_WM_STATE"), Xatom.ATOM).value:
+                        try:
+                            ppp = self.getProp(self.display,window,'DESKTOP')
+                        except:
+                            ppp = [0]
+                        on_desktop = ppp[0]
+                        # the exec name
+                        win_name_t = window.get_wm_class()
+                        if win_name_t is not None:
+                            win_exec = str(win_name_t[0])
+                        else:
+                            win_exec == "Unknown"
+                        #
+                        self.list_prog.append([winid, on_desktop, win_exec])
+                except:
+                    pass
         #
         # current window active - window id
         self.curr_win_active = None
@@ -422,9 +438,12 @@ class SecondaryWin(QtWidgets.QWidget):
                 tfont = QtGui.QFont()
                 if label1_font:
                     tfont.setFamily(label1_font)
-                tfont.setPointSize(label1_font_size)
-                tfont.setWeight(label1_font_weight)
-                tfont.setItalic(label1_font_italic)
+                if label1_font_size:
+                    tfont.setPointSize(label1_font_size)
+                if label1_font_weight:
+                    tfont.setWeight(label1_font_weight)
+                if label1_font_italic:
+                    tfont.setItalic(label1_font_italic)
                 self.labelw1.setFont(tfont)
             # 
             # self.l1p = QtCore.QProcess()
@@ -457,9 +476,12 @@ class SecondaryWin(QtWidgets.QWidget):
                 tfont = QtGui.QFont()
                 if label2_font:
                     tfont.setFamily(label2_font)
-                tfont.setPointSize(label2_font_size)
-                tfont.setWeight(label2_font_weight)
-                tfont.setItalic(label2_font_italic)
+                if label2_font_size:
+                    tfont.setPointSize(label2_font_size)
+                if label2_font_weight:
+                    tfont.setWeight(label2_font_weight)
+                if label2_font_italic:
+                    tfont.setItalic(label2_font_italic)
                 self.labelw2.setFont(tfont)
             ###
             # self.l2p = QtCore.QProcess()
@@ -881,9 +903,9 @@ class SecondaryWin(QtWidgets.QWidget):
         btn.desktop = pitem[1]
         btn.pexec = pitem[2]
         btn.installEventFilter(self)
-        if pitem[1] == 0:
+        if pitem[1] == 0 or pitem[1] == None:
             self.ibox.addWidget(btn)
-        else:
+        elif pitem[1] > 0:
             self.ibox.insertWidget(pitem[1] * 100, btn)
         btn.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         btn.customContextMenuRequested.connect(self.btnClicked)
@@ -892,6 +914,13 @@ class SecondaryWin(QtWidgets.QWidget):
     # get the active window when the program starts
     def get_active_window_first(self):
         window_id_temp = self.root.get_full_property(self.display.intern_atom('_NET_ACTIVE_WINDOW'), X.AnyPropertyType)
+        #
+        if window_id_temp == None:
+            return
+        #
+        if window_id_temp.value.tolist() == []:
+            return
+        #
         if window_id_temp:
             window_id = window_id_temp.value[0]
             for i in range(self.ibox.count()):
@@ -959,6 +988,10 @@ class SecondaryWin(QtWidgets.QWidget):
     # get the active window
     def get_active_window(self):
         window_id_temp = self.root.get_full_property(self.display.intern_atom('_NET_ACTIVE_WINDOW'), X.AnyPropertyType)
+        if window_id_temp == None:
+            return
+        if window_id_temp.value.tolist() == []:
+            return
         if window_id_temp:
             window_id = window_id_temp.value[0]
             # no active window
@@ -1178,11 +1211,14 @@ class SecondaryWin(QtWidgets.QWidget):
         self.btnMenu.exec_(self.sender().mapToGlobal(QPos)) 
         
     def on_close_prog(self, btn):
-        window = self.display.create_resource_object('window', btn.winid)
-        winPid = self.getProp(self.display, window, 'PID')[0]
-        # 9 signal.SIGKILL - 15 signal.SIGTERM
-        os.kill(winPid, 15)
-        self.right_button_pressed = 0
+        try:
+            window = self.display.create_resource_object('window', btn.winid)
+            winPid = self.getProp(self.display, window, 'PID')[0]
+            # 9 signal.SIGKILL - 15 signal.SIGTERM
+            os.kill(winPid, 15)
+            self.right_button_pressed = 0
+        except:
+            self.right_button_pressed = 0
     
     
     def eventFilter(self, widget, event):
