@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# V 0.9.1
+# V 0.9.1.1
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
 import shutil
@@ -797,7 +797,14 @@ class SecondaryWin(QtWidgets.QWidget):
         winid = pitem[0]
         self.wid_l.append(winid)
         window = self.display.create_resource_object('window', winid)
-        win_name_class = window.get_wm_class()[0]
+        # win_name_class = window.get_wm_class()[0]
+        #
+        win_name_class_tmp = window.get_wm_class()
+        if not win_name_class_tmp:
+            win_name_class = ""
+        else:
+            win_name_class = win_name_class_tmp[0]
+        #
         if win_name_class and QtGui.QIcon.hasThemeIcon(win_name_class):
             licon = QtGui.QIcon.fromTheme(win_name_class)
         else:
