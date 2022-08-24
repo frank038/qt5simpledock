@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# V 0.9.2
+# V 0.9.3
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
 import shutil
@@ -312,6 +312,10 @@ class SecondaryWin(QtWidgets.QWidget):
             self.ibox.setSpacing(4)
             if tasklist_position == 0:
                 self.ibox.setAlignment(QtCore.Qt.AlignLeft)
+                # #
+                # pframe = QtWidgets.QFrame()
+                # pframe.setFrameShape(QtWidgets.QFrame.VLine)
+                # self.ibox.addWidget(pframe)
             elif tasklist_position == 1:
                 self.ibox.setAlignment(QtCore.Qt.AlignCenter)
             elif tasklist_position == 2:
@@ -516,7 +520,7 @@ class SecondaryWin(QtWidgets.QWidget):
         #
         if dock_width:
             self.on_move_win()
-    
+
     
     def tthreadslot(self, aa):
         # if aa[0] == "a":
@@ -1223,7 +1227,6 @@ class SecondaryWin(QtWidgets.QWidget):
             self.right_button_pressed = 0
         except:
             self.right_button_pressed = 0
-
     
     def eventFilter(self, widget, event):
         if isinstance(widget, QtWidgets.QPushButton):
@@ -1270,7 +1273,6 @@ class SecondaryWin(QtWidgets.QWidget):
             else:
                 self.move(sx, sy)
     
-   
     # raise the dock
     def enterEvent(self, event):
         if not fixed_position:
@@ -1565,12 +1567,11 @@ if __name__ == '__main__':
     this_window = _display.create_resource_object('window', this_windowID)
     # always above
     ewmh.setWmState(this_window, 1, '_NET_WM_STATE_ABOVE')
-# disabled
-#    # space reserved
-#    L = 0
-#    R = 0
-#    T = 0
-#    B = 0
+    # space reserved
+    L = 0
+    R = 0
+    T = 0
+    B = 0
 #    if sec_position == 2:
 #        if not fixed_position:
 #            T = reserved_space
@@ -1584,20 +1585,23 @@ if __name__ == '__main__':
 #                B = WINH + 10
 #            else:
 #                B = WINH
-#    # 
-#    this_window.change_property(_display.intern_atom('_NET_WM_STRUT'),
-#                                _display.intern_atom('CARDINAL'),
-#                                32, [L, R, T, B])
-#    x = 0
-#    y = x+WINW-1
-#    this_window.change_property(_display.intern_atom('_NET_WM_STRUT_PARTIAL'),
-#                           _display.intern_atom('CARDINAL'), 32,
-#                           [L, R, T, B, 0, 0, 0, 0, x, y, T, B],
-#                           X.PropModeReplace)
-#    
+    #
+    if fixed_position == 1:
+        B = WINH
+        # 
+        this_window.change_property(_display.intern_atom('_NET_WM_STRUT'),
+                                    _display.intern_atom('CARDINAL'),
+                                    32, [L, R, T, B])
+        x = 0
+        y = x+WINW-1
+        this_window.change_property(_display.intern_atom('_NET_WM_STRUT_PARTIAL'),
+                            _display.intern_atom('CARDINAL'), 32,
+                           	[L, R, T, B, 0, 0, 0, 0, x, y, T, B],
+                           	X.PropModeReplace)
+    	
     # # this_window.change_property(_display.intern_atom("_NET_WM_WINDOW_TYPE"),
     # #         Xatom.ATOM, 32, [_display.intern_atom("_NET_WM_WINDOW_TYPE_DOCK")])
-#    
+    
     _display.sync()
     #
     sec_window.show()

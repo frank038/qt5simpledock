@@ -12,7 +12,7 @@ tbutton_size = button_size
 dock_width=0
 # the height of the dock
 dock_height=60
-# window fixed position: 0 no - 1 yes
+# window fixed position: 0 no - 1 yes - 2 yes but does not reserve any spaces
 fixed_position=1
 # tasklist position: 0 left - 1 center - 2 right
 tasklist_position=0
