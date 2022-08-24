@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# V 0.9.1.1
+# V 0.9.2
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
 import shutil
@@ -165,14 +165,14 @@ class SecondaryWin(QtWidgets.QWidget):
             self.ibox = QtWidgets.QVBoxLayout()
             self.ibox.setContentsMargins(0,0,0,0)
             self.abox.addLayout(self.ibox)
-        # 3 top - 4 bottom
+        # 2 top - 3 bottom
         elif self.position in [2,3]:
             if with_compositor:
                 self.mainBox = QtWidgets.QHBoxLayout()
                 self.setLayout(self.mainBox)
                 #
                 self.abox = QtWidgets.QHBoxLayout()
-                self.abox.setContentsMargins(0,0,0,0)
+                self.abox.setContentsMargins(0,0,10,10)
                 self.abox.setDirection(QtWidgets.QBoxLayout.LeftToRight)
                 self.abox.setSpacing(0)
                 #
@@ -186,7 +186,8 @@ class SecondaryWin(QtWidgets.QWidget):
                     self.frame.setStyleSheet("background: palette(window); border-top-left-radius:{0}px; border-top-right-radius:{0}px".format(border_radius))
                 self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
                 #
-                self.mainBox.setContentsMargins(10,10,10,10)
+                # self.mainBox.setContentsMargins(10,10,10,10)
+                self.mainBox.setContentsMargins(0,0,0,0)
                 shadow_effect = QtWidgets.QGraphicsDropShadowEffect(
                         blurRadius=blur_radius,
                         offset=QtCore.QPointF(5, 5)
@@ -195,7 +196,7 @@ class SecondaryWin(QtWidgets.QWidget):
                 #
             else:
                 self.abox = QtWidgets.QHBoxLayout()
-                self.abox.setContentsMargins(0,0,0,0)
+                self.abox.setContentsMargins(0,0,10,0)
                 self.abox.setDirection(QtWidgets.QBoxLayout.LeftToRight)
                 self.abox.setSpacing(0)
                 if with_transparency:
@@ -311,10 +312,6 @@ class SecondaryWin(QtWidgets.QWidget):
             self.ibox.setSpacing(4)
             if tasklist_position == 0:
                 self.ibox.setAlignment(QtCore.Qt.AlignLeft)
-                # #
-                # pframe = QtWidgets.QFrame()
-                # pframe.setFrameShape(QtWidgets.QFrame.VLine)
-                # self.ibox.addWidget(pframe)
             elif tasklist_position == 1:
                 self.ibox.setAlignment(QtCore.Qt.AlignCenter)
             elif tasklist_position == 2:
@@ -1226,7 +1223,7 @@ class SecondaryWin(QtWidgets.QWidget):
             self.right_button_pressed = 0
         except:
             self.right_button_pressed = 0
-    
+
     
     def eventFilter(self, widget, event):
         if isinstance(widget, QtWidgets.QPushButton):
@@ -1272,8 +1269,9 @@ class SecondaryWin(QtWidgets.QWidget):
                 self.move(sx, sy - 10)
             else:
                 self.move(sx, sy)
-
     
+   
+    # raise the dock
     def enterEvent(self, event):
         if not fixed_position:
             if self.on_leave:
@@ -1281,10 +1279,23 @@ class SecondaryWin(QtWidgets.QWidget):
                 self.on_leave.deleteLater()
                 self.on_leave = None
             #
-            ewmh.setWmState(this_window, 0, '_NET_WM_STATE_BELOW')
-            ewmh.setWmState(this_window, 1, '_NET_WM_STATE_ABOVE')
-            ewmh.display.flush()
-            ewmh.display.sync()
+            if dock_width:
+                sx = int((self.screen_size.width() - self.size().width())/2)
+            else:
+                sx = int((self.screen_size.width() - WINW)/2)
+            if sec_position == 2:
+                sy = 0
+            elif sec_position == 3:
+                sy = self.screen_size.height() - WINH
+            # 
+            if with_compositor:
+                self.move(sx, sy)
+            else:
+                self.move(sx, sy)
+            # ewmh.setWmState(this_window, 0, '_NET_WM_STATE_BELOW')
+            # ewmh.setWmState(this_window, 1, '_NET_WM_STATE_ABOVE')
+            # ewmh.display.flush()
+            # ewmh.display.sync()
         return super(SecondaryWin, self).enterEvent(event)
 
     def leaveEvent(self, event):
@@ -1294,11 +1305,28 @@ class SecondaryWin(QtWidgets.QWidget):
             self.on_leave.start(2000)
         return super(SecondaryWin, self).enterEvent(event)
     
+    # lower the dock
     def on_leave_event(self):
-        ewmh.setWmState(this_window, 0, '_NET_WM_STATE_ABOVE')
-        ewmh.setWmState(this_window, 1, '_NET_WM_STATE_BELOW')
-        ewmh.display.flush()
-        ewmh.display.sync()
+        # ewmh.setWmState(this_window, 0, '_NET_WM_STATE_ABOVE')
+        # ewmh.setWmState(this_window, 1, '_NET_WM_STATE_BELOW')
+        #
+        if dock_width:
+            sx = int((self.screen_size.width() - self.size().width())/2)
+        else:
+            sx = int((self.screen_size.width() - WINW)/2)
+        #
+        if sec_position == 2:
+            sy = 0
+        elif sec_position == 3:
+            sy = self.screen_size.height()
+        # 
+        if with_compositor:
+            self.move(sx, sy - 10 - reserved_space)
+        else:
+            self.move(sx, sy - reserved_space)
+        #
+        # ewmh.display.flush()
+        # ewmh.display.sync()
         self.on_leave = None
     
 ############## TRAY
@@ -1422,6 +1450,7 @@ class trayThread(QtCore.QThread):
                             tray.tasks[task] = self.par.Obj(obj=obj, x=0, y=0, width=TRAY_I_WIDTH, height=TRAY_I_HEIGHT)
                             tray.order.append(task)
                             # added
+                            time.sleep(0.1)
                             self.par.sig.emit(["a"])
                             #
                             self.updatePanel(root, win, panel)
@@ -1431,6 +1460,7 @@ class trayThread(QtCore.QThread):
                     if e.window.id in tray.order:
                         tray.order.remove(e.window.id)
                         # removed
+                        time.sleep(0.1)
                         self.par.sig.emit(["b"])
                         #
                         # update
@@ -1533,33 +1563,41 @@ if __name__ == '__main__':
     this_windowID = int(sec_window.winId())
     _display = Display()
     this_window = _display.create_resource_object('window', this_windowID)
-    L = 0
-    R = 0
-    T = 0
-    B = 0
-    if sec_position == 2:
-        if not fixed_position:
-            T = reserved_space
-        else:
-            T = WINH
-    elif sec_position == 3:
-        if not fixed_position:
-            B = reserved_space
-        else:
-            if with_compositor:
-                B = WINH + 10
-            else:
-                B = WINH
-    # 
-    this_window.change_property(_display.intern_atom('_NET_WM_STRUT'),
-                                _display.intern_atom('CARDINAL'),
-                                32, [L, R, T, B])
-    x = 0
-    y = x+WINW-1
-    this_window.change_property(_display.intern_atom('_NET_WM_STRUT_PARTIAL'),
-                           _display.intern_atom('CARDINAL'), 32,
-                           [L, R, T, B, 0, 0, 0, 0, x, y, T, B],
-                           X.PropModeReplace)
+    # always above
+    ewmh.setWmState(this_window, 1, '_NET_WM_STATE_ABOVE')
+# disabled
+#    # space reserved
+#    L = 0
+#    R = 0
+#    T = 0
+#    B = 0
+#    if sec_position == 2:
+#        if not fixed_position:
+#            T = reserved_space
+#        else:
+#            T = WINH
+#    elif sec_position == 3:
+#        if not fixed_position:
+#            B = reserved_space
+#        else:
+#            if with_compositor:
+#                B = WINH + 10
+#            else:
+#                B = WINH
+#    # 
+#    this_window.change_property(_display.intern_atom('_NET_WM_STRUT'),
+#                                _display.intern_atom('CARDINAL'),
+#                                32, [L, R, T, B])
+#    x = 0
+#    y = x+WINW-1
+#    this_window.change_property(_display.intern_atom('_NET_WM_STRUT_PARTIAL'),
+#                           _display.intern_atom('CARDINAL'), 32,
+#                           [L, R, T, B, 0, 0, 0, 0, x, y, T, B],
+#                           X.PropModeReplace)
+#    
+    # # this_window.change_property(_display.intern_atom("_NET_WM_WINDOW_TYPE"),
+    # #         Xatom.ATOM, 32, [_display.intern_atom("_NET_WM_WINDOW_TYPE_DOCK")])
+#    
     _display.sync()
     #
     sec_window.show()
@@ -1573,12 +1611,13 @@ if __name__ == '__main__':
             sy = 0
         elif sec_position == 3:
             if with_compositor:
-                sy = size.height() - WINH - 10
+                # sy = size.height() - WINH - 10
+                sy = size.height() - WINH
             else:
                 sy = size.height() - WINH
         # 
-        sec_window.move(sx, sy)
         sec_window.resize(WINW, WINH)
+        sec_window.move(sx, sy)
         sec_window.setMaximumWidth(size.width())
     ############
     # set new style globally
@@ -1589,6 +1628,7 @@ if __name__ == '__main__':
     if icon_theme:
         QtGui.QIcon.setThemeName(icon_theme)
     ################
+    # ewmh.setWmState(this_window, 1, '_NET_WM_STATE_STICKY')
     # ewmh.setWmState(this_window, 1, '_NET_WM_STATE_SKIP_TASKBAR')
     # ewmh.setWmState(this_window, 1, '_NET_WM_STATE_SKIP_PAGER')
     # ewmh.display.flush()
