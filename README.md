@@ -4,7 +4,7 @@ A simple dock.
 
 Free to use and modify.
 
-Works fine with Openbox. Xfwm is also supported (see the config file).
+Works fine with Xfwm4 and Openbox.
 
 This program needs:
 - python3
