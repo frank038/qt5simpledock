@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-# V 0.9.3
+# V 0.9.4
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
 import shutil
 from Xlib.display import Display
+import Xlib
+from Xlib.X import CurrentTime as XCurrentTime
 from Xlib import X, Xatom, Xutil, error
 import Xlib.protocol.event as pe
 import subprocess
@@ -523,6 +525,8 @@ class SecondaryWin(QtWidgets.QWidget):
 
     
     def tthreadslot(self, aa):
+        # # if aa[0] == "x":
+            # # self.tthread.stop()
         # if aa[0] == "a":
             # self.frame_counter += 1
             # #
@@ -1340,7 +1344,16 @@ class trayThread(QtCore.QThread):
         super(trayThread, self).__init__(parent)
         self.frame_id = frame_id
         self.bcolor = bcolor
+        # # check if another tray is active
+        # display = Display()
+        # selection = display.intern_atom("_NET_SYSTEM_TRAY_S%d" % display.get_default_screen())
+        # if display.get_selection_owner(selection) != X.NONE:
+            # global use_tray
+            # self.sig.emit(["z"])
+            # use_tray = 0
+            # return
         
+    
     def run(self):
         while 1:
             try:
@@ -1348,13 +1361,13 @@ class trayThread(QtCore.QThread):
             except Exception as E:
                 print("Some problems with the systray:", str(E))
     
-    ####
+    
     class Obj(object):
         """ Multi-purpose class """
         def __init__(self, **kwargs):
             self.__dict__.update(kwargs)
-
-
+    
+    
     class PyPanel(object):
         
         def __init__(self, parent_id, par, bcolor):
@@ -1373,23 +1386,26 @@ class trayThread(QtCore.QThread):
             # tray icon background color
             colormap = self.screen.default_colormap
             self.background = colormap.alloc_named_color(self.bcolor).pixel
-            #
+            # aggiunta - vedo sotto
+            self.net_wm_pid = self.display.intern_atom("_NET_WM_PID")
+            # 
             self.panel["sections"].append(TRAY)
             self.panel[TRAY] = self.par.Obj(id="tray", tasks={}, order=[])
             self.createTray(self.display, self.screen)
             
+        # 1
         """ Create the System Tray Selection Owner Window """
         def createTray(self, dsp, scr):
             self._OPCODE = dsp.intern_atom("_NET_SYSTEM_TRAY_OPCODE")
             manager      = dsp.intern_atom("MANAGER")
             selection    = dsp.intern_atom("_NET_SYSTEM_TRAY_S%d" % dsp.get_default_screen())
             ## Selection owner window
-            # self.selowin = scr.root.create_window(-1, -1, 50, 50, 0, self.screen.root_depth)
-            self.selowin = scr.root.create_window(0, 0, tbutton_size, tbutton_size, 0, self.screen.root_depth)
+            self.selowin = scr.root.create_window(-1, -1, 50, 50, 0, self.screen.root_depth)
+            # self.selowin = scr.root.create_window(0, 0, tbutton_size, tbutton_size, 0, self.screen.root_depth)
             self.selowin.set_selection_owner(selection, X.CurrentTime)
             self.sendEvent(self.root, manager,[X.CurrentTime, selection, self.selowin.id], (X.StructureNotifyMask))
             #
-            self.loop(self.display, self.root, self.selowin, self.panel)
+            self.loop(self.display, self.root, self.selowin)
             
         """ Send a ClientMessage event to the root """
         def sendEvent(self, win, ctype, data, mask=None):
@@ -1400,25 +1416,23 @@ class trayThread(QtCore.QThread):
                 mask = (X.SubstructureRedirectMask|X.SubstructureNotifyMask)
             self.root.send_event(ev, event_mask=mask)
         
-        
         """ Redraw the panel """
-        def updatePanel(self, root, win, panel):
+        def updatePanel(self, root, win):
             curr_x   = 0
             tray     = None
             #
             # curr_x += 2
             curr_x += 0
-            tray = panel[TRAY]
+            tray = self.panel[TRAY]
             #
             if tray:
                 tti = 0
                 for tid in tray.order:
-                    t = tid
                     tx = curr_x
                     twidth = tbutton_size
                     theight = tbutton_size
                     ty = int((P_HEIGHT-theight)/2)
-                    tobj = self.display.create_resource_object("window", t)
+                    tobj = self.display.create_resource_object("window", tid)
                     tobj.configure(onerror=self.error, x=tx, y=ty, width=twidth, height=theight)
                     # tray icon background color
                     tobj.change_attributes(background_pixel = self.background)
@@ -1426,12 +1440,12 @@ class trayThread(QtCore.QThread):
                     tobj.map(onerror=self.error)
                     curr_x += twidth
                     tti += 1
-                #
                 self.par.sig.emit([tti])
-
+        
+        # 2
         """ Event loop - handle events as they occur until we're killed """ 
-        def loop(self, dsp, root, win, panel):
-            tray = panel[TRAY]
+        def loop(self, dsp, root, win):
+            tray = self.panel[TRAY]
             while 1:
                 e = dsp.next_event()
                 if e.type == X.ConfigureNotify and TRAY:
@@ -1444,29 +1458,41 @@ class trayThread(QtCore.QThread):
                         task = e.data[1][2] # taskid
                         if e.client_type == self._OPCODE and data == 0:
                             obj = dsp.create_resource_object("window", task)
-                            obj.reparent(int(self.parent_id), 0, 0)
+                            ######
+                            # obj.reparent(int(self.parent_id), 0, 0)
+                            ###### 
+                            pid = 0
+                            try:
+                                pidob = obj.get_property(self.net_wm_pid, X.AnyPropertyType, 0, 1024)
+                                pid = pidob.value[0]
+                            except:
+                                pass
+                            #
+                            if pid:
+                                obj.reparent(int(self.parent_id), 0, 0)
+                            ######
                             obj.change_attributes(event_mask=(X.ExposureMask|X.StructureNotifyMask))
-                            # tray icon background color
-                            obj.change_attributes(background_pixel = self.background)
+                            # # tray icon background color
+                            # obj.change_attributes(background_pixel = self.background)
                             #
                             tray.tasks[task] = self.par.Obj(obj=obj, x=0, y=0, width=TRAY_I_WIDTH, height=TRAY_I_HEIGHT)
                             tray.order.append(task)
-                            # added
-                            time.sleep(0.1)
+                            # added - but Xlib.error.BadWindow with uget
+                            # time.sleep(0.1)
                             self.par.sig.emit(["a"])
                             #
-                            self.updatePanel(root, win, panel)
+                            self.updatePanel(root, win)
                 ## an applet is been removed from the systray
                 elif e.type == X.DestroyNotify:
                     # delete the object from the list if it is a member
                     if e.window.id in tray.order:
                         tray.order.remove(e.window.id)
                         # removed
-                        time.sleep(0.1)
+                        # time.sleep(0.1)
                         self.par.sig.emit(["b"])
                         #
                         # update
-                        self.updatePanel(root, win, panel)
+                        self.updatePanel(root, win)
                 #
 
 ############## 
