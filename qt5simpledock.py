@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# V 0.9.4
+# V 0.9.5
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
 import shutil
@@ -560,9 +560,10 @@ class SecondaryWin(QtWidgets.QWidget):
         self.tframe.updateGeometry()
         self.tframe.resize(self.tframe.sizeHint())
         #
-        self.adjustSize()
-        self.updateGeometry()
-        self.resize(self.sizeHint())
+        if dock_width:
+            self.adjustSize()
+            self.updateGeometry()
+            self.resize(self.sizeHint())
     
     
     def on_label1(self, data):
@@ -1256,9 +1257,10 @@ class SecondaryWin(QtWidgets.QWidget):
     
     # move the window when a button is added or removed
     def on_move_win(self):
-        self.adjustSize()
-        self.updateGeometry()
-        self.resize(self.sizeHint())
+        if dock_width:
+            self.adjustSize()
+            self.updateGeometry()
+            self.resize(self.sizeHint())
         #
         if self.position in [0, 1]:
             pass
@@ -1400,7 +1402,7 @@ class trayThread(QtCore.QThread):
             manager      = dsp.intern_atom("MANAGER")
             selection    = dsp.intern_atom("_NET_SYSTEM_TRAY_S%d" % dsp.get_default_screen())
             ## Selection owner window
-            self.selowin = scr.root.create_window(-1, -1, 50, 50, 0, self.screen.root_depth)
+            self.selowin = scr.root.create_window(-1, -1, 1, 1, 0, self.screen.root_depth)
             # self.selowin = scr.root.create_window(0, 0, tbutton_size, tbutton_size, 0, self.screen.root_depth)
             self.selowin.set_selection_owner(selection, X.CurrentTime)
             self.sendEvent(self.root, manager,[X.CurrentTime, selection, self.selowin.id], (X.StructureNotifyMask))
