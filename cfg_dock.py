@@ -22,6 +22,8 @@ reserved_space=5
 theme_style="Fusion"
 # icon theme: "" to use the default theme
 icon_theme=""
+# the background colour of each button in the tasklist or "" for default
+button_background_color=""
 # use with a compositor: 0 no - 1 yes
 # this option add rounded borders
 with_compositor=0

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# V 0.9.6
+# V 0.9.7
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
 import shutil
@@ -894,7 +894,11 @@ class SecondaryWin(QtWidgets.QWidget):
         else:
             csae = ("QPushButton { text-align: center; padding: 5px;}")
         csaf1 = ("QPushButton::hover:!pressed {")
-        csaf2 = ("background-color: {};".format("#DF5E0B"))
+        if button_background_color:
+            csaf2 = ("background-color: {};".format(button_background_color))
+        else:
+            btn_bg_clr = self.palette().highlight().color().name()
+            csaf2 = ("background-color: {};".format(btn_bg_clr))
         csaf3 = ("border-radius: 9px;"
         "border-style: outset;"
         "padding: 5px;"
@@ -1463,17 +1467,17 @@ class trayThread(QtCore.QThread):
                         if e.client_type == self._OPCODE and data == 0:
                             obj = dsp.create_resource_object("window", task)
                             ######
-                            # obj.reparent(int(self.parent_id), 0, 0)
+                            obj.reparent(int(self.parent_id), 0, 0)
                             ###### 
-                            pid = 0
-                            try:
-                                pidob = obj.get_property(self.net_wm_pid, X.AnyPropertyType, 0, 1024)
-                                pid = pidob.value[0]
-                            except:
-                                pass
-                            #
-                            if pid:
-                                obj.reparent(int(self.parent_id), 0, 0)
+                            # pid = 0
+                            # try:
+                                # pidob = obj.get_property(self.net_wm_pid, X.AnyPropertyType, 0, 1024)
+                                # pid = pidob.value[0]
+                            # except:
+                                # pass
+                            # #
+                            # if pid:
+                                # obj.reparent(int(self.parent_id), 0, 0)
                             ######
                             obj.change_attributes(event_mask=(X.ExposureMask|X.StructureNotifyMask))
                             # # tray icon background color
