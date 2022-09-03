@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# V 0.9.5
+# V 0.9.6
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
 import shutil
@@ -563,7 +563,8 @@ class SecondaryWin(QtWidgets.QWidget):
         if dock_width:
             self.adjustSize()
             self.updateGeometry()
-            self.resize(self.sizeHint())
+            # self.resize(self.sizeHint())
+            self.resize(self.sizeHint().width(), dock_height)
     
     
     def on_label1(self, data):
@@ -1260,7 +1261,8 @@ class SecondaryWin(QtWidgets.QWidget):
         if dock_width:
             self.adjustSize()
             self.updateGeometry()
-            self.resize(self.sizeHint())
+            # self.resize(self.sizeHint())
+            self.resize(self.sizeHint().width(), dock_height)
         #
         if self.position in [0, 1]:
             pass
