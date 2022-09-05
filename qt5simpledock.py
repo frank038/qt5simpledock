@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# V 0.9.7
+# V 0.9.8
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
 import shutil
@@ -131,6 +131,9 @@ class SecondaryWin(QtWidgets.QWidget):
         self.display = Display()
         self.root = self.display.screen().root
         #
+        self.is_started = 1
+        # # the pointer entered the panel
+        # self.is_entered = 0
         ## the number of virtual desktops
         global virtual_desktops
         if virtual_desktops:
@@ -361,8 +364,8 @@ class SecondaryWin(QtWidgets.QWidget):
                         continue
                     # elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_DIALOG') in prop.value.tolist():
                         # continue
-                    # elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_UTILITY') in prop.value.tolist():
-                        # continue
+                    elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_UTILITY') in prop.value.tolist():
+                        continue
                     elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_TOOLBAR') in prop.value.tolist():
                         continue
                     elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_MENU') in prop.value.tolist():
@@ -561,10 +564,11 @@ class SecondaryWin(QtWidgets.QWidget):
         self.tframe.resize(self.tframe.sizeHint())
         #
         if dock_width:
-            self.adjustSize()
-            self.updateGeometry()
-            # self.resize(self.sizeHint())
-            self.resize(self.sizeHint().width(), dock_height)
+            self.on_move_win()
+            # self.adjustSize()
+            # self.updateGeometry()
+            # # self.resize(self.sizeHint())
+            # self.resize(self.sizeHint().width(), dock_height)
     
     
     def on_label1(self, data):
@@ -698,8 +702,8 @@ class SecondaryWin(QtWidgets.QWidget):
                         continue
                     # elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_DIALOG') in prop.value.tolist():
                         # continue
-                    # elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_UTILITY') in prop.value.tolist():
-                        # continue
+                    elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_UTILITY') in prop.value.tolist():
+                        continue
                     elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_TOOLBAR') in prop.value.tolist():
                         continue
                     elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_MENU') in prop.value.tolist():
@@ -716,38 +720,42 @@ class SecondaryWin(QtWidgets.QWidget):
                         continue
                     elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_POPUP_MENU') in prop.value.tolist():
                         continue
-                #
-                    # if self.display.intern_atom('_NET_WM_WINDOW_TYPE_NORMAL') in prop.value.tolist():
-                ###########
-                #
-                try:
-                    if not self.display.intern_atom("_NET_WM_STATE_SKIP_TASKBAR") in window.get_full_property(self.display.intern_atom("_NET_WM_STATE"), Xatom.ATOM).value:
-                        ppp = self.getProp(self.display, window,'DESKTOP')
-                        on_desktop = ppp[0]
-                         # the exec name
-                        win_name_t = window.get_wm_class()
-                        if win_name_t is not None:
-                            win_exec = str(win_name_t[0])
-                        else:
-                            win_exec == "Unknown"
+                    else:
                         #
-                        self.on_dock_items([w, on_desktop, win_exec])
-                except:
-                    pass
-        # 
-        if dock_width:
-            self.on_move_win()
+                        # if self.display.intern_atom('_NET_WM_WINDOW_TYPE_NORMAL') in prop.value.tolist():
+                        ###########
+                        #
+                        try:
+                            if not self.display.intern_atom("_NET_WM_STATE_SKIP_TASKBAR") in window.get_full_property(self.display.intern_atom("_NET_WM_STATE"), Xatom.ATOM).value:
+                                ppp = self.getProp(self.display, window,'DESKTOP')
+                                on_desktop = ppp[0]
+                                 # the exec name
+                                win_name_t = window.get_wm_class()
+                                if win_name_t is not None:
+                                    win_exec = str(win_name_t[0])
+                                else:
+                                    win_exec == "Unknown"
+                                #
+                                self.on_dock_items([w, on_desktop, win_exec])
+                        except:
+                            pass
+                        # # 
+                        # if dock_width:
+                            # self.on_move_win()
 
     
     # a window has been destroyed
     def delete_window_destroyed(self, window_list):
+        is_changed = 0
         for w in self.wid_l:
             if w not in window_list:
                 self.wid_l.remove(w)
                 self.on_remove_win(w)
+                is_changed = 1
         # 
-        if dock_width:
-            self.on_move_win()
+        if is_changed or self.is_started:
+            if dock_width:
+                self.on_move_win()
 
     # 1
     # add or remove virtual desktops
@@ -927,6 +935,7 @@ class SecondaryWin(QtWidgets.QWidget):
             self.ibox.insertWidget(pitem[1] * 100, btn)
         btn.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         btn.customContextMenuRequested.connect(self.btnClicked)
+    
     
     # 3
     # get the active window when the program starts
@@ -1263,6 +1272,7 @@ class SecondaryWin(QtWidgets.QWidget):
     # move the window when a button is added or removed
     def on_move_win(self):
         if dock_width:
+            QtWidgets.QApplication.processEvents()
             self.adjustSize()
             self.updateGeometry()
             # self.resize(self.sizeHint())
@@ -1278,7 +1288,10 @@ class SecondaryWin(QtWidgets.QWidget):
             if sec_position == 2:
                 sy = 0
             elif sec_position == 3:
-                sy = self.screen_size.height() - WINH
+                if self.on_leave:
+                    sy = self.screen_size.height() - WINH
+                else:
+                    sy = self.screen_size.height() - reserved_space
             # 
             if with_compositor:
                 self.move(sx, sy - 10)

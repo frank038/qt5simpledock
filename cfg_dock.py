@@ -9,7 +9,7 @@ use_tray = 0
 # tray icon size (even number)
 tbutton_size = button_size
 # the width of the dock: 0 to full width
-dock_width=0
+dock_width=500
 # the height of the dock
 dock_height=60
 # window fixed position: 0 no - 1 yes - 2 yes but does not reserve any spaces
