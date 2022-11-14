@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# V 0.9.8
+# V 0.9.9
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
 import shutil
@@ -509,6 +509,7 @@ class SecondaryWin(QtWidgets.QWidget):
             self.frame_box.setContentsMargins(0,0,0,0)
             self.frame_box.setSpacing(0)
             self.tframe.setLayout(self.frame_box)
+            self.tray_box = self.frame_box
             #
             self.abox.addWidget(self.tframe)
             # frame widget counter
@@ -516,7 +517,7 @@ class SecondaryWin(QtWidgets.QWidget):
             # widget background color
             bcolor = self.palette().color(QtGui.QPalette.Background).name()
             #
-            self.tthread = trayThread(self.tframe.winId(), bcolor)
+            self.tthread = trayThread(1, bcolor, data_run)
             self.tthread.sig.connect(self.tthreadslot)
             self.tthread.start()
         #
@@ -525,52 +526,49 @@ class SecondaryWin(QtWidgets.QWidget):
         #
         if dock_width:
             self.on_move_win()
-
     
     def tthreadslot(self, aa):
-        # # if aa[0] == "x":
-            # # self.tthread.stop()
-        # if aa[0] == "a":
-            # self.frame_counter += 1
-            # #
-            # lbl = QtWidgets.QLabel("")
-            # lbl.setContentsMargins(0, 0, 0, 0)
-            # lbl.setStyleSheet("background-color: palette(window)")
-            # lbl.setMinimumSize(tbutton_size, tbutton_size)
-            # self.frame_box.addWidget(lbl)
-        # elif aa[0] == "b":
-            # self.frame_counter -= 1
-            # self.frame_counter = max(0, self.frame_counter)
-            # if self.frame_box.count():
-                # self.frame_box.takeAt(0).widget().deleteLater()
-        if isinstance(aa[0], int):
-            num_lbl = self.frame_box.count()
-            if aa[0] > num_lbl:
-                while aa[0] > num_lbl:
-                    lbl = QtWidgets.QLabel("")
-                    lbl.setContentsMargins(0, 0, 0, 0)
-                    lbl.setStyleSheet("background-color: palette(window)")
-                    lbl.setMinimumSize(tbutton_size, tbutton_size)
-                    self.frame_box.addWidget(lbl)
-                    num_lbl += 1
-            elif aa[0] < num_lbl:
-                while num_lbl > aa[0]:
-                    if self.frame_box.count():
-                        self.frame_box.takeAt(0).widget().deleteLater()
-                        num_lbl -= 1
-        #
-        self.tframe.adjustSize()
-        self.tframe.updateGeometry()
-        self.tframe.resize(self.tframe.sizeHint())
-        #
-        if dock_width:
-            self.on_move_win()
-            # self.adjustSize()
-            # self.updateGeometry()
-            # # self.resize(self.sizeHint())
-            # self.resize(self.sizeHint().width(), dock_height)
+        if aa[0] == "a":
+            self.tadd(aa[1])
+        elif aa[0] == "b":
+            self.tremove(aa[1])
     
+    def tadd(self, wid):
+        fwin = QtGui.QWindow.fromWinId(wid)
+        # fwin.setFlags(QtCore.Qt.FramelessWindowHint)
+        fwin.setFlags(QtCore.Qt.FramelessWindowHint | QtCore.Qt.ForeignWindow)
+        fwidget = QtWidgets.QWidget.createWindowContainer(fwin)
+        # # useless
+        # p = fwidget.palette()
+        # p.setColor(fwidget.backgroundRole(), QtGui.QColor("yellow"))#("#0000ff"))
+        # fwidget.setPalette(p)
+        #
+        fwidget.setContentsMargins(0,0,0,0)
+        fwidget.setMinimumSize(tbutton_size, tbutton_size)
+        fwidget.resize(tbutton_size, tbutton_size)
+        fwidget.id = wid
+        self.tray_box.update()
+        #
+        self.tray_box.addWidget(fwidget, stretch=1)
+        for i in range(self.tray_box.count()):
+            widget = self.tray_box.itemAt(i).widget()
+        #
+        self.on_move_win()
     
+    def tremove(self, wid):
+        for i in range(self.tray_box.count()):
+            if self.tray_box.itemAt(i) != None:
+                widget = self.tray_box.itemAt(i).widget()
+                if widget and widget.id == wid:
+                    self.tray_box.removeWidget(widget)
+        # 
+        self.tray_box.update()
+        #
+        self.on_move_win()
+    
+    def resizeEvent(self, event):
+        self.update()
+
     def on_label1(self, data):
         if data:
             self.labelw1.setText(data[0])
@@ -934,8 +932,8 @@ class SecondaryWin(QtWidgets.QWidget):
         elif pitem[1] > 0:
             self.ibox.insertWidget(pitem[1] * 100, btn)
         btn.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        # btn.customContextMenuRequested.connect(lambda p=btn.pos(),b=btn: self.btnClicked(p,b))
         btn.customContextMenuRequested.connect(self.btnClicked)
-    
     
     # 3
     # get the active window when the program starts
@@ -1235,7 +1233,7 @@ class SecondaryWin(QtWidgets.QWidget):
         self.btnMenu.addAction(self.close_app_action)
         self.close_app_action.triggered.connect(self.winClose)
         # show context menu
-        self.btnMenu.exec_(self.sender().mapToGlobal(QPos)) 
+        self.btnMenu.exec_(btn.mapToGlobal(QPos)) 
         
     def on_close_prog(self, btn):
         try:
@@ -1294,9 +1292,15 @@ class SecondaryWin(QtWidgets.QWidget):
                     sy = self.screen_size.height() - reserved_space
             # 
             if with_compositor:
-                self.move(sx, sy - 10)
+                if not fixed_position:
+                    self.move(sx, sy - 10)
+                else:
+                    self.move(sx , sy - WINH)
             else:
-                self.move(sx, sy)
+                if not fixed_position:
+                    self.move(sx, sy)
+                else:
+                    self.move(sx , sy - WINH)
     
     # raise the dock
     def enterEvent(self, event):
@@ -1356,15 +1360,19 @@ class SecondaryWin(QtWidgets.QWidget):
         # ewmh.display.sync()
         self.on_leave = None
     
+
 ############## TRAY
 
 class trayThread(QtCore.QThread):
     sig = QtCore.pyqtSignal(list)
     
-    def __init__(self, frame_id, bcolor, parent=None):
+    def __init__(self, frame_id, bcolor, data_run, parent=None):
         super(trayThread, self).__init__(parent)
         self.frame_id = frame_id
         self.bcolor = bcolor
+        self.data_run = data_run
+        self.trays = []
+        self.error   = error.CatchError()        # Error Handler/Suppressor
         # # check if another tray is active
         # display = Display()
         # selection = display.intern_atom("_NET_SYSTEM_TRAY_S%d" % display.get_default_screen())
@@ -1373,150 +1381,89 @@ class trayThread(QtCore.QThread):
             # self.sig.emit(["z"])
             # use_tray = 0
             # return
+        #
+        self.display = Display()                 # Display obj
+        self.screen  = self.display.screen()     # Screen obj
+        self.root    = self.screen.root          # Display root
+        self._OPCODE = self.display.intern_atom("_NET_SYSTEM_TRAY_OPCODE")
+        manager      = self.display.intern_atom("MANAGER")
+        selection    = self.display.intern_atom("_NET_SYSTEM_TRAY_S%d" % self.display.get_default_screen())
+        ## Selection owner window
+        self.selowin = self.root.create_window(-1, -1, 1, 1, 0, self.screen.root_depth)
+        # self.selowin = self.root.create_window(0, 0, tbutton_size, tbutton_size, 0, self.screen.root_depth)
+        self.selowin.set_selection_owner(selection, X.CurrentTime)
+        self.sendEvent(self.root, manager,[X.CurrentTime, selection, self.selowin.id], (X.StructureNotifyMask))
+        #
+        # tray icon background color
+        colormap = self.screen.default_colormap
+        self.background = colormap.alloc_named_color(self.bcolor).pixel
+        #
+        self.pid = -1
         
+    """ Send a ClientMessage event to the root """
+    def sendEvent(self, win, ctype, data, mask=None):
+        data = (data+[0]*(5-len(data)))[:5]
+        ev = pe.ClientMessage(window=win, client_type=ctype, data=(32,(data)))
+        #
+        if not mask:
+            mask = (X.SubstructureRedirectMask|X.SubstructureNotifyMask)
+        self.root.send_event(ev, event_mask=mask)
+    
+    """ Event loop - handle events as they occur until we're killed """ 
+    def loop(self, dsp, root, win):
+        #
+        while self.data_run:
+            e = self.display.next_event()
+            #
+            if e.type == X.ConfigureNotify:
+                e.window.configure(onerror=self.error, width=tbutton_size, height=tbutton_size)
+            elif e.type == X.ClientMessage:
+                if e.window == self.selowin:
+                    data = e.data[1][1] # opcode
+                    task = e.data[1][2] # taskid
+                    if e.client_type == self._OPCODE and data == 0:
+                        obj = dsp.create_resource_object("window", task)
+                        ##
+                        if e.window.id in self.trays:
+                            self.sig.emit(["b", e.window.id])
+                            continue
+                        ########
+                        obj.change_attributes(event_mask=(X.ExposureMask|X.StructureNotifyMask))
+                        # tray icon background color
+                        obj.change_attributes(background_pixel = self.background)
+                        #
+                        self.trays.append(obj.id)
+                        self.sig.emit(["a", obj.id])
+                        # reset
+                        self.pid = -1
+            ## an applet is been removed from the systray
+            elif e.type == X.DestroyNotify:
+                # delete the object from the list if it is a member
+                if e.window.id in self.trays:
+                    self.trays.remove(e.window.id)
+                    self.sig.emit(["b", e.window.id])
+            #
+            if self.data_run == 0:
+                break
+        #
+        if self.data_run == 0:
+            return
+    
     
     def run(self):
-        while 1:
+        while self.data_run:
             try:
-                self.PyPanel(int(self.frame_id), self, self.bcolor)
+                self.loop(self.display, self.root, self.selowin)
             except Exception as E:
                 print("Some problems with the systray:", str(E))
-    
-    
-    class Obj(object):
-        """ Multi-purpose class """
-        def __init__(self, **kwargs):
-            self.__dict__.update(kwargs)
-    
-    
-    class PyPanel(object):
-        
-        def __init__(self, parent_id, par, bcolor):
-            """ Initialize and display the panel """
-            self.display = Display()                 # Display obj
-            self.screen  = self.display.screen()     # Screen obj
-            self.root    = self.screen.root          # Display root
-            self.parent_id = parent_id               # 
-            self.error   = error.CatchError()        # Error Handler/Suppressor
-            self.panel   = {"sections":[]}           # Panel data and layout
-            self.par = par
-            self.bcolor = bcolor                     # tray icon background color
             #
-            global P_HEIGHT
-            #
-            # tray icon background color
-            colormap = self.screen.default_colormap
-            self.background = colormap.alloc_named_color(self.bcolor).pixel
-            # aggiunta - vedo sotto
-            self.net_wm_pid = self.display.intern_atom("_NET_WM_PID")
-            # 
-            self.panel["sections"].append(TRAY)
-            self.panel[TRAY] = self.par.Obj(id="tray", tasks={}, order=[])
-            self.createTray(self.display, self.screen)
-            
-        # 1
-        """ Create the System Tray Selection Owner Window """
-        def createTray(self, dsp, scr):
-            self._OPCODE = dsp.intern_atom("_NET_SYSTEM_TRAY_OPCODE")
-            manager      = dsp.intern_atom("MANAGER")
-            selection    = dsp.intern_atom("_NET_SYSTEM_TRAY_S%d" % dsp.get_default_screen())
-            ## Selection owner window
-            self.selowin = scr.root.create_window(-1, -1, 1, 1, 0, self.screen.root_depth)
-            # self.selowin = scr.root.create_window(0, 0, tbutton_size, tbutton_size, 0, self.screen.root_depth)
-            self.selowin.set_selection_owner(selection, X.CurrentTime)
-            self.sendEvent(self.root, manager,[X.CurrentTime, selection, self.selowin.id], (X.StructureNotifyMask))
-            #
-            self.loop(self.display, self.root, self.selowin)
-            
-        """ Send a ClientMessage event to the root """
-        def sendEvent(self, win, ctype, data, mask=None):
-            data = (data+[0]*(5-len(data)))[:5]
-            ev = pe.ClientMessage(window=win, client_type=ctype, data=(32,(data)))
-            #
-            if not mask:
-                mask = (X.SubstructureRedirectMask|X.SubstructureNotifyMask)
-            self.root.send_event(ev, event_mask=mask)
-        
-        """ Redraw the panel """
-        def updatePanel(self, root, win):
-            curr_x   = 0
-            tray     = None
-            #
-            # curr_x += 2
-            curr_x += 0
-            tray = self.panel[TRAY]
-            #
-            if tray:
-                tti = 0
-                for tid in tray.order:
-                    tx = curr_x
-                    twidth = tbutton_size
-                    theight = tbutton_size
-                    ty = int((P_HEIGHT-theight)/2)
-                    tobj = self.display.create_resource_object("window", tid)
-                    tobj.configure(onerror=self.error, x=tx, y=ty, width=twidth, height=theight)
-                    # tray icon background color
-                    tobj.change_attributes(background_pixel = self.background)
-                    #
-                    tobj.map(onerror=self.error)
-                    curr_x += twidth
-                    tti += 1
-                self.par.sig.emit([tti])
-        
-        # 2
-        """ Event loop - handle events as they occur until we're killed """ 
-        def loop(self, dsp, root, win):
-            tray = self.panel[TRAY]
-            while 1:
-                e = dsp.next_event()
-                if e.type == X.ConfigureNotify and TRAY:
-                    if e.window.id in tray.tasks:
-                        task = tray.tasks[e.window.id]
-                        task.obj.configure(onerror=self.error, width=task.width, height=task.height)                                            
-                elif e.type == X.ClientMessage and TRAY:
-                    if e.window == self.selowin:
-                        data = e.data[1][1] # opcode
-                        task = e.data[1][2] # taskid
-                        if e.client_type == self._OPCODE and data == 0:
-                            obj = dsp.create_resource_object("window", task)
-                            ######
-                            obj.reparent(int(self.parent_id), 0, 0)
-                            ###### 
-                            # pid = 0
-                            # try:
-                                # pidob = obj.get_property(self.net_wm_pid, X.AnyPropertyType, 0, 1024)
-                                # pid = pidob.value[0]
-                            # except:
-                                # pass
-                            # #
-                            # if pid:
-                                # obj.reparent(int(self.parent_id), 0, 0)
-                            ######
-                            obj.change_attributes(event_mask=(X.ExposureMask|X.StructureNotifyMask))
-                            # # tray icon background color
-                            # obj.change_attributes(background_pixel = self.background)
-                            #
-                            tray.tasks[task] = self.par.Obj(obj=obj, x=0, y=0, width=TRAY_I_WIDTH, height=TRAY_I_HEIGHT)
-                            tray.order.append(task)
-                            # added - but Xlib.error.BadWindow with uget
-                            # time.sleep(0.1)
-                            self.par.sig.emit(["a"])
-                            #
-                            self.updatePanel(root, win)
-                ## an applet is been removed from the systray
-                elif e.type == X.DestroyNotify:
-                    # delete the object from the list if it is a member
-                    if e.window.id in tray.order:
-                        tray.order.remove(e.window.id)
-                        # removed
-                        # time.sleep(0.1)
-                        self.par.sig.emit(["b"])
-                        #
-                        # update
-                        self.updatePanel(root, win)
-                #
+            if self.data_run == 0:
+                break
+        #
+        if self.data_run == 0:
+            return
 
-############## 
+###################
 
 class chooseDialog(QtWidgets.QDialog):
     def __init__(self, progs, parent):
@@ -1658,14 +1605,17 @@ if __name__ == '__main__':
         pass
     elif sec_position in [2,3]:
         sx = int((size.width() - WINW)/2)
-        if sec_position == 2:
-            sy = 0
-        elif sec_position == 3:
-            if with_compositor:
-                # sy = size.height() - WINH - 10
-                sy = size.height() - WINH
-            else:
-                sy = size.height() - WINH
+        if not fixed_position:
+            if sec_position == 2:
+                sy = 0
+            elif sec_position == 3:
+                if with_compositor:
+                    # sy = size.height() - WINH - 10
+                    sy = size.height() - WINH
+                else:
+                    sy = size.height() - WINH
+        else:
+            sy = size.height() - WINH
         # 
         sec_window.resize(WINW, WINH)
         sec_window.move(sx, sy)
