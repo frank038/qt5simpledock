@@ -1,6 +1,6 @@
 # qt5simpledock
 A simple dock.
- V. 0.9.8 (in testing/development state but usable)
+ V. 0.9.9 (in testing/development state but usable)
 
 Free to use and modify.
 
@@ -12,6 +12,9 @@ This program needs:
 - python3-xlib
 - python3-ewmh
 - optional xdotool for some window managers that need a different way in iconifying.
+
+Known issues:
+- the tray icons do not update their icons everytime they need clearly.
 
 Features:
 - virtual desktops
