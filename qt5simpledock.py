@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# V 0.9.9
+# V 0.9.10
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
 import shutil
@@ -42,7 +42,8 @@ class winThread(QtCore.QThread):
         self.root = self.display.screen().root
         #
         self.win_l = []
-        self.root.change_attributes(event_mask=X.PropertyChangeMask)
+        mask = (X.PropertyChangeMask | X.StructureNotifyMask | X.ExposureMask)
+        self.root.change_attributes(event_mask=mask)
     
     ##### 
     def getProp(self, disp, win, prop):
@@ -75,7 +76,7 @@ class winThread(QtCore.QThread):
                 #
                 if event.atom == self.display.intern_atom('_NET_CLIENT_LIST'):
                     self.sig.emit(["NETLIST"])
-                    
+            
             if stopCD:
                 break
         if stopCD:
@@ -538,10 +539,6 @@ class SecondaryWin(QtWidgets.QWidget):
         # fwin.setFlags(QtCore.Qt.FramelessWindowHint)
         fwin.setFlags(QtCore.Qt.FramelessWindowHint | QtCore.Qt.ForeignWindow)
         fwidget = QtWidgets.QWidget.createWindowContainer(fwin)
-        # # useless
-        # p = fwidget.palette()
-        # p.setColor(fwidget.backgroundRole(), QtGui.QColor("yellow"))#("#0000ff"))
-        # fwidget.setPalette(p)
         #
         fwidget.setContentsMargins(0,0,0,0)
         fwidget.setMinimumSize(tbutton_size, tbutton_size)
@@ -654,6 +651,12 @@ class SecondaryWin(QtWidgets.QWidget):
             # net list
             elif data[0] == "NETLIST":
                 self.net_list()
+            #
+            elif data[0] == "EXPOSE":
+                self.adjustSize()
+                self.updateGeometry()
+                # # self.resize(self.sizeHint())
+                # self.resize(self.sizeHint().width(), dock_height)
     
     # number of virtual desktops changed
     def virtual_desktops_changed(self, ndesks):
@@ -1428,7 +1431,7 @@ class trayThread(QtCore.QThread):
                             self.sig.emit(["b", e.window.id])
                             continue
                         ########
-                        obj.change_attributes(event_mask=(X.ExposureMask|X.StructureNotifyMask))
+                        obj.change_attributes(event_mask=(X.PropertyChangeMask | X.ExposureMask|X.StructureNotifyMask))
                         # tray icon background color
                         obj.change_attributes(background_pixel = self.background)
                         #
@@ -1442,6 +1445,15 @@ class trayThread(QtCore.QThread):
                 if e.window.id in self.trays:
                     self.trays.remove(e.window.id)
                     self.sig.emit(["b", e.window.id])
+            #
+            elif e.type == X.Expose:
+                e.window.change_attributes(background_pixel = self.background)
+            
+            # properties
+            elif (e.type == X.PropertyNotify):
+                if e.atom == self.display.intern_atom("WM_ICON_NAME") or e.atom == self.display.intern_atom("_NET_WM_ICON_NAME"):
+                    #
+                    e.window.change_attributes(background_pixel = self.background)
             #
             if self.data_run == 0:
                 break
