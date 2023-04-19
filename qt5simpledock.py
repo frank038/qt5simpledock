@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-# V 0.9.10
+
+# V 0.9.11
+
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
 import shutil
@@ -133,8 +135,6 @@ class SecondaryWin(QtWidgets.QWidget):
         self.root = self.display.screen().root
         #
         self.is_started = 1
-        # # the pointer entered the panel
-        # self.is_entered = 0
         ## the number of virtual desktops
         global virtual_desktops
         if virtual_desktops:
@@ -533,6 +533,8 @@ class SecondaryWin(QtWidgets.QWidget):
             self.tadd(aa[1])
         elif aa[0] == "b":
             self.tremove(aa[1])
+        # elif aa[0] == "c":
+            # self.tupdate(aa[1], aa[2])
     
     def tadd(self, wid):
         fwin = QtGui.QWindow.fromWinId(wid)
@@ -1219,9 +1221,14 @@ class SecondaryWin(QtWidgets.QWidget):
         btn = self.sender()
         # create context menu
         self.btnMenu = QtWidgets.QMenu(self)
+        #
         self.close_prog = QtWidgets.QAction("Close")
         self.btnMenu.addAction(self.close_prog)
         self.close_prog.triggered.connect(lambda:self.on_close_prog(btn))
+        #
+        self.force_close_prog = QtWidgets.QAction("Force Close")
+        self.btnMenu.addAction(self.force_close_prog)
+        self.force_close_prog.triggered.connect(lambda:self.on_force_close_prog(btn))
         # 
         ret = self.on_pin(btn.pexec)
         if ret:
@@ -1241,12 +1248,31 @@ class SecondaryWin(QtWidgets.QWidget):
     def on_close_prog(self, btn):
         try:
             window = self.display.create_resource_object('window', btn.winid)
-            winPid = self.getProp(self.display, window, 'PID')[0]
-            # 9 signal.SIGKILL - 15 signal.SIGTERM
-            os.kill(winPid, 15)
+            # winPid = self.getProp(self.display, window, 'PID')[0]
+            # # 9 signal.SIGKILL - 15 signal.SIGTERM
+            # os.kill(winPid, 15)
+            self._close_w(window)
             self.right_button_pressed = 0
         except:
             self.right_button_pressed = 0
+    
+    def _close_w(self, win):
+        ewmh.setCloseWindow(win)
+        ewmh.display.flush()
+        ewmh.display.sync()
+    
+    # aggiungere dialogo di conferma
+    def on_force_close_prog(self, btn):
+        ret = MyDialog("Question", "Do you want to close this window?\nYou can loose your data!", self)
+        if ret.retval == QtWidgets.QMessageBox.Ok:
+            try:
+                window = self.display.create_resource_object('window', btn.winid)
+                winPid = self.getProp(self.display, window, 'PID')[0]
+                # 9 signal.SIGKILL - 15 signal.SIGTERM
+                os.kill(winPid, 9)
+                self.right_button_pressed = 0
+            except:
+                self.right_button_pressed = 0
     
     def eventFilter(self, widget, event):
         if isinstance(widget, QtWidgets.QPushButton):
@@ -1436,6 +1462,7 @@ class trayThread(QtCore.QThread):
                         obj.change_attributes(background_pixel = self.background)
                         #
                         self.trays.append(obj.id)
+                        
                         self.sig.emit(["a", obj.id])
                         # reset
                         self.pid = -1
@@ -1445,14 +1472,13 @@ class trayThread(QtCore.QThread):
                 if e.window.id in self.trays:
                     self.trays.remove(e.window.id)
                     self.sig.emit(["b", e.window.id])
-            #
+            # 
             elif e.type == X.Expose:
                 e.window.change_attributes(background_pixel = self.background)
             
             # properties
             elif (e.type == X.PropertyNotify):
                 if e.atom == self.display.intern_atom("WM_ICON_NAME") or e.atom == self.display.intern_atom("_NET_WM_ICON_NAME"):
-                    #
                     e.window.change_attributes(background_pixel = self.background)
             #
             if self.data_run == 0:
@@ -1476,6 +1502,37 @@ class trayThread(QtCore.QThread):
             return
 
 ###################
+
+# simple dialog message
+# type - message - parent
+class MyDialog(QtWidgets.QMessageBox):
+    def __init__(self, *args):
+        super(MyDialog, self).__init__(args[-1])
+        if args[0] == "Info":
+            self.setIcon(QtWidgets.QMessageBox.Information)
+            self.setStandardButtons(QtWidgets.QMessageBox.Ok)
+        elif args[0] == "Error":
+            self.setIcon(QtWidgets.QMessageBox.Critical)
+            self.setStandardButtons(QtWidgets.QMessageBox.Ok)
+        elif args[0] == "Question":
+            self.setIcon(QtWidgets.QMessageBox.Question)
+            self.setStandardButtons(QtWidgets.QMessageBox.Ok|QtWidgets.QMessageBox.Cancel)
+        self.setWindowIcon(QtGui.QIcon("icons/file-manager-red.svg"))
+        self.setWindowTitle(args[0])
+        self.resize(self.sizeHint())
+        self.setText(args[1])
+        self.retval = self.exec_()
+    
+    def event(self, e):
+        result = QtWidgets.QMessageBox.event(self, e)
+        #
+        self.setMinimumHeight(0)
+        self.setMaximumHeight(16777215)
+        self.setMinimumWidth(0)
+        self.setMaximumWidth(16777215)
+        self.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        # 
+        return result
 
 class chooseDialog(QtWidgets.QDialog):
     def __init__(self, progs, parent):
