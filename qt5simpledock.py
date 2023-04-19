@@ -29,7 +29,7 @@ P_HEIGHT        = dock_height   # Panel height
 TRAY_I_HEIGHT   = min(tbutton_size, button_size)   # System tray icon height (usually 16 or 24)
 TRAY_I_WIDTH    = min(tbutton_size, button_size)   # System tray icon width  (usually 16 or 24)
 TRAY            = 1             # System tray section
-
+tray_already_used = 0
 #############
 stopCD = 0
 data_run = 1
@@ -501,6 +501,15 @@ class SecondaryWin(QtWidgets.QWidget):
             self.label2thread.start()
         #
         #### tray section
+        global use_tray
+        # check if another tray is active
+        self.display = Display()
+        selection = self.display.intern_atom("_NET_SYSTEM_TRAY_S%d" % self.display.get_default_screen())
+        if self.display.get_selection_owner(selection) != X.NONE:
+            global tray_already_used
+            tray_already_used = 1
+            use_tray = 0
+        #
         if use_tray:
             self.tframe = QtWidgets.QFrame()
             self.tframe.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
