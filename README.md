@@ -1,6 +1,6 @@
 # qt5simpledock
 A simple dock.
- V. 0.9.10 (in development state)
+ V. 0.9.11 (in dev state)
 
 Free to use and modify.
 
