@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# V 0.9.11
+# V 0.9.13
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
@@ -1677,6 +1677,14 @@ if __name__ == '__main__':
     _display.sync()
     #
     sec_window.show()
+    #
+    if tray_already_used:
+        msg = QtWidgets.QMessageBox()
+        msg.setIcon(QtWidgets.QMessageBox.Information)
+        msg.setText("Tray already in use.")
+        msg.setInformativeText("The tray will be disabled.")
+        msg.setWindowTitle("Info")
+        msg.exec_()
     #############
     # move and center the window
     if sec_position in [0, 1]:
