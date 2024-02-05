@@ -15,7 +15,7 @@ Some features such as logout/shutdown are still not implemented.
 
 Features:
 - application menu (can add or modify application entries; bookmarks; search functionality)
-- clock/calendar (can read an ics file)
+- clock/calendar (can read an ics file; can launch an external program for adding/modifying events by double clicking in a day cell)
 - virtual desktops
 - application launchers (using the contextual menu, applications can be pinned and unpinned - a valid desktop file is required; the file delete_me in the folder 'applications' needs to be deleted before using this program)
 - task list with icon support and application comment while hovering on it
