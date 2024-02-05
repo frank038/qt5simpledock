@@ -1,10 +1,8 @@
 # qt5simpledock
 A simple dock.
- V. 0.9.13 (in dev state)
+ V. 0.9.15 (in dev state)
 
 Free to use and modify.
-
-Works fine with Xfwm4 and Openbox.
 
 This program needs:
 - python3
@@ -13,10 +11,11 @@ This program needs:
 - python3-ewmh
 - optional xdotool for some window managers that need a different way in iconifying.
 
-Known issues:
-- the tray icons do not update their icons everytime they need clearly.
+Some features such as logout/shutdown are still not implemented.
 
 Features:
+- application menu
+- clock/calendar (can read an ics file)
 - virtual desktops
 - application launchers (using the contextual menu, applications can be pinned and unpinned - a valid desktop file is required; the file delete_me in the folder 'applications' needs to be deleted before using this program)
 - task list with icon support and application comment while hovering on it
