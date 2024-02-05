@@ -1,2 +1,4 @@
 #!/bin/bash
-echo "11label11"
+
+# echo "1label1"
+echo `date +%H:%M:%S`
