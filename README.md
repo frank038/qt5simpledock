@@ -14,7 +14,7 @@ This program needs:
 Some features such as logout/shutdown are still not implemented.
 
 Features:
-- application menu
+- application menu (can add or modify application entries)
 - clock/calendar (can read an ics file)
 - virtual desktops
 - application launchers (using the contextual menu, applications can be pinned and unpinned - a valid desktop file is required; the file delete_me in the folder 'applications' needs to be deleted before using this program)
