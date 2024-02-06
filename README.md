@@ -22,12 +22,7 @@ Features:
 - systemtray icons support
 - closing applications by right mouse clicking on its icon
 - closing and restarting this program by right mouse clicking
-- customizations in the cfg_dock file
-- this program can be used with a compositor for enabling rounded corners and transparency.
+- customizations in the cfg_dock file.
 
 In the image below from the left: the dock with the virtual desktops, one application launcher, the tasklist with two programs in it and two messages.
 ![My image](https://github.com/frank038/qt5simpledock/blob/main/screenshot.png)
-
-In this image: with_compositor and with_transparency options both enabled; with_transparency option enabled only. A compositor is required for rounded corners and transparency.
-
-![My image](https://github.com/frank038/qt5simpledock/blob/main/screenshot1.png)
