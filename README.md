@@ -10,15 +10,14 @@ This program needs:
 - python3-ewmh
 - optional xdotool for some window managers that need a different way in iconifying.
 
-Some features such as logout/shutdown are still not implemented.
 
 Features:
 - application menu (can add or modify application entries; bookmarks; search functionality)
 - clock/calendar (can read an ics file; can launch an external program for adding/modifying events by double clicking in a day cell)
-- virtual desktops
+- virtual desktops (if supported by the window manager)
 - application launchers (using the contextual menu, applications can be pinned and unpinned - a valid desktop file is required; the file delete_me in the folder 'applications' needs to be deleted before using this program)
 - task list with icon support and application comment while hovering on it
-- two slots for periodical custom messagges (just modify the files in the script folder; they accept both plain text or rich text; see the sample files)
+- three slots for periodical custom messagges (just modify the files in the script folder; they accept both plain text or rich text; see the sample files)
 - systemtray icons support
 - closing applications by right mouse clicking on its icon
 - closing and restarting this program by right mouse clicking
