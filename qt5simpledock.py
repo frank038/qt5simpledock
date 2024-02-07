@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# V 0.9.16
+# V 0.9.17
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
@@ -191,7 +191,7 @@ class winThread(QtCore.QThread):
         self.root = self.display.screen().root
         #
         self.win_l = []
-        mask = (X.PropertyChangeMask | X.StructureNotifyMask | X.ExposureMask)
+        mask = (X.SubstructureNotifyMask | X.PropertyChangeMask | X.StructureNotifyMask | X.ExposureMask)
         self.root.change_attributes(event_mask=mask)
     
     ##### 
@@ -223,6 +223,19 @@ class winThread(QtCore.QThread):
                 #
                 if event.atom == self.display.intern_atom('_NET_CLIENT_LIST'):
                     self.sig.emit(["NETLIST"])
+            #
+            elif event.type == X.ClientMessage:
+                #
+                fmt, data = event.data
+                if event.client_type == self.display.intern_atom('_NET_WM_STATE'):
+                    if fmt == 32 and data[1] == self.display.intern_atom("_NET_WM_STATE_DEMANDS_ATTENTION"):
+                        if data[0] == 1:
+                            self.sig.emit(["URGENCY", 1, event.window])
+                        elif data[0] == 0:
+                            self.sig.emit(["URGENCY", 0, event.window])
+                        # toggle urgency
+                        elif data[0] == 2:
+                            self.sig.emit(["URGENCY", 2, event.window])
             
             if stopCD:
                 break
@@ -239,7 +252,6 @@ class label1Thread(QtCore.QThread):
     
     def __init__(self, label1_data):
         super(label1Thread, self).__init__()
-        # script - loop
         self.label1_data = label1_data
     
     def run(self):
@@ -275,7 +287,6 @@ class winThread2(QtCore.QThread):
 class SecondaryWin(QtWidgets.QWidget):
     def __init__(self, position):
         super(SecondaryWin, self).__init__()
-        #
         self.position = position
         self.setWindowTitle("qt5simpledock")
         #
@@ -283,7 +294,10 @@ class SecondaryWin(QtWidgets.QWidget):
         self.root = self.display.screen().root
         #
         self.is_started = 1
-        #
+        # demand attention: window:type - 1 add - 0 remove - 2 toggle
+        self.attention_windows = {}
+        # list of windows demanding attention
+        self.list_uitem = []
         ## the number of virtual desktops
         global virtual_desktops
         if virtual_desktops:
@@ -384,7 +398,6 @@ class SecondaryWin(QtWidgets.QWidget):
                 if clock_font_italic:
                     tfont.setItalic(clock_font_italic)
                 #
-                # if clock_font:
                 self.tlabel.setFont(tfont)
                 #
                 timer = QtCore.QTimer(self)
@@ -441,8 +454,8 @@ class SecondaryWin(QtWidgets.QWidget):
             self.prog_box.setContentsMargins(4,0,4,0)
             self.prog_box.setSpacing(4)
             self.prog_box.desk = "p"
+            self.prog_box.setAlignment(QtCore.Qt.AlignCenter)
             self.abox.insertLayout(4, self.prog_box)
-            # self.abox.setAlignment(self.prog_box, QtCore.Qt.AlignVCenter)
             ## add the applications to prog_box
             progs = os.listdir("applications")
             # args to remove from the exec entry
@@ -467,6 +480,7 @@ class SecondaryWin(QtWidgets.QWidget):
                     #
                     self.pbtn = QtWidgets.QPushButton()
                     self.pbtn.setFlat(True)
+                    # self.pbtn.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
                     picon = QtGui.QIcon.fromTheme(icon)
                     if picon.isNull():
                         image = QtGui.QImage(icon)
@@ -476,13 +490,13 @@ class SecondaryWin(QtWidgets.QWidget):
                         picon = QtGui.QIcon(pixmap)
                     self.pbtn.setFixedSize(QtCore.QSize(pbutton_size, pbutton_size))
                     self.pbtn.setIcon(picon)
-                    self.pbtn.setIconSize(self.pbtn.size())
                     self.pbtn.setToolTip(fname or pexec)
-                    self.pbtn.setIcon(picon)
+                    # self.pbtn.setIconSize(self.pbtn.size())
+                    self.pbtn.setIconSize(QtCore.QSize(pbutton_size, pbutton_size))
                     self.pbtn.pexec = pexec_temp
                     self.pbtn.pdesktop = ffile
                     self.pbtn.ppath = fpath
-                    self.prog_box.addWidget(self.pbtn)
+                    self.prog_box.addWidget(self.pbtn, alignment=QtCore.Qt.AlignCenter)
                     self.pbtn.clicked.connect(self.on_pbtn)
                     self.pbtn.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
                     self.pbtn.customContextMenuRequested.connect(self.pbtnClicked)
@@ -564,7 +578,11 @@ class SecondaryWin(QtWidgets.QWidget):
                             ppp = self.getProp(self.display,window,'DESKTOP')
                         except:
                             ppp = [0]
-                        on_desktop = ppp[0]
+                        #
+                        if ppp and ppp[0]:
+                            on_desktop = ppp[0]
+                        else:
+                            on_desktop = 0
                         # the exec name
                         win_name_t = window.get_wm_class()
                         if win_name_t is not None:
@@ -586,8 +604,9 @@ class SecondaryWin(QtWidgets.QWidget):
         icon_icon = None
         for pitem in self.list_prog:
             self.on_dock_items(pitem)
-        # the active window
-        self.get_active_window_first()
+        # # deactivated
+        # # the active window
+        # self.get_active_window_first()
         ####
         # this program wid
         self.this_window = None
@@ -791,6 +810,7 @@ class SecondaryWin(QtWidgets.QWidget):
     
     def tadd(self, wid):
         fwin = QtGui.QWindow.fromWinId(wid)
+        # fwin.setFlags(QtCore.Qt.FramelessWindowHint)
         fwin.setFlags(QtCore.Qt.FramelessWindowHint | QtCore.Qt.ForeignWindow)
         fwidget = QtWidgets.QWidget.createWindowContainer(fwin)
         fwidget.setContentsMargins(0,0,0,0)
@@ -816,6 +836,7 @@ class SecondaryWin(QtWidgets.QWidget):
         #
         self.on_move_win()
     
+    # def tupdate(self, wid):
     def tupdate(self, win, bcolor):
         wid = win.id
         for i in range(self.tray_box.count()):
@@ -837,7 +858,7 @@ class SecondaryWin(QtWidgets.QWidget):
                     self.tray_box.update()
                     widget.repaint()
                     break
-    
+
     def resizeEvent(self, event):
         self.update()
     
@@ -909,9 +930,104 @@ class SecondaryWin(QtWidgets.QWidget):
             elif data[0] == "NETLIST":
                 self.net_list()
             #
-            elif data[0] == "EXPOSE":
-                self.adjustSize()
-                self.updateGeometry()
+            elif data[0] == "URGENCY":
+                self._urgency(data[1], data[2])
+    
+    def on_urgency(self, _n, item):
+        if _n == 1:
+            if self.list_uitem:
+                # only one window with attention flag
+                self.utimer.stop()
+                self.list_uitem[0].setStyleSheet("border-color: {}; border=none".format(self.palette().color(QtGui.QPalette.Background).name()))
+                self.list_uitem = []
+            #
+            self.utimer = QtCore.QTimer()
+            self.utimer.setInterval(500)
+            self._ut = 0
+            self.list_uitem.append(item)
+            self.utimer.timeout.connect(lambda:self.f_on_urgency(item))
+            #
+            self.utimer.start()
+        #
+        elif _n == 0:
+            self.utimer.stop()
+            if item in self.list_uitem:
+                self.list_uitem.remove(item)
+            try:
+                self.uitem.setStyleSheet("border-color: {}; border=none".format(self.palette().color(QtGui.QPalette.Background).name()))
+            except:
+                pass
+            del self._ut
+        
+    def f_on_urgency(self, item):
+        try:
+            if self._ut == 0 or (self._ut % 2) == 0:
+                item.setStyleSheet("border: 2px solid; border-radius: 2px; border-color: red;")
+                self._ut += 1
+            elif self._ut == 1 or (self._ut % 2) != 0:
+                item.setStyleSheet("border-color: {}; border=none".format(self.palette().color(QtGui.QPalette.Background).name()))
+                self._ut += 1
+            # timer limit 3 sec.
+            if self._ut == 6:
+                item.setStyleSheet("border: 2px solid; border-radius: 2px; border-color: red;")
+                self.utimer.stop()
+                # if item in self.list_uitem:
+                    # self.list_uitem.remove(item)
+                del self._ut
+        except:
+            self.utimer.stop()
+            if item in self.list_uitem:
+                self.list_uitem.remove(item)
+            del self._ut
+        
+    
+    # urgency flag
+    def _urgency(self, _type, win):
+        if _type == 1:
+            if not (win.id in self.attention_windows):
+                self.attention_windows[win.id] = _type
+                #
+                for i in range(self.ibox.count()):
+                    item = self.ibox.itemAt(i).widget()
+                    if not item:
+                        continue
+                    if isinstance(item, QtWidgets.QPushButton):
+                        if item.winid == win.id:
+                            self.on_urgency(1, item)
+                            break
+        elif _type == 0:
+            if (win.id in self.attention_windows):
+                del self.attention_windows[win.id]
+                #
+                for i in range(self.ibox.count()):
+                    item = self.ibox.itemAt(i).widget()
+                    if not item:
+                        continue
+                    if isinstance(item, QtWidgets.QPushButton):
+                        if item.winid == win.id:
+                            self.on_urgency(0, item)
+                            break
+        elif _type == 2:
+            if not (win.id in self.attention_windows):
+                self.attention_windows[win.id] = _type
+                for i in range(self.ibox.count()):
+                    item = self.ibox.itemAt(i).widget()
+                    if not item:
+                        continue
+                    if isinstance(item, QtWidgets.QPushButton):
+                        if item.winid == win.id:
+                            self.on_urgency(1, item)
+                            break
+            elif (win.id in self.attention_windows):
+                del self.attention_windows[win.id]
+                for i in range(self.ibox.count()):
+                    item = self.ibox.itemAt(i).widget()
+                    if not item:
+                        continue
+                    if isinstance(item, QtWidgets.QPushButton):
+                        if item.winid == win.id:
+                            self.on_urgency(0, item)
+                            break
     
     # number of virtual desktops changed
     def virtual_desktops_changed(self, ndesks):
@@ -935,7 +1051,7 @@ class SecondaryWin(QtWidgets.QWidget):
             window_list = xlist.value.tolist()
         self.on_new_window(window_list)
         self.delete_window_destroyed(window_list)
-        self.get_active_window()
+        # self.get_active_window()
             
     # a new window has apparead
     def on_new_window(self, window_list):
@@ -987,7 +1103,10 @@ class SecondaryWin(QtWidgets.QWidget):
                                 if self.display.intern_atom("_NET_WM_STATE_SKIP_TASKBAR") in _wst.value:
                                     return
                             #
-                            ppp = self.getProp(self.display, window,'DESKTOP')
+                            try:
+                                ppp = self.getProp(self.display, window,'DESKTOP')
+                            except:
+                                ppp = [0]
                             if ppp and ppp[0]:
                                 on_desktop = ppp[0]
                             else:
@@ -1002,7 +1121,7 @@ class SecondaryWin(QtWidgets.QWidget):
                             self.on_dock_items([w, on_desktop, win_exec])
                         except:
                             pass
-
+                        
     
     # a window has been destroyed
     def delete_window_destroyed(self, window_list):
@@ -1050,6 +1169,45 @@ class SecondaryWin(QtWidgets.QWidget):
                 else:
                     item.setChecked(False)
     
+    #
+    def _icon_name_from_desktop(self, _prog):
+        execArgs = [" %f", " %F", " %u", " %U", " %d", " %D", " %n", " %N", " %k", " %v"]
+        _app_dirs = app_dirs_system+app_dirs_user
+        # for ddir in app_dirs_system:
+        for ddir in _app_dirs:
+            if not os.path.exists(ddir):
+                continue
+            _list_d = os.listdir(ddir)
+            for ffile in _list_d:
+                if ffile.split(".")[-1] != "desktop":
+                    continue
+                file_path = os.path.join(ddir, ffile)
+                try:
+                    entry = DesktopEntry.DesktopEntry(file_path)
+                    ftype = entry.getType()
+                    if ftype != "Application":
+                        continue
+                    _exec = entry.getTryExec()
+                    #
+                    if not _exec:
+                        # _exec = entry.getExec().split(" ")[0]
+                        _exec_tmp = entry.getExec()
+                        if _exec_tmp:
+                            for aargs in execArgs:
+                                if aargs in _exec_tmp:
+                                    _exec_tmp = _exec_tmp.strip(aargs)
+                            _exec = _exec_tmp.split()[0]
+                    #
+                    if _exec == _prog:
+                        ficon = entry.getIcon()
+                        if ficon:
+                            return ficon
+                except:
+                    pass
+        #
+        return 0
+            
+    
     # 2
     # add a button
     def on_dock_items(self, pitem):
@@ -1057,19 +1215,28 @@ class SecondaryWin(QtWidgets.QWidget):
             return
         winid = pitem[0]
         self.wid_l.append(winid)
-        window = self.display.create_resource_object('window', winid)
-        # win_name_class = window.get_wm_class()[0]
         #
-        win_name_class_tmp = window.get_wm_class()
-        if not win_name_class_tmp:
-            win_name_class = ""
-        else:
-            win_name_class = win_name_class_tmp[0]
+        licon = None
+        ret = self._icon_name_from_desktop(pitem[2])
+        if ret:
+            if QtGui.QIcon.hasThemeIcon(ret):
+                licon = QtGui.QIcon.fromTheme(ret)
         #
-        if win_name_class and QtGui.QIcon.hasThemeIcon(win_name_class):
-            licon = QtGui.QIcon.fromTheme(win_name_class)
-        else:
+        if not licon:
+            window = self.display.create_resource_object('window', winid)
+            #
+            win_name_class_tmp = window.get_wm_class()
+            if not win_name_class_tmp:
+                win_name_class = ""
+            else:
+                win_name_class = win_name_class_tmp[0]
+            #
+            if win_name_class and QtGui.QIcon.hasThemeIcon(win_name_class):
+                licon = QtGui.QIcon.fromTheme(win_name_class)
+        #
+        if not licon:
             icon_icon = window.get_full_property(self.display.intern_atom('_NET_WM_ICON'), 0)
+            #
             icon_data = None
             target = button_size
             icon_lista = []
@@ -1117,8 +1284,7 @@ class SecondaryWin(QtWidgets.QWidget):
                 ha = dataa[1]
                 icon_image = dataa[2:dataa[0]*dataa[1]+2].tobytes()
                 icon_data = [wa, ha, icon_image]
-
-                ####
+                #
                 if icon_data:
                     w = icon_data[0]
                     h = icon_data[1]
@@ -1135,7 +1301,30 @@ class SecondaryWin(QtWidgets.QWidget):
         btn = QtWidgets.QPushButton()
         btn.setCheckable(True)
         btn.setFlat(True)
+        ############
+        hpalette = self.palette().dark().color().name()
+        csaa = ("QPushButton::checked { border: none;")
+        csab = ("background-color: {};".format(hpalette))
+        csac = ("border-radius: 2px; border-style: outset; padding: 0px;")
+        csad = ("text-align: center; }")
         #
+        csae = ("QPushButton { text-align: center; padding: 0px;}")
+        csaf1 = ("QPushButton::hover:!pressed {")
+        if button_background_color:
+            csaf2 = ("background-color: {};".format(button_background_color))
+        else:
+            btn_bg_clr = self.palette().highlight().color().name()
+            csaf2 = ("background-color: {};".format(btn_bg_clr))
+        csaf3 = ("border-radius: 2px;"
+        "border-style: outset;"
+        "padding: 0px;"
+        "text-align: center;"
+        "padding: 0px;"
+        "}")
+        csaf = csaf1+csaf2+csaf3
+        csa = csaa+csab+csac+csad+csae+csaf
+        btn.setStyleSheet(csa)
+        ###########
         btn.setAutoExclusive(True)
         btn.clicked.connect(self.on_btn_clicked)
         btn.setFixedSize(QtCore.QSize(button_size, button_size))
@@ -1179,6 +1368,7 @@ class SecondaryWin(QtWidgets.QWidget):
     # 4
     def on_btn_clicked(self):
         btn = self.sender()
+        #
         # same virtual desktop
         if btn.desktop == self.active_virtual_desktop:
             window = self.display.create_resource_object('window', btn.winid)
@@ -1213,19 +1403,21 @@ class SecondaryWin(QtWidgets.QWidget):
         # different virtual desktop
         else:
             if alternate_wm:
+                if btn.desktop:
+                    if btn.desktop >= 0:
+                        ewmh.setCurrentDesktop(btn.desktop)
+                        ewmh.display.flush()
+                        # needed
+                        ewmh.display.sync()
+                        prog = "xdotool windowactivate {}".format(hex(btn.winid))
+                        subprocess.run([prog], shell=True)
+                        self.get_active_window()
+                        return
+            # change the virtual desktop
+            if btn.desktop:
                 if btn.desktop >= 0:
                     ewmh.setCurrentDesktop(btn.desktop)
                     ewmh.display.flush()
-                    # needed
-                    ewmh.display.sync()
-                    prog = "xdotool windowactivate {}".format(hex(btn.winid))
-                    subprocess.run([prog], shell=True)
-                    self.get_active_window()
-                    return
-            # change the virtual desktop
-            if btn.desktop >= 0:
-                ewmh.setCurrentDesktop(btn.desktop)
-                ewmh.display.flush()
             # needed
             ewmh.display.sync()
             self.get_active_window()
@@ -1233,6 +1425,7 @@ class SecondaryWin(QtWidgets.QWidget):
     # 5    
     # get the active window
     def get_active_window(self):
+        # return
         window_id_temp = self.root.get_full_property(self.display.intern_atom('_NET_ACTIVE_WINDOW'), X.AnyPropertyType)
         if window_id_temp == None:
             return
@@ -1253,6 +1446,11 @@ class SecondaryWin(QtWidgets.QWidget):
                         if btn.winid == window_id:
                             btn.setChecked(True)
                             is_found = 1
+                            # remove urgency
+                            if btn in self.list_uitem:
+                                self.list_uitem.remove(btn)
+                                btn.setStyleSheet("border-color: {}; border=none".format(self.palette().color(QtGui.QPalette.Background).name()))
+                            #
                             break
                 if not is_found:
                     # in case no window has been activated
@@ -1300,7 +1498,7 @@ class SecondaryWin(QtWidgets.QWidget):
         
     # add the application in the launcher
     def on_pin_add_pin(self, pexec):
-        app_dirs = ["/usr/share/applications", "/usr/local/share/applications", os.path.expanduser("~")+"/.local/share/applications"]
+        app_dirs = app_dirs_system+app_dirs_user
         # full desktop file path - exec - name - icon
         app_found = []
         # args to remove from the exec entry
@@ -1309,41 +1507,40 @@ class SecondaryWin(QtWidgets.QWidget):
             if os.path.exists(ddir):
                 ffiles = os.listdir(ddir)
                 for ffile in ffiles:
-                    if ffile.split(".")[1] != "desktop":
+                    if ffile.split(".")[-1] != "desktop":
                         continue
                     #
                     try:
+                        pgexec = None
                         entry = DesktopEntry.DesktopEntry(os.path.join(ddir, ffile))
-                        pgexec_temp = ""
-                        try:
-                            pgexec_temp = entry.getTryExec()
-                        except Exception as E:
-                            pass
-                        # if pgexec_temp:
-                            # pgexec_temp = os.path.basename(pgexec_temp)
-                        # else:
-                        try:
+                        pgexec = entry.getTryExec()
+                        #
+                        if not pgexec:
                             pgexeca = entry.getExec()
                             if pgexeca:
                                 for aargs in execArgs:
                                     if aargs in pgexeca:
                                         pgexeca = pgexeca.strip(aargs)
                                 pgexec = pgexeca.split()[0]
-                        except:
-                            pass
                         # 
-                        if pgexec_temp or pgexec:
-                            # if pgexec == pexec:
-                            if os.path.basename(pgexec_temp) == pexec or os.path.basename(pgexec) == pexec:
+                        if pgexec:
+                            if os.path.basename(pgexec) == pexec:
                                 fname = entry.getName()
                                 ficon = entry.getIcon()
                                 fpath = entry.getPath()
                                 # desktop file - exec - name - icon - program path
-                                app_found.append([os.path.join(ddir, ffile), pgexeca, fname, ficon or "unknown", fpath or ""])
+                                app_found.append([os.path.join(ddir, ffile), pgexec, fname, ficon or "unknown", fpath or ""])
+                                break
+                        else:
+                            dlg = showDialog(1, "File desktop not found.", self)
+                            result = dlg.exec_()
+                            dlg.close()
+                            return
                     except Exception as E:
                         dlg = showDialog(1, str(E), self)
                         result = dlg.exec_()
                         dlg.close()
+                        return
         #
         if len(app_found) == 1:
             # copy the application in the folder applications
@@ -1399,7 +1596,7 @@ class SecondaryWin(QtWidgets.QWidget):
                 pbtn.customContextMenuRequested.connect(self.pbtnClicked)
         elif len(app_found) == 0:
             # message
-            dlg = showDialog(1, "No file desktop found.", self)
+            dlg = showDialog(1, "File desktop not found.", self)
             result = dlg.exec_()
             dlg.close()
     
@@ -1456,7 +1653,7 @@ class SecondaryWin(QtWidgets.QWidget):
         # show context menu
         self.btnMenu.exec_(btn.mapToGlobal(QPos)) 
         
-
+    
     # def close_window(self, win):
     def on_close_prog(self, btn):
         win = self.display.create_resource_object('window', btn.winid)
@@ -1562,10 +1759,6 @@ class SecondaryWin(QtWidgets.QWidget):
                 sy = self.screen_size.height() - WINH
             # 
             self.move(sx, sy)
-            # ewmh.setWmState(this_window, 0, '_NET_WM_STATE_BELOW')
-            # ewmh.setWmState(this_window, 1, '_NET_WM_STATE_ABOVE')
-            # ewmh.display.flush()
-            # ewmh.display.sync()
         return super(SecondaryWin, self).enterEvent(event)
 
     def leaveEvent(self, event):
@@ -1577,9 +1770,6 @@ class SecondaryWin(QtWidgets.QWidget):
     
     # lower the dock
     def on_leave_event(self):
-        # ewmh.setWmState(this_window, 0, '_NET_WM_STATE_ABOVE')
-        # ewmh.setWmState(this_window, 1, '_NET_WM_STATE_BELOW')
-        #
         if dock_width:
             sx = int((self.screen_size.width() - self.size().width())/2)
         else:
@@ -1592,8 +1782,6 @@ class SecondaryWin(QtWidgets.QWidget):
         # 
         self.move(sx, sy - reserved_space)
         #
-        # ewmh.display.flush()
-        # ewmh.display.sync()
         self.on_leave = None
     
 
@@ -1609,7 +1797,6 @@ class trayThread(QtCore.QThread):
         self.data_run = data_run
         self.trays = []
         self.error   = error.CatchError()        # Error Handler/Suppressor
-        #
         self.display = Display()                 # Display obj
         self.screen  = self.display.screen()     # Screen obj
         self.root    = self.screen.root          # Display root
@@ -1618,6 +1805,7 @@ class trayThread(QtCore.QThread):
         selection    = self.display.intern_atom("_NET_SYSTEM_TRAY_S%d" % self.display.get_default_screen())
         ## Selection owner window
         self.selowin = self.root.create_window(-1, -1, 1, 1, 0, self.screen.root_depth)
+        # self.selowin = self.root.create_window(0, 0, tbutton_size, tbutton_size, 0, self.screen.root_depth)
         self.selowin.set_selection_owner(selection, X.CurrentTime)
         self.sendEvent(self.root, manager,[X.CurrentTime, selection, self.selowin.id], (X.StructureNotifyMask))
         #
@@ -1657,6 +1845,7 @@ class trayThread(QtCore.QThread):
                             continue
                         ########
                         obj.change_attributes(event_mask=(X.PropertyChangeMask | X.ExposureMask|X.StructureNotifyMask))
+                        # tray icon background color - forse inutile?
                         obj.change_attributes(background_pixel = self.background)
                         #
                         self.trays.append(obj.id)
@@ -1673,7 +1862,7 @@ class trayThread(QtCore.QThread):
                 if e.window.id in self.trays:
                     self.trays.remove(e.window.id)
                     self.sig.emit(["b", e.window.id])
-            # 
+            #
             elif e.type == X.Expose:
                 if self._is_unmap:
                     if self._is_unmap == e.window:
@@ -1835,6 +2024,32 @@ class menuWin(QtWidgets.QWidget):
         csa = csaa+csab+csac
         self.listWidget.setStyleSheet(csa)
         ###########
+        # cssa = ("QScrollBar:vertical {"
+    # "border: 0px solid #999999;"
+    # "background:white;"
+    # "width:8px;"
+    # "margin: 0px 0px 0px 0px;"
+# "}"
+# "QScrollBar::handle:vertical {")       
+        # cssb = ("min-height: 0px;"
+    # "border: 0px solid red;"
+    # "border-radius: 4px;"
+    # "background-color: {};".format(scroll_handle_col))
+        # cssc = ("}"
+# "QScrollBar::add-line:vertical {"       
+    # "height: 0px;"
+    # "subcontrol-position: bottom;"
+    # "subcontrol-origin: margin;"
+# "}"
+# "QScrollBar::sub-line:vertical {"
+    # "height: 0 px;"
+    # "subcontrol-position: top;"
+    # "subcontrol-origin: margin;"
+# "}")
+        # css = cssa+cssb+cssc
+        # self.listWidget.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        # self.listWidget.verticalScrollBar().setStyleSheet(css)
+        ###########
         self.line_edit = QtWidgets.QLineEdit("")
         self.line_edit.setFrame(True)
         if search_field_bg:
@@ -1862,6 +2077,20 @@ class menuWin(QtWidgets.QWidget):
         self.pref.setIconSize(QtCore.QSize(menu_icon_size, menu_icon_size))
         self.pref.setFlat(True)
         #
+        # hpalette = self.palette().mid().color().name()
+        # csaa = ("QPushButton::hover:!pressed { border: none;")
+        # csab = ("background-color: {};".format(hpalette))
+        # csac = ("border-radius: 3px;")
+        # csad = ("text-align: left; }")
+        # csae = ("QPushButton { text-align: left;  padding: 5px;}")
+        # csaf = ("QPushButton::checked { text-align: left; ")
+        # csag = ("background-color: {};".format(self.palette().midlight().color().name()))
+        # csah = ("padding: 5px; border-radius: 3px;}")
+        # csa = csaa+csab+csac+csad+csae+csaf+csag+csah
+        # self.pref.setStyleSheet(csa)
+        #
+        # self.pref.setStyleSheet("QPushButton { text-align: left; }")
+        self.pref.setStyleSheet("text-align: left;")
         self.pref.setCheckable(True)
         self.pref.setAutoExclusive(True)
         self.pref.clicked.connect(self.on_pref_clicked)
@@ -1945,9 +2174,7 @@ class menuWin(QtWidgets.QWidget):
         # while an item is been searching
         self.itemSearching = 0
         self.installEventFilter(self)
-        #
-        # self.setAttribute(QtCore.Qt.WA_X11NetWmWindowTypeDock)
-    
+
     
     #
     def _on_cmd_service(self, _msg, _cmd):
@@ -2025,9 +2252,6 @@ class menuWin(QtWidgets.QWidget):
                     continue
                 for el in globals()[ell]:
                     if (text.casefold() in el[1].casefold()) or (text.casefold() in el[3].casefold()):
-                        # exe_path = sh_which(el[1].split(" ")[0])
-                        # file_info = QtCore.QFileInfo(exe_path)
-                        # if exe_path:
                         # search for the icon by executable
                         icon = QtGui.QIcon.fromTheme(el[1])
                         if icon.isNull() or icon.name() == "":
@@ -2085,7 +2309,21 @@ class menuWin(QtWidgets.QWidget):
             btn.setIcon(QtGui.QIcon("icons/{}".format(el+".svg")))
             btn.setIconSize(QtCore.QSize(menu_icon_size, menu_icon_size))
             btn.setFlat(True)
-            #
+            # btn.setStyleSheet("QPushButton { text-align: left; }")
+            btn.setStyleSheet("text-align: left;")
+            ##########
+            # hpalette = self.palette().mid().color().name()
+            # csaa = ("QPushButton::hover:!pressed { border: none;")
+            # csab = ("background-color: {};".format(hpalette))
+            # csac = ("border-radius: 3px;")
+            # csad = ("text-align: left; }")
+            # csae = ("QPushButton { text-align: left;  padding: 5px;}")
+            # csaf = ("QPushButton::checked { text-align: left; ")
+            # csag = ("background-color: {};".format(self.palette().midlight().color().name()))
+            # csah = ("padding: 5px; border-radius: 3px;}")
+            # csa = csaa+csab+csac+csad+csae+csaf+csag+csah
+            # btn.setStyleSheet(csa)
+            ##########
             btn.setCheckable(True)
             btn.setAutoExclusive(True)
             self.rboxBtn.addWidget(btn)
@@ -2114,10 +2352,6 @@ class menuWin(QtWidgets.QWidget):
         # 
         for el in cat_list:
             # 0 name - 1 executable - 2 icon - 3 comment - 4 path
-            # exe_path = sh_which(el[1].split(" ")[0])
-            # file_info = QtCore.QFileInfo(exe_path)
-            #
-            # if exe_path:
             # search for the icon by executable
             icon = QtGui.QIcon.fromTheme(el[1])
             if icon.isNull() or icon.name() == "":
@@ -2305,7 +2539,7 @@ class menuWin(QtWidgets.QWidget):
             PATH = el[4].strip("\n")
             TTERM = el[5].strip("\n")
             FILENAME = el[6].strip("\n")
-            #
+            # 
             icon = QtGui.QIcon.fromTheme(ICON, QtGui.QIcon("icons/none.svg"))
             litem = QtWidgets.QListWidgetItem(icon, NAME)
             litem.exec_n = EXEC
@@ -2395,7 +2629,33 @@ class calendarWin(QtWidgets.QWidget):
         self.scroll.setFixedWidth(appointment_window_size)
         self.scroll.setWidget(self.widget)
         #
+        # cssa = ("QScrollBar:vertical {"
+    # "border: 0px solid #999999;"
+    # "background:white;"
+    # "width:8px;"
+    # "margin: 0px 0px 0px 0px;"
+# "}"
+# "QScrollBar::handle:vertical {")       
+        # cssb = ("min-height: 0px;"
+    # "border: 0px solid red;"
+    # "border-radius: 4px;"
+    # "background-color: {};".format(scroll_handle_col))
+        # cssc = ("}"
+# "QScrollBar::add-line:vertical {"       
+    # "height: 0px;"
+    # "subcontrol-position: bottom;"
+    # "subcontrol-origin: margin;"
+# "}"
+# "QScrollBar::sub-line:vertical {"
+    # "height: 0 px;"
+    # "subcontrol-position: top;"
+    # "subcontrol-origin: margin;"
+# "}")
+        # css = cssa+cssb+cssc
+        # self.scroll.setStyleSheet(css)
+        #
         self.vbox_1.addWidget(self.scroll)
+        
         ################ the calendar
         thisMonth = QtCore.QDate().currentDate().month()
         thisYear = QtCore.QDate().currentDate().year()
@@ -2507,10 +2767,12 @@ class ClickLabel(QtWidgets.QLabel):
     def mouseDoubleClickEvent(self, event):
         if event_command:
             try:
+                # output format: 20220301
                 cdate = self.cdate.toString('yyyyMMdd')
                 subprocess.Popen([event_command, cdate])
             except:
                 pass
+        #
         QtWidgets.QLabel.mousePressEvent(self, event)      
 
 # 
@@ -2578,6 +2840,8 @@ class Calendar(QtWidgets.QCalendarWidget):
                 subprocess.Popen([date_command, cdate])
             except:
                 pass
+            # except Exception as E:
+                # MyDialog("Error", str(E), self)
     
     def pageChanded(self, year, month):
         date = self.selectedDate()
@@ -2648,6 +2912,7 @@ if __name__ == '__main__':
                             _display.intern_atom('CARDINAL'), 32,
                            	[L, R, T, B, 0, 0, 0, 0, x, y, T, B],
                            	X.PropModeReplace)
+    	
     _display.sync()
     #
     sec_window.show()

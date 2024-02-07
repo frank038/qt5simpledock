@@ -27,11 +27,11 @@ theme_style=""
 # icon theme: "" to use the default theme
 icon_theme=""
 # the background colour of each button in the tasklist or "" for default #DF5E0B
-button_background_color=""
-# border radius
-border_radius=15
-# amount of effect
-blur_radius=15
+button_background_color="#FFA500"
+# # border radius
+# border_radius=15
+# # amount of effect
+# blur_radius=15
 # enable transparency: 0 no - 1 yes
 # application to be skipped from the dock (executables between double quotes with comma separator)
 SKIP_APP=[]
@@ -58,7 +58,7 @@ service_icon_size=20
 # service menu border colour
 service_border_color="gray"
 # program used to add applications OR "" - full path
-app_prog="./appmenu.py"
+app_prog=""
 # program used to modify a desktop file OR ""
 app_mod_prog=app_prog
 # search field background colour: colour (in the form "#xxxxxx") OR ""
