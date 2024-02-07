@@ -7,8 +7,7 @@ This program needs:
 - python3
 - pyqt5
 - python3-xlib
-- python3-ewmh
-- optional xdotool for some window managers that need a different way in iconifying.
+- python3-ewmh.
 
 
 Features:
