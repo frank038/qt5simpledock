@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# V 0.9.17
+# V 0.9.18
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
@@ -8,6 +8,7 @@ import shutil
 from Xlib.display import Display
 import Xlib
 from Xlib import X, Xatom, Xutil, error
+# from Xlib.ext import damage
 import Xlib.protocol.event as pe
 import subprocess
 from xdg import DesktopEntry
@@ -132,7 +133,7 @@ def get_events():
             pass
     else:
         return
-    
+    #
     if _events is None:
         return
     if _events == []:
@@ -140,23 +141,17 @@ def get_events():
     #
     s_event = None
     for el in _events:
-        
         if el.strip("\n") == "BEGIN:VEVENT":
             s_event = sEvent()
-            
         elif el.strip("\n")[0:8] == "SUMMARY:":
             s_event.SUMMARY = el.strip("\n")[8:]
-        
         elif el.strip("\n")[0:12] == "DESCRIPTION:":
             s_event.DESCRIPTION = el.strip("\n")[12:]
-        
         elif el.strip("\n")[0:8] == "DTSTART:":
             s_event.DTSTART = el.strip("\n")[8:]
-        
         elif el.strip("\n") == "END:VEVENT":
             list_events_all.append(s_event)
             s_event = None
-        
         elif el.strip("\n") == "END:VCALENDAR":
             s_event = None
             break
@@ -167,6 +162,9 @@ get_events()
 # width and height of the program
 WINW = 0
 WINH = 0
+
+dock_width = 0
+fixed_position = 1
 
 this_window = None
 this_windowID = None
@@ -213,16 +211,19 @@ class winThread(QtCore.QThread):
                     number_of_virtual_desktops = vd_v.tolist()[0]
                     self.sig.emit(["DESKTOP_NUMBER", number_of_virtual_desktops])
                 # change the current desktop
-                if event.atom == self.display.intern_atom("_NET_CURRENT_DESKTOP"):
+                elif event.atom == self.display.intern_atom("_NET_CURRENT_DESKTOP"):
                     cvd_v = self.root.get_full_property(self.display.intern_atom("_NET_CURRENT_DESKTOP"), X.AnyPropertyType).value
                     active_virtual_desktop = cvd_v.tolist()[0]
                     self.sig.emit(["ACTIVE_VIRTUAL_DESKTOP", active_virtual_desktop])
                 # active window changed
-                if event.atom == self.display.intern_atom('_NET_ACTIVE_WINDOW'):
+                elif event.atom == self.display.intern_atom('_NET_ACTIVE_WINDOW'):
                     self.sig.emit(["ACTIVE_WINDOW_CHANGED", ""])
                 #
-                if event.atom == self.display.intern_atom('_NET_CLIENT_LIST'):
+                elif event.atom == self.display.intern_atom('_NET_CLIENT_LIST'):
                     self.sig.emit(["NETLIST"])
+                # screen resolution
+                elif event.atom == self.display.intern_atom('_NET_DESKTOP_GEOMETRY'):
+                    self.sig.emit(["SCREEN_CHANGED"])
             #
             elif event.type == X.ClientMessage:
                 #
@@ -236,7 +237,13 @@ class winThread(QtCore.QThread):
                         # toggle urgency
                         elif data[0] == 2:
                             self.sig.emit(["URGENCY", 2, event.window])
-            
+            # 
+            # elif event.type == self.display.extension_event.DamageNotify:
+                # print("damage event from main::", event.window.id)
+            #
+            # elif event.type == X.Expose:
+                # # self.sig.emit(["EXPOSE"])
+            #
             if stopCD:
                 break
         if stopCD:
@@ -287,6 +294,7 @@ class winThread2(QtCore.QThread):
 class SecondaryWin(QtWidgets.QWidget):
     def __init__(self, position):
         super(SecondaryWin, self).__init__()
+        # super().__init__()
         self.position = position
         self.setWindowTitle("qt5simpledock")
         #
@@ -322,6 +330,7 @@ class SecondaryWin(QtWidgets.QWidget):
         screen = app.primaryScreen()
         self.screen_size = screen.size()
         #
+        # 0 top - 1 bottom
         if self.position in [0,1]:
             self.abox = QtWidgets.QHBoxLayout()
             self.abox.setContentsMargins(0,0,10,0)
@@ -350,14 +359,18 @@ class SecondaryWin(QtWidgets.QWidget):
                     self.labelw0.setFont(tfont)
                 # 
                 self.labelw0.mouseDoubleClickEvent = self.on_labelw0
+                # self.l1p = QtCore.QProcess()
+                # self.l1p.readyReadStandardOutput.connect(self.p1ready)
+                # self.l1p.finished.connect(self.p1finished)
+                # self.l1p.start("scripts/./label1.sh")
+                #
                 self.label0thread = label1Thread(["scripts/./label0.sh", label0_interval])
                 self.label0thread.label1sig.connect(self.on_label0)
                 self.label0thread.start()
             #####
             if CENTRALIZE_EL == 1:
                 self.abox.addStretch(10)
-            ## clock
-            ######
+            ##### clock
             self.cw_is_shown = None
             self.cwin_is_shown = None
             if use_clock:
@@ -373,6 +386,9 @@ class SecondaryWin(QtWidgets.QWidget):
                 self.tlabel.setFont(tfont)
                 if calendar_label_font_color:
                     self.tlabel.setStyleSheet("QLabel {0} color: {1};{2}".format("{", calendar_label_font_color, "}"))
+                    # self.tlabel.setStyleSheet("QLabel {0} color: {1}; {2} QLabel::hover {0} background-color: lightgrey; border: 2px lightgrey; border-radius: 15px;{2}".format("{", calendar_label_font_color, "}"))
+                # else:
+                    # self.tlabel.setStyleSheet("QLabel::hover { background-color: lightgrey; border: 2px lightgrey; border-radius: 15px;}")
                 self.tlabel.setAlignment(QtCore.Qt.AlignCenter)
                 self.cbox.addWidget(self.tlabel)
                 #
@@ -398,6 +414,7 @@ class SecondaryWin(QtWidgets.QWidget):
                 if clock_font_italic:
                     tfont.setItalic(clock_font_italic)
                 #
+                # if clock_font:
                 self.tlabel.setFont(tfont)
                 #
                 timer = QtCore.QTimer(self)
@@ -425,6 +442,7 @@ class SecondaryWin(QtWidgets.QWidget):
                 self.mbutton.setIcon(QtGui.QIcon("icons/menu.png"))
                 self.mbutton.setIconSize(QtCore.QSize(button_size, button_size))
                 self.mbtnbox.addWidget(self.mbutton)
+                # self.btn_style_sheet(self.mbutton)
                 self.mbutton.clicked.connect(self.on_click)
             ## virtual desktop box
             if virtual_desktops:
@@ -456,6 +474,7 @@ class SecondaryWin(QtWidgets.QWidget):
             self.prog_box.desk = "p"
             self.prog_box.setAlignment(QtCore.Qt.AlignCenter)
             self.abox.insertLayout(4, self.prog_box)
+            # self.abox.setAlignment(self.prog_box, QtCore.Qt.AlignVCenter)
             ## add the applications to prog_box
             progs = os.listdir("applications")
             # args to remove from the exec entry
@@ -480,7 +499,6 @@ class SecondaryWin(QtWidgets.QWidget):
                     #
                     self.pbtn = QtWidgets.QPushButton()
                     self.pbtn.setFlat(True)
-                    # self.pbtn.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
                     picon = QtGui.QIcon.fromTheme(icon)
                     if picon.isNull():
                         image = QtGui.QImage(icon)
@@ -491,7 +509,6 @@ class SecondaryWin(QtWidgets.QWidget):
                     self.pbtn.setFixedSize(QtCore.QSize(pbutton_size, pbutton_size))
                     self.pbtn.setIcon(picon)
                     self.pbtn.setToolTip(fname or pexec)
-                    # self.pbtn.setIconSize(self.pbtn.size())
                     self.pbtn.setIconSize(QtCore.QSize(pbutton_size, pbutton_size))
                     self.pbtn.pexec = pexec_temp
                     self.pbtn.pdesktop = ffile
@@ -508,6 +525,10 @@ class SecondaryWin(QtWidgets.QWidget):
             self.ibox.setSpacing(4)
             if tasklist_position == 0:
                 self.ibox.setAlignment(QtCore.Qt.AlignLeft)
+                # #
+                # pframe = QtWidgets.QFrame()
+                # pframe.setFrameShape(QtWidgets.QFrame.VLine)
+                # self.ibox.addWidget(pframe)
             elif tasklist_position == 1:
                 self.ibox.setAlignment(QtCore.Qt.AlignCenter)
             elif tasklist_position == 2:
@@ -526,8 +547,8 @@ class SecondaryWin(QtWidgets.QWidget):
             self.fake_btn.setVisible(False)
             self.ibox.addWidget(self.fake_btn)
             self.abox.insertLayout(5, self.ibox)
-            if dock_width == 0:
-                self.abox.setStretchFactor(self.ibox,1)
+            # if dock_width == 0:
+            self.abox.setStretchFactor(self.ibox,1)
         #
         ################################
         # winid - desktop
@@ -642,6 +663,11 @@ class SecondaryWin(QtWidgets.QWidget):
                 self.labelw1.setFont(tfont)
             # 
             self.labelw1.mouseDoubleClickEvent = self.on_labelw1
+            # self.l1p = QtCore.QProcess()
+            # self.l1p.readyReadStandardOutput.connect(self.p1ready)
+            # self.l1p.finished.connect(self.p1finished)
+            # self.l1p.start("scripts/./label1.sh")
+            #
             self.label1thread = label1Thread(["scripts/./label1.sh", label1_interval])
             self.label1thread.label1sig.connect(self.on_label1)
             self.label1thread.start()
@@ -668,6 +694,12 @@ class SecondaryWin(QtWidgets.QWidget):
                 self.labelw2.setFont(tfont)
             ###
             self.labelw2.mouseDoubleClickEvent = self.on_labelw2
+            ###
+            # self.l2p = QtCore.QProcess()
+            # self.l2p.readyReadStandardOutput.connect(self.p2ready)
+            # self.l2p.finished.connect(self.p2finished)
+            # self.l2p.start("scripts/./label2.sh")
+            #
             self.label2thread = label1Thread(["scripts/./label2.sh", label2_interval])
             self.label2thread.label1sig.connect(self.on_label2)
             self.label2thread.start()
@@ -684,6 +716,8 @@ class SecondaryWin(QtWidgets.QWidget):
         if use_tray:
             self.tframe = QtWidgets.QFrame()
             self.tframe.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
+            # self.tframe.setStyleSheet("background: palette(window); border-top-left-radius:{0}px; border-top-right-radius:{0}px".format(border_radius))
+            #
             self.frame_box = QtWidgets.QHBoxLayout()
             self.frame_box.setContentsMargins(0,0,0,0)
             self.frame_box.setSpacing(0)
@@ -707,27 +741,12 @@ class SecondaryWin(QtWidgets.QWidget):
         if use_menu == 2:
             self.abox.insertLayout(10, self.mbtnbox)
         #
-        if not fixed_position:
-            QtCore.QTimer.singleShot(1500, self.on_leave_event)
+        # if not fixed_position:
+            # QtCore.QTimer.singleShot(1500, self.on_leave_event)
+        # #
+        # if dock_width:
+            # self.on_move_win()
         #
-        if dock_width:
-            self.on_move_win()
-        #
-        ########
-        if SCRN_RES:
-            self.mythread2 = winThread2(Display())
-            self.mythread2.sig.connect(self.threadslot_screen)
-            self.mythread2.start()
-        
-    def threadslot_screen(self, data):
-        if data:
-            global WINW
-            global WINH
-            NWD, NHD = data
-            if NWD != WINW:
-                WINW = NWD
-                window.setGeometry(0, 0, WINW, WINH)
-                self.updateGeometry()
     
     # click on label 0
     def on_labelw0(self, e):
@@ -823,7 +842,7 @@ class SecondaryWin(QtWidgets.QWidget):
         for i in range(self.tray_box.count()):
             widget = self.tray_box.itemAt(i).widget()
         #
-        self.on_move_win()
+        # self.on_move_win()
     
     def tremove(self, wid):
         for i in range(self.tray_box.count()):
@@ -834,7 +853,7 @@ class SecondaryWin(QtWidgets.QWidget):
         # 
         self.tray_box.update()
         #
-        self.on_move_win()
+        # self.on_move_win()
     
     # def tupdate(self, wid):
     def tupdate(self, win, bcolor):
@@ -870,14 +889,35 @@ class SecondaryWin(QtWidgets.QWidget):
         if data:
             self.labelw1.setText(data[0])
     
+    # def p1ready(self):
+        # result = self.l1p.readAllStandardOutput().data().decode().strip("\n")
+        # self.labelw1.setText(result)
+    
+    # def p1finished(self):
+        # self.l1p.close()
+        # del self.l1p
+    
     def on_label2(self, data):
         if data:
             self.labelw2.setText(data[0])
+    
+    # def p2ready(self):
+        # result = self.l2p.readAllStandardOutput().data().decode().strip("\n")
+        # self.labelw2.setText(result)
+    
+    # def p2finished(self):
+        # self.l2p.close()
+        # del self.l2p
     
     # launch the application from the prog_box
     def on_pbtn(self):
         prog = self.sender().pexec
         path = self.sender().ppath
+        # pp = QtCore.QProcess()
+        # pp.setWorkingDirectory(os.getenv("HOME"))
+        # pp.startDetached(prog)
+        # subprocess.Popen(prog, cwd=os.getenv("HOME"))
+        # subprocess.run(prog, cwd=os.getenv("HOME"))
         if path:
             os.system("cd {} && {} & cd {} &".format(path, prog, os.getenv("HOME")))
         else:
@@ -932,6 +972,35 @@ class SecondaryWin(QtWidgets.QWidget):
             #
             elif data[0] == "URGENCY":
                 self._urgency(data[1], data[2])
+            #
+            elif data[0] == "SCREEN_CHANGED":
+                self._screen_changed()
+            # #
+            # elif data[0] == "EXPOSE":
+                # self.adjustSize()
+                # self.updateGeometry()
+                # # # self.resize(self.sizeHint())
+                # # self.resize(self.sizeHint().width(), dock_height)
+    
+    
+    def _screen_changed(self):
+        global WINW
+        global WINH
+        _size = screen.size()
+        #
+        NW = _size.width()
+        NH = _size.height()
+        #
+        if NW != WINW or NH != WINH:
+            WINW = NW
+            WINH = NH
+            # if dock_width:
+                # WINW = dock_width
+            if dock_position == 1:
+                sy = WINH - dock_height
+                self.setGeometry(0, sy, WINW, dock_height)
+                self.updateGeometry()
+    
     
     def on_urgency(self, _n, item):
         if _n == 1:
@@ -954,10 +1023,10 @@ class SecondaryWin(QtWidgets.QWidget):
             if item in self.list_uitem:
                 self.list_uitem.remove(item)
             try:
-                self.uitem.setStyleSheet("border-color: {}; border=none".format(self.palette().color(QtGui.QPalette.Background).name()))
+                item.setStyleSheet("border-color: {}; border=none".format(self.palette().color(QtGui.QPalette.Background).name()))
+                # del self._ut
             except:
                 pass
-            del self._ut
         
     def f_on_urgency(self, item):
         try:
@@ -971,63 +1040,70 @@ class SecondaryWin(QtWidgets.QWidget):
             if self._ut == 6:
                 item.setStyleSheet("border: 2px solid; border-radius: 2px; border-color: red;")
                 self.utimer.stop()
-                # if item in self.list_uitem:
-                    # self.list_uitem.remove(item)
-                del self._ut
         except:
             self.utimer.stop()
             if item in self.list_uitem:
                 self.list_uitem.remove(item)
-            del self._ut
+            # del self._ut
         
     
     # urgency flag
     def _urgency(self, _type, win):
-        if _type == 1:
-            if not (win.id in self.attention_windows):
-                self.attention_windows[win.id] = _type
-                #
-                for i in range(self.ibox.count()):
-                    item = self.ibox.itemAt(i).widget()
-                    if not item:
-                        continue
-                    if isinstance(item, QtWidgets.QPushButton):
-                        if item.winid == win.id:
-                            self.on_urgency(1, item)
-                            break
+        # do not use get_wm_hints(): gives not updated values
+        if _type == 1 or _type == 2:
+            # if not (win.id in self.attention_windows):
+                # self.attention_windows[win.id] = _type
+            # skip active window
+            try:
+                window_active_id_tmp = self.root.get_full_property(self.display.intern_atom('_NET_ACTIVE_WINDOW'), X.AnyPropertyType)
+                if window_active_id_tmp:
+                    window_active_id = window_active_id_tmp.value[0]
+                    if window_active_id == win.id:
+                        return
+            except:
+                return
+            #
+            for i in range(self.ibox.count()):
+                item = self.ibox.itemAt(i).widget()
+                if not item:
+                    continue
+                if isinstance(item, QtWidgets.QPushButton):
+                    if item.winid == win.id:
+                        self.on_urgency(1, item)
+                        break
         elif _type == 0:
-            if (win.id in self.attention_windows):
-                del self.attention_windows[win.id]
-                #
-                for i in range(self.ibox.count()):
-                    item = self.ibox.itemAt(i).widget()
-                    if not item:
-                        continue
-                    if isinstance(item, QtWidgets.QPushButton):
-                        if item.winid == win.id:
-                            self.on_urgency(0, item)
-                            break
-        elif _type == 2:
-            if not (win.id in self.attention_windows):
-                self.attention_windows[win.id] = _type
-                for i in range(self.ibox.count()):
-                    item = self.ibox.itemAt(i).widget()
-                    if not item:
-                        continue
-                    if isinstance(item, QtWidgets.QPushButton):
-                        if item.winid == win.id:
-                            self.on_urgency(1, item)
-                            break
-            elif (win.id in self.attention_windows):
-                del self.attention_windows[win.id]
-                for i in range(self.ibox.count()):
-                    item = self.ibox.itemAt(i).widget()
-                    if not item:
-                        continue
-                    if isinstance(item, QtWidgets.QPushButton):
-                        if item.winid == win.id:
-                            self.on_urgency(0, item)
-                            break
+            # if (win.id in self.attention_windows):
+                # del self.attention_windows[win.id]
+            #
+            for i in range(self.ibox.count()):
+                item = self.ibox.itemAt(i).widget()
+                if not item:
+                    continue
+                if isinstance(item, QtWidgets.QPushButton):
+                    if item.winid == win.id:
+                        self.on_urgency(0, item)
+                        break
+        # elif _type == 2:
+            # if not (win.id in self.attention_windows):
+                # self.attention_windows[win.id] = _type
+                # for i in range(self.ibox.count()):
+                    # item = self.ibox.itemAt(i).widget()
+                    # if not item:
+                        # continue
+                    # if isinstance(item, QtWidgets.QPushButton):
+                        # if item.winid == win.id:
+                            # self.on_urgency(1, item)
+                            # break
+            # elif (win.id in self.attention_windows):
+                # del self.attention_windows[win.id]
+                # for i in range(self.ibox.count()):
+                    # item = self.ibox.itemAt(i).widget()
+                    # if not item:
+                        # continue
+                    # if isinstance(item, QtWidgets.QPushButton):
+                        # if item.winid == win.id:
+                            # self.on_urgency(0, item)
+                            # break
     
     # number of virtual desktops changed
     def virtual_desktops_changed(self, ndesks):
@@ -1098,6 +1174,7 @@ class SecondaryWin(QtWidgets.QWidget):
                         ###########
                         #
                         try:
+                            # if not self.display.intern_atom("_NET_WM_STATE_SKIP_TASKBAR") in window.get_full_property(self.display.intern_atom("_NET_WM_STATE"), Xatom.ATOM).value:
                             _wst = window.get_full_property(self.display.intern_atom("_NET_WM_STATE"), Xatom.ATOM)
                             if _wst:
                                 if self.display.intern_atom("_NET_WM_STATE_SKIP_TASKBAR") in _wst.value:
@@ -1121,7 +1198,7 @@ class SecondaryWin(QtWidgets.QWidget):
                             self.on_dock_items([w, on_desktop, win_exec])
                         except:
                             pass
-                        
+
     
     # a window has been destroyed
     def delete_window_destroyed(self, window_list):
@@ -1132,9 +1209,9 @@ class SecondaryWin(QtWidgets.QWidget):
                 self.on_remove_win(w)
                 is_changed = 1
         # 
-        if is_changed or self.is_started:
-            if dock_width:
-                self.on_move_win()
+        # if is_changed or self.is_started:
+            # if dock_width:
+                # self.on_move_win()
 
     # 1
     # add or remove virtual desktops
@@ -1173,7 +1250,7 @@ class SecondaryWin(QtWidgets.QWidget):
     def _icon_name_from_desktop(self, _prog):
         execArgs = [" %f", " %F", " %u", " %U", " %d", " %D", " %n", " %N", " %k", " %v"]
         _app_dirs = app_dirs_system+app_dirs_user
-        # for ddir in app_dirs_system:
+        #
         for ddir in _app_dirs:
             if not os.path.exists(ddir):
                 continue
@@ -1224,6 +1301,26 @@ class SecondaryWin(QtWidgets.QWidget):
         #
         if not licon:
             window = self.display.create_resource_object('window', winid)
+            icon_name_tmp = window.get_full_property(self.display.intern_atom('WM_ICON_NAME'), 0)
+            #
+            if icon_name_tmp:
+                if hasattr(icon_name_tmp, "value"):
+                    wicon = icon_name_tmp.value.decode()
+                    if QtGui.QIcon.hasThemeIcon(wicon):
+                        licon = QtGui.QIcon.fromTheme(wicon)
+                    else:
+                        icon_name_tmp = window.get_full_property(self.display.intern_atom('_NET_WM_ICON_NAME'), 0)
+                        #
+                        if icon_name_tmp:
+                            if hasattr(icon_name_tmp, "value"):
+                                wicon = icon_name_tmp.value.decode()
+                                if QtGui.QIcon.hasThemeIcon(wicon):
+                                    licon = QtGui.QIcon.fromTheme(wicon)
+                                else:
+                                    licon = None
+        #
+        if not licon:
+            window = self.display.create_resource_object('window', winid)
             #
             win_name_class_tmp = window.get_wm_class()
             if not win_name_class_tmp:
@@ -1241,6 +1338,7 @@ class SecondaryWin(QtWidgets.QWidget):
             target = button_size
             icon_lista = []
             if icon_icon is not None:
+            # if not licon:
                 data = icon_icon.value[:]
                 icon_width  = data[0]
                 icon_height = data[1]
@@ -1284,7 +1382,8 @@ class SecondaryWin(QtWidgets.QWidget):
                 ha = dataa[1]
                 icon_image = dataa[2:dataa[0]*dataa[1]+2].tobytes()
                 icon_data = [wa, ha, icon_image]
-                #
+
+                #### pbtn.setIcon(picon)
                 if icon_data:
                     w = icon_data[0]
                     h = icon_data[1]
@@ -1327,9 +1426,12 @@ class SecondaryWin(QtWidgets.QWidget):
         ###########
         btn.setAutoExclusive(True)
         btn.clicked.connect(self.on_btn_clicked)
+        # btn.setFixedSize(QtCore.QSize(dock_height, dock_height))
         btn.setFixedSize(QtCore.QSize(button_size, button_size))
         btn.setIcon(licon)
+        # btn.setIconSize(QtCore.QSize(dock_height-8, dock_height-8))
         btn.setIconSize(QtCore.QSize(button_size-button_padding, button_size-button_padding))
+        # btn.setMinimumSize(QtCore.QSize(button_size, button_size))
         btn.winid = pitem[0]
         btn.desktop = pitem[1]
         btn.pexec = pitem[2]
@@ -1370,57 +1472,58 @@ class SecondaryWin(QtWidgets.QWidget):
         btn = self.sender()
         #
         # same virtual desktop
-        if btn.desktop == self.active_virtual_desktop:
-            window = self.display.create_resource_object('window', btn.winid)
-            active_window_id = self.root.get_full_property(self.display.intern_atom('_NET_ACTIVE_WINDOW'), X.AnyPropertyType).value[0]
-            ## its the actual active window
-            if btn.winid == active_window_id:
-                # minimize
-                if alternate_wm:
-                    prog = "xdotool windowminimize {}".format(hex(btn.winid))
-                    subprocess.run([prog], shell=True)
-                    self.get_active_window()
-                    return
-                window = self.display.create_resource_object('window', btn.winid)
-                ewmh.setWmState(window, 1, '_NET_WM_STATE_HIDDEN')
-                ewmh.display.flush()
-                ewmh.display.sync()
-                self.get_active_window()
-            # raise and or bring to top
-            else:
-                if alternate_wm:
-                    prog = "xdotool windowactivate {}".format(hex(btn.winid))
-                    subprocess.run([prog], shell=True)
-                    self.get_active_window()
-                    return
-                window = self.display.create_resource_object('window', btn.winid)
-                ewmh.setActiveWindow(window)
-                ewmh.display.flush()
-                # needed
-                ewmh.display.sync()
-                self.get_active_window()
-            return
-        # different virtual desktop
+        if btn.desktop != self.active_virtual_desktop:
+            ewmh.setCurrentDesktop(btn.desktop)
+            ewmh.display.flush()
+        #
+        window = self.display.create_resource_object('window', btn.winid)
+        active_window_id = self.root.get_full_property(self.display.intern_atom('_NET_ACTIVE_WINDOW'), X.AnyPropertyType).value[0]
+        ## its the actual active window, minimize
+        if btn.winid == active_window_id:
+            # 1 add - 2 toggle - 0 remove
+            self.NET_WM_STATE = self.display.intern_atom("_NET_WM_STATE")
+            self.WM_HIDDEN = self.display.intern_atom("_NET_WM_STATE_HIDDEN")
+            #
+            wm_state = self.NET_WM_STATE
+            wm_state2 = self.WM_HIDDEN
+            _data = [2, wm_state2, 0, 0, 0]
+            sevent = pe.ClientMessage(
+            window = window,
+            client_type = wm_state,
+            data=(32, (_data))
+            )
+            mask = (X.SubstructureRedirectMask | X.SubstructureNotifyMask)
+            self.root.send_event(event=sevent, event_mask=mask)
+            self.display.flush()
+            self.display.sync()
+        # raise and or bring to top
         else:
-            if alternate_wm:
-                if btn.desktop:
-                    if btn.desktop >= 0:
-                        ewmh.setCurrentDesktop(btn.desktop)
-                        ewmh.display.flush()
-                        # needed
-                        ewmh.display.sync()
-                        prog = "xdotool windowactivate {}".format(hex(btn.winid))
-                        subprocess.run([prog], shell=True)
-                        self.get_active_window()
-                        return
-            # change the virtual desktop
-            if btn.desktop:
-                if btn.desktop >= 0:
-                    ewmh.setCurrentDesktop(btn.desktop)
-                    ewmh.display.flush()
-            # needed
-            ewmh.display.sync()
-            self.get_active_window()
+            wm_state = self.display.intern_atom("_NET_WM_STATE")
+            _atm = self.display.intern_atom('_NET_ACTIVE_WINDOW')
+            # _data = [1, X.CurrentTime,window.id,0,0]
+            _data = [0,0,0,0,0]
+            sevent = pe.ClientMessage(
+            window = window,
+            client_type = _atm,
+            data=(32, (_data))
+            )
+            mask = (X.SubstructureRedirectMask | X.SubstructureNotifyMask)
+            self.root.send_event(event=sevent, event_mask=mask)
+            self.display.flush()
+            self.display.sync()
+            # return
+        # # different virtual desktop
+        # else:
+            # # change the virtual desktop
+            # if btn.desktop:
+                # if btn.desktop >= 0:
+                    # ewmh.setCurrentDesktop(btn.desktop)
+                    # ewmh.display.flush()
+            # # needed
+            # ewmh.display.sync()
+            # # self.get_active_window()
+            
+            #############
     
     # 5    
     # get the active window
@@ -1446,10 +1549,10 @@ class SecondaryWin(QtWidgets.QWidget):
                         if btn.winid == window_id:
                             btn.setChecked(True)
                             is_found = 1
-                            # remove urgency
-                            if btn in self.list_uitem:
-                                self.list_uitem.remove(btn)
-                                btn.setStyleSheet("border-color: {}; border=none".format(self.palette().color(QtGui.QPalette.Background).name()))
+                            # # remove urgency
+                            # if btn in self.list_uitem:
+                                # self.list_uitem.remove(btn)
+                                # btn.setStyleSheet("border-color: {}; border=none".format(self.palette().color(QtGui.QPalette.Background).name()))
                             #
                             break
                 if not is_found:
@@ -1712,77 +1815,87 @@ class SecondaryWin(QtWidgets.QWidget):
         ewmh.setCurrentDesktop(vdesk)
         ewmh.display.flush()
     
-    # move the window when a button is added or removed
-    def on_move_win(self):
-        if dock_width:
-            QtWidgets.QApplication.processEvents()
-            self.adjustSize()
-            self.updateGeometry()
-            # self.resize(self.sizeHint())
-            self.resize(self.sizeHint().width(), dock_height)
-        #
-        if self.position in [2,3]:
-            pass
-        elif self.position in [0,1]:
-            if dock_width:
-                sx = int((self.screen_size.width() - self.size().width())/2)
-            else:
-                sx = int((self.screen_size.width() - WINW)/2)
-            if sec_position == 0:
-                sy = 0
-            elif sec_position == 1:
-                if self.on_leave:
-                    sy = self.screen_size.height() - WINH
-                else:
-                    sy = self.screen_size.height() - reserved_space
-            # 
-            if not fixed_position:
-                self.move(sx, sy)
-            else:
-                self.move(sx , sy - WINH)
+    # # move the window when a button is added or removed
+    # def on_move_win(self):
+        # # if dock_width:
+            # # QtWidgets.QApplication.processEvents()
+            # # self.adjustSize()
+            # # self.updateGeometry()
+            # # # self.resize(self.sizeHint())
+            # # self.resize(self.sizeHint().width(), dock_height)
+        # #
+        # # if self.position in [2,3]:
+            # # pass
+        # # el
+        # if self.position in [0,1]:
+            # # if dock_width:
+                # # sx = int((self.screen_size.width() - self.size().width())/2)
+            # # else:
+            # sx = int((self.screen_size.width() - WINW)/2)
+            # if sec_position == 0:
+                # sy = 0
+            # elif sec_position == 1:
+                # if self.on_leave:
+                    # sy = self.screen_size.height() - WINH
+                # else:
+                    # sy = self.screen_size.height() - reserved_space
+            # # 
+            # # if not fixed_position:
+                # # self.move(sx, sy)
+            # # else:
+            # self.move(sx , sy - WINH)
     
-    # raise the dock
-    def enterEvent(self, event):
-        if not fixed_position:
-            if self.on_leave:
-                self.on_leave.stop()
-                self.on_leave.deleteLater()
-                self.on_leave = None
-            #
-            if dock_width:
-                sx = int((self.screen_size.width() - self.size().width())/2)
-            else:
-                sx = int((self.screen_size.width() - WINW)/2)
-            if sec_position == 2:
-                sy = 0
-            elif sec_position == 3:
-                sy = self.screen_size.height() - WINH
-            # 
-            self.move(sx, sy)
-        return super(SecondaryWin, self).enterEvent(event)
+    # # raise the dock
+    # def enterEvent(self, event):
+        # if not fixed_position:
+            # if self.on_leave:
+                # self.on_leave.stop()
+                # self.on_leave.deleteLater()
+                # self.on_leave = None
+            # #
+            # # if dock_width:
+                # # sx = int((self.screen_size.width() - self.size().width())/2)
+            # # else:
+            # sx = int((self.screen_size.width() - WINW)/2)
+            # if sec_position == 2:
+                # sy = 0
+            # elif sec_position == 3:
+                # sy = self.screen_size.height() - WINH
+            # # 
+            # self.move(sx, sy)
+            # # ewmh.setWmState(this_window, 0, '_NET_WM_STATE_BELOW')
+            # # ewmh.setWmState(this_window, 1, '_NET_WM_STATE_ABOVE')
+            # # ewmh.display.flush()
+            # # ewmh.display.sync()
+        # return super(SecondaryWin, self).enterEvent(event)
 
-    def leaveEvent(self, event):
-        if not fixed_position:
-            self.on_leave = QtCore.QTimer()
-            self.on_leave.timeout.connect(self.on_leave_event)
-            self.on_leave.start(2000)
-        return super(SecondaryWin, self).enterEvent(event)
+    # def leaveEvent(self, event):
+        # if not fixed_position:
+            # self.on_leave = QtCore.QTimer()
+            # self.on_leave.timeout.connect(self.on_leave_event)
+            # self.on_leave.start(2000)
+        # return super(SecondaryWin, self).leaveEvent(event)
     
-    # lower the dock
-    def on_leave_event(self):
-        if dock_width:
-            sx = int((self.screen_size.width() - self.size().width())/2)
-        else:
-            sx = int((self.screen_size.width() - WINW)/2)
-        #
-        if sec_position == 2:
-            sy = 0
-        elif sec_position == 3:
-            sy = self.screen_size.height()
-        # 
-        self.move(sx, sy - reserved_space)
-        #
-        self.on_leave = None
+    # # lower the dock
+    # def on_leave_event(self):
+        # # ewmh.setWmState(this_window, 0, '_NET_WM_STATE_ABOVE')
+        # # ewmh.setWmState(this_window, 1, '_NET_WM_STATE_BELOW')
+        # #
+        # # if dock_width:
+            # # sx = int((self.screen_size.width() - self.size().width())/2)
+        # # else:
+        # sx = int((self.screen_size.width() - WINW)/2)
+        # #
+        # if sec_position == 2:
+            # sy = 0
+        # elif sec_position == 3:
+            # sy = self.screen_size.height()
+        # # 
+        # self.move(sx, sy - reserved_space)
+        # #
+        # # ewmh.display.flush()
+        # # ewmh.display.sync()
+        # self.on_leave = None
     
 
 ############## TRAY
@@ -1797,6 +1910,7 @@ class trayThread(QtCore.QThread):
         self.data_run = data_run
         self.trays = []
         self.error   = error.CatchError()        # Error Handler/Suppressor
+        #
         self.display = Display()                 # Display obj
         self.screen  = self.display.screen()     # Screen obj
         self.root    = self.screen.root          # Display root
@@ -1816,7 +1930,7 @@ class trayThread(QtCore.QThread):
         self.pid = -1
         self._is_unmap = None
         
-    """ Send a ClientMessage event to the root """
+
     def sendEvent(self, win, ctype, data, mask=None):
         data = (data+[0]*(5-len(data)))[:5]
         ev = pe.ClientMessage(window=win, client_type=ctype, data=(32,(data)))
@@ -1825,7 +1939,7 @@ class trayThread(QtCore.QThread):
             mask = (X.SubstructureRedirectMask|X.SubstructureNotifyMask)
         self.root.send_event(ev, event_mask=mask)
     
-    """ Event loop - handle events as they occur until we're killed """ 
+
     def loop(self, dsp, root, win):
         #
         while self.data_run:
@@ -1845,11 +1959,10 @@ class trayThread(QtCore.QThread):
                             continue
                         ########
                         obj.change_attributes(event_mask=(X.PropertyChangeMask | X.ExposureMask|X.StructureNotifyMask))
-                        # tray icon background color - forse inutile?
+                        # tray icon background color - useless
                         obj.change_attributes(background_pixel = self.background)
                         #
                         self.trays.append(obj.id)
-                        #
                         self.sig.emit(["a", obj.id])
                         # reset
                         self.pid = -1
@@ -1864,16 +1977,23 @@ class trayThread(QtCore.QThread):
                     self.sig.emit(["b", e.window.id])
             #
             elif e.type == X.Expose:
+                # for the tray apps messages
                 if self._is_unmap:
                     if self._is_unmap == e.window:
                         self._is_unmap = None
                         continue
                 #
                 self.sig.emit(["c", e.window, self.background])
+            # elif e.type == self.display.extension_event.DamageNotify:
+                # print("damage for applet::", e)
             # properties
             elif (e.type == X.PropertyNotify):
+                # 37 WM_ICON_NAME (con nm-applet solo questo) - 356 _NET_WM_ICON_NAME
                 if e.atom == self.display.intern_atom("WM_ICON_NAME") or e.atom == self.display.intern_atom("_NET_WM_ICON_NAME"):
                     pass
+                    # e.window.change_attributes(background_pixel = self.background)
+                    # self.display.flush()
+                    # self.display.sync()
             #
             if self.data_run == 0:
                 break
@@ -2003,6 +2123,14 @@ class menuWin(QtWidgets.QWidget):
             #
         elif dock_position == 0:
             pass
+        #
+        # if dock_position == 1:
+            # sx += menu_padx
+            # sy -= menu_pady
+        # elif dock_position == 0:
+            # pass
+        #
+        # self.setGeometry(sx,sy,sw,sh)
         #
         self.hbox = QtWidgets.QHBoxLayout()
         # 
@@ -2160,6 +2288,13 @@ class menuWin(QtWidgets.QWidget):
         self.updateGeometry()
         self.move(sx,sy)
         #
+        # if self.window.cw_is_shown:
+            # self.window.cw_is_shown.close()
+            # self.window.cw_is_shown = None
+        # if self.window.cwin_is_shown:
+            # self.window.cwin_is_shown.close()
+            # self.window.cwin_is_shown = None
+        #
         self.emulate_clicked(self.pref, 100)
         self.pref.setChecked(True)
         #
@@ -2174,7 +2309,9 @@ class menuWin(QtWidgets.QWidget):
         # while an item is been searching
         self.itemSearching = 0
         self.installEventFilter(self)
-
+        #
+        # self.setAttribute(QtCore.Qt.WA_X11NetWmWindowTypeDock)
+    
     
     #
     def _on_cmd_service(self, _msg, _cmd):
@@ -2241,6 +2378,8 @@ class menuWin(QtWidgets.QWidget):
         self.itemSearching = 1
         if len(text) == 0:
             self.listWidget.clear()
+            # self.emulate_clicked(self.pref, 100)
+            # self.pref.setChecked(True)
         elif len(text) > 2:
             self.listWidget.clear()
             app_list = ["Development", "Education","Game",
@@ -2252,6 +2391,9 @@ class menuWin(QtWidgets.QWidget):
                     continue
                 for el in globals()[ell]:
                     if (text.casefold() in el[1].casefold()) or (text.casefold() in el[3].casefold()):
+                        # exe_path = sh_which(el[1].split(" ")[0])
+                        # file_info = QtCore.QFileInfo(exe_path)
+                        # if exe_path:
                         # search for the icon by executable
                         icon = QtGui.QIcon.fromTheme(el[1])
                         if icon.isNull() or icon.name() == "":
@@ -2352,6 +2494,10 @@ class menuWin(QtWidgets.QWidget):
         # 
         for el in cat_list:
             # 0 name - 1 executable - 2 icon - 3 comment - 4 path
+            # exe_path = sh_which(el[1].split(" ")[0])
+            # file_info = QtCore.QFileInfo(exe_path)
+            #
+            # if exe_path:
             # search for the icon by executable
             icon = QtGui.QIcon.fromTheme(el[1])
             if icon.isNull() or icon.name() == "":
@@ -2482,6 +2628,10 @@ class menuWin(QtWidgets.QWidget):
     
     # execute the program from the menu
     def listwidgetclicked(self, item):
+        # self.p = QtCore.QProcess()
+        # self.p.setWorkingDirectory(os.getenv("HOME"))
+        # # self.p.start(str(item.exec_n))
+        # self.p.startDetached(str(item.exec_n))
         if item.tterm:
             tterminal = None
             if USER_TERMINAL:
@@ -2539,7 +2689,25 @@ class menuWin(QtWidgets.QWidget):
             PATH = el[4].strip("\n")
             TTERM = el[5].strip("\n")
             FILENAME = el[6].strip("\n")
-            # 
+            # # 
+            # if len(el) > 5:
+                # PATH_TEMP = el[4].strip("\n")
+                # FILENAME = el[5].strip("\n")
+                # if PATH_TEMP:
+                    # PATH = PATH_TEMP
+            # else:
+                # FILENAME = el[4].strip("\n")
+                # PATH = ""
+            #
+            # exe_path = sh_which(EXEC.split(" ")[0])
+            # file_info = QtCore.QFileInfo(exe_path)
+            # if file_info.exists():
+                # if os.path.exists(ICON):
+                    # icon = QtGui.QIcon(ICON)
+                # else:
+                    # icon = QtGui.QIcon.fromTheme(ICON)
+                    # if icon.name() == "none":
+                        # icon = QtGui.QIcon("icons/none.svg")
             icon = QtGui.QIcon.fromTheme(ICON, QtGui.QIcon("icons/none.svg"))
             litem = QtWidgets.QListWidgetItem(icon, NAME)
             litem.exec_n = EXEC
@@ -2684,6 +2852,12 @@ class calendarWin(QtWidgets.QWidget):
             self.window.cwin_is_shown.close()
             self.window.cwin_is_shown = None
         #
+        # cwWidth = self.width()
+        # cwHeight = self.height()
+        # cwX = int((WINW-cwWidth)/2)
+        # win_height = self.window.size().height()
+        # cwY = win_height
+        #
         cwX = 0
         cwY = 0
         screensize = app.primaryScreen()
@@ -2763,6 +2937,7 @@ class calendarWin(QtWidgets.QWidget):
         #
         
 class ClickLabel(QtWidgets.QLabel):
+    # clicked = QtCore.pyqtSignal()
     
     def mouseDoubleClickEvent(self, event):
         if event_command:
@@ -2772,7 +2947,9 @@ class ClickLabel(QtWidgets.QLabel):
                 subprocess.Popen([event_command, cdate])
             except:
                 pass
-        #
+            # except Exception as E:
+                # MyDialog("Error", str(E), self)
+        # self.clicked.emit()
         QtWidgets.QLabel.mousePressEvent(self, event)      
 
 # 
@@ -2875,7 +3052,6 @@ if __name__ == '__main__':
         msg.setWindowTitle("Info")
         msg.exec_()
     ########### sec_window
-    # sec_position = dock_position
     sec_position = 1
     sec_window = SecondaryWin(sec_position)
     sec_window.setWindowFlags(sec_window.windowFlags() | QtCore.Qt.WindowDoesNotAcceptFocus)
@@ -2883,10 +3059,10 @@ if __name__ == '__main__':
     sec_window.setAttribute(QtCore.Qt.WA_X11NetWmWindowTypeDock)
     screen = app.primaryScreen()
     size = screen.size()
-    if dock_width:
-        WINW = dock_width
-    else:
-        WINW = size.width()
+    # if dock_width:
+        # WINW = dock_width
+    # else:
+    WINW = size.width()
     WINH = dock_height
     this_windowID = int(sec_window.winId())
     _display = Display()
@@ -2913,26 +3089,38 @@ if __name__ == '__main__':
                            	[L, R, T, B, 0, 0, 0, 0, x, y, T, B],
                            	X.PropModeReplace)
     	
+    # this_window.change_property(_display.intern_atom("_NET_WM_WINDOW_TYPE"),
+    #         Xatom.ATOM, 32, [_display.intern_atom("_NET_WM_WINDOW_TYPE_DOCK")])
+    
     _display.sync()
     #
+    # sec_window.show()
+    #
+    sx = 0
+    sy = size.height() - dock_height
+    sw = WINW
+    sh = WINH
+    sec_window.setGeometry(sx, sy, sw, sh)
+    #
     sec_window.show()
+    #
     #############
-    # move and center the window
-    if sec_position in [2, 3]:
-        pass
-    elif sec_position in [0,1]:
-        sx = int((size.width() - WINW)/2)
-        if not fixed_position:
-            if sec_position == 0:
-                sy = 0
-            elif sec_position == 1:
-                sy = size.height() - WINH
-        else:
-            sy = size.height() - WINH
-        # 
-        sec_window.resize(WINW, WINH)
-        sec_window.move(sx, sy)
-        sec_window.setMaximumWidth(size.width())
+    # # move and center the window
+    # if sec_position in [2, 3]:
+        # pass
+    # elif sec_position in [0,1]:
+        # sx = int((size.width() - WINW)/2)
+        # if not fixed_position:
+            # if sec_position == 0:
+                # sy = 0
+            # elif sec_position == 1:
+                # sy = size.height() - WINH
+        # else:
+            # sy = size.height() - WINH
+        # # 
+        # sec_window.resize(WINW, WINH)
+        # sec_window.move(sx, sy)
+        # sec_window.setMaximumWidth(size.width())
     ############
     # set new style globally
     if theme_style:

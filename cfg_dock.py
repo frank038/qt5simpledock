@@ -10,18 +10,12 @@ virtual_desktops=0
 use_tray=1
 # tray icon size (even number)
 tbutton_size = button_size
-# the width of the dock: 0 to full width
-dock_width=0
 # the height of the dock
 dock_height=38
-# window fixed position: 0 no - 1 yes - 2 yes but does not reserve any spaces
-fixed_position=1
 # position (option unsupported, do not change): 0 top - 1 bottom
 dock_position=1
 # tasklist position: 0 left - 1 center - 2 right
 tasklist_position=1
-# space to reserve on desktop if not fixed: it will not covered by windows
-reserved_space=5
 # theme style: "" to use the default theme
 theme_style=""
 # icon theme: "" to use the default theme
@@ -32,15 +26,10 @@ button_background_color="#FFA500"
 # border_radius=15
 # # amount of effect
 # blur_radius=15
-# enable transparency: 0 no - 1 yes
 # application to be skipped from the dock (executables between double quotes with comma separator)
 SKIP_APP=[]
-# some window managers could behave differently on minimizing and or activating: 1 yes - 0 no
-alternate_wm=0
-# track screen resolution changes: 0 no - 1 yes
-SCRN_RES=0
 # centralize elements menu, app launchers, tasklist: 0 no - 1 yes
-CENTRALIZE_EL=0
+CENTRALIZE_EL=1
 ######### MENU ##########
 # show the application menu: 0 no - 1 left - 2 right
 use_menu=1
@@ -58,7 +47,7 @@ service_icon_size=20
 # service menu border colour
 service_border_color="gray"
 # program used to add applications OR "" - full path
-app_prog=""
+app_prog="./appmenu.py"
 # program used to modify a desktop file OR ""
 app_mod_prog=app_prog
 # search field background colour: colour (in the form "#xxxxxx") OR ""
