@@ -12,7 +12,7 @@ use_tray=1
 tbutton_size = button_size
 # the height of the dock
 dock_height=38
-# position (option unsupported, do not change): 0 top - 1 bottom
+# position: 0 top - 1 bottom
 dock_position=1
 # tasklist position: 0 left - 1 center - 2 right
 tasklist_position=1
@@ -29,7 +29,7 @@ button_background_color="#FFA500"
 # application to be skipped from the dock (executables between double quotes with comma separator)
 SKIP_APP=[]
 # centralize elements menu, app launchers, tasklist: 0 no - 1 yes
-CENTRALIZE_EL=1
+CENTRALIZE_EL=0
 ######### MENU ##########
 # show the application menu: 0 no - 1 left - 2 right
 use_menu=1

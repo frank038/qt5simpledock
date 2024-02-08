@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# V 0.9.18
+# V 0.9.19
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
@@ -164,7 +164,7 @@ WINW = 0
 WINH = 0
 
 dock_width = 0
-fixed_position = 1
+# fixed_position = 1
 
 this_window = None
 this_windowID = None
@@ -189,6 +189,7 @@ class winThread(QtCore.QThread):
         self.root = self.display.screen().root
         #
         self.win_l = []
+        #
         mask = (X.SubstructureNotifyMask | X.PropertyChangeMask | X.StructureNotifyMask | X.ExposureMask)
         self.root.change_attributes(event_mask=mask)
     
@@ -302,6 +303,8 @@ class SecondaryWin(QtWidgets.QWidget):
         self.root = self.display.screen().root
         #
         self.is_started = 1
+        # # the pointer entered the panel
+        # self.is_entered = 0
         # demand attention: window:type - 1 add - 0 remove - 2 toggle
         self.attention_windows = {}
         # list of windows demanding attention
@@ -367,9 +370,6 @@ class SecondaryWin(QtWidgets.QWidget):
                 self.label0thread = label1Thread(["scripts/./label0.sh", label0_interval])
                 self.label0thread.label1sig.connect(self.on_label0)
                 self.label0thread.start()
-            #####
-            if CENTRALIZE_EL == 1:
-                self.abox.addStretch(10)
             ##### clock
             self.cw_is_shown = None
             self.cwin_is_shown = None
@@ -426,7 +426,9 @@ class SecondaryWin(QtWidgets.QWidget):
                 #
                 if use_clock == 1:
                     self.abox.insertLayout(1, self.cbox)
-            #
+            ##########
+            if CENTRALIZE_EL == 1:
+                self.abox.addStretch(10)
             ## menu
             self.mw_is_shown = None
             if use_menu:
@@ -458,11 +460,11 @@ class SecondaryWin(QtWidgets.QWidget):
                 vbtn.setCheckable(True)
                 vbtn.setFixedSize(QtCore.QSize(int(dock_height*1.3), dock_height))
                 #
-                if virtual_desktops:
-                    self.virtbox.addWidget(vbtn)
-                else:
-                    self.abox.addSpacing(8)
-                    self.abox.insertSpacing(100, 8)
+                # if virtual_desktops:
+                self.virtbox.addWidget(vbtn)
+                # else:
+                    # self.abox.addSpacing(8)
+                    # self.abox.insertSpacing(100, 8)
                 vbtn.desk = 0
                 vbtn.clicked.connect(self.on_vbtn_clicked)
                 self.on_virt_desk(self.num_virtual_desktops)
@@ -594,29 +596,34 @@ class SecondaryWin(QtWidgets.QWidget):
                 #
                 # if self.display.intern_atom('_NET_WM_WINDOW_TYPE_NORMAL') in prop.value.tolist():
                 try:
-                    if not self.display.intern_atom("_NET_WM_STATE_SKIP_TASKBAR") in window.get_full_property(self.display.intern_atom("_NET_WM_STATE"), Xatom.ATOM).value:
-                        try:
-                            ppp = self.getProp(self.display,window,'DESKTOP')
-                        except:
-                            ppp = [0]
-                        #
-                        if ppp and ppp[0]:
-                            on_desktop = ppp[0]
-                        else:
-                            on_desktop = 0
-                        # the exec name
-                        win_name_t = window.get_wm_class()
-                        if win_name_t is not None:
-                            win_exec = str(win_name_t[0])
-                        else:
-                            win_exec == "Unknown"
-                        #
-                        self.list_prog.append([winid, on_desktop, win_exec])
+                    # if not self.display.intern_atom("_NET_WM_STATE_SKIP_TASKBAR") in window.get_full_property(self.display.intern_atom("_NET_WM_STATE"), Xatom.ATOM).value:
+                    _wst = window.get_full_property(self.display.intern_atom("_NET_WM_STATE"), Xatom.ATOM)
+                    if _wst:
+                        if self.display.intern_atom("_NET_WM_STATE_SKIP_TASKBAR") in _wst.value:
+                            return
+                    try:
+                        _ppp = self.getProp(self.display,window,'DESKTOP')
+                    except:
+                        _ppp = [0]
+                    #
+                    if _ppp and _ppp[0]:
+                        on_desktop = _ppp[0]
+                    else:
+                        on_desktop = 0
+                    # the exec name
+                    win_exec = "Unknown"
+                    win_name_t = window.get_wm_class()
+                    if win_name_t is not None:
+                        win_exec = str(win_name_t[0])
+                    # else:
+                        # win_exec = "Unknown"
+                    #
+                    self.list_prog.append([winid, on_desktop, win_exec])
                 except:
                     pass
         #
-        # current window active - window id
-        self.curr_win_active = None
+        # # current window active - window id
+        # self.curr_win_active = None
         self.wid_l = []
         # the right mouse button is pressed for menu
         self.right_button_pressed = 0
@@ -625,9 +632,8 @@ class SecondaryWin(QtWidgets.QWidget):
         icon_icon = None
         for pitem in self.list_prog:
             self.on_dock_items(pitem)
-        # # deactivated
-        # # the active window
-        # self.get_active_window_first()
+        # the active window
+        self.get_active_window_first()
         ####
         # this program wid
         self.this_window = None
@@ -961,11 +967,13 @@ class SecondaryWin(QtWidgets.QWidget):
                 self.get_active_window()
             # number of virtual desktops
             elif data[0] == "DESKTOP_NUMBER":
-                self.virtual_desktops_changed(data[1])
+                if virtual_desktops:
+                    self.virtual_desktops_changed(data[1])
             # current virtual desktop changed
             elif data[0] == "ACTIVE_VIRTUAL_DESKTOP":
-                self.active_virtual_desktop_changed(data[1])
-                self.active_virtual_desktop = data[1]
+                if virtual_desktops:
+                    self.active_virtual_desktop_changed(data[1])
+                    self.active_virtual_desktop = data[1]
             # net list
             elif data[0] == "NETLIST":
                 self.net_list()
@@ -998,8 +1006,10 @@ class SecondaryWin(QtWidgets.QWidget):
                 # WINW = dock_width
             if dock_position == 1:
                 sy = WINH - dock_height
-                self.setGeometry(0, sy, WINW, dock_height)
-                self.updateGeometry()
+            elif dock_position == 0:
+                sy = 0
+            self.setGeometry(0, sy, WINW, dock_height)
+            self.updateGeometry()
     
     
     def on_urgency(self, _n, item):
@@ -1019,14 +1029,14 @@ class SecondaryWin(QtWidgets.QWidget):
             self.utimer.start()
         #
         elif _n == 0:
-            self.utimer.stop()
             if item in self.list_uitem:
                 self.list_uitem.remove(item)
-            try:
-                item.setStyleSheet("border-color: {}; border=none".format(self.palette().color(QtGui.QPalette.Background).name()))
-                # del self._ut
-            except:
-                pass
+                self.utimer.stop()
+                try:
+                    item.setStyleSheet("border-color: {}; border=none".format(self.palette().color(QtGui.QPalette.Background).name()))
+                    # del self._ut
+                except:
+                    pass
         
     def f_on_urgency(self, item):
         try:
@@ -1040,6 +1050,16 @@ class SecondaryWin(QtWidgets.QWidget):
             if self._ut == 6:
                 item.setStyleSheet("border: 2px solid; border-radius: 2px; border-color: red;")
                 self.utimer.stop()
+                # the active window
+                try:
+                    window_active_id_tmp = self.root.get_full_property(self.display.intern_atom('_NET_ACTIVE_WINDOW'), X.AnyPropertyType)
+                    if window_active_id_tmp:
+                        window_active_id = window_active_id_tmp.value[0]
+                        if window_active_id == item.winid:
+                            item.setStyleSheet("border-color: {}; border=none".format(self.palette().color(QtGui.QPalette.Background).name()))
+                            return
+                except:
+                    return
         except:
             self.utimer.stop()
             if item in self.list_uitem:
@@ -1053,15 +1073,15 @@ class SecondaryWin(QtWidgets.QWidget):
         if _type == 1 or _type == 2:
             # if not (win.id in self.attention_windows):
                 # self.attention_windows[win.id] = _type
-            # skip active window
-            try:
-                window_active_id_tmp = self.root.get_full_property(self.display.intern_atom('_NET_ACTIVE_WINDOW'), X.AnyPropertyType)
-                if window_active_id_tmp:
-                    window_active_id = window_active_id_tmp.value[0]
-                    if window_active_id == win.id:
-                        return
-            except:
-                return
+            # # skip active window
+            # try:
+                # window_active_id_tmp = self.root.get_full_property(self.display.intern_atom('_NET_ACTIVE_WINDOW'), X.AnyPropertyType)
+                # if window_active_id_tmp:
+                    # window_active_id = window_active_id_tmp.value[0]
+                    # if window_active_id == win.id:
+                        # return
+            # except:
+                # return
             #
             for i in range(self.ibox.count()):
                 item = self.ibox.itemAt(i).widget()
@@ -1168,36 +1188,37 @@ class SecondaryWin(QtWidgets.QWidget):
                         continue
                     elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_POPUP_MENU') in prop.value.tolist():
                         continue
-                    else:
+                    # else:
                         #
                         # if self.display.intern_atom('_NET_WM_WINDOW_TYPE_NORMAL') in prop.value.tolist():
                         ###########
-                        #
-                        try:
-                            # if not self.display.intern_atom("_NET_WM_STATE_SKIP_TASKBAR") in window.get_full_property(self.display.intern_atom("_NET_WM_STATE"), Xatom.ATOM).value:
-                            _wst = window.get_full_property(self.display.intern_atom("_NET_WM_STATE"), Xatom.ATOM)
-                            if _wst:
-                                if self.display.intern_atom("_NET_WM_STATE_SKIP_TASKBAR") in _wst.value:
-                                    return
-                            #
-                            try:
-                                ppp = self.getProp(self.display, window,'DESKTOP')
-                            except:
-                                ppp = [0]
-                            if ppp and ppp[0]:
-                                on_desktop = ppp[0]
-                            else:
-                                on_desktop = 0
-                            # the exec name
-                            win_name_t = window.get_wm_class()
-                            if win_name_t is not None:
-                                win_exec = str(win_name_t[0])
-                            else:
-                                win_exec == "Unknown"
-                            #
-                            self.on_dock_items([w, on_desktop, win_exec])
-                        except:
-                            pass
+                #
+                try:
+                    # if not self.display.intern_atom("_NET_WM_STATE_SKIP_TASKBAR") in window.get_full_property(self.display.intern_atom("_NET_WM_STATE"), Xatom.ATOM).value:
+                    _wst = window.get_full_property(self.display.intern_atom("_NET_WM_STATE"), Xatom.ATOM)
+                    if _wst:
+                        if self.display.intern_atom("_NET_WM_STATE_SKIP_TASKBAR") in _wst.value:
+                            return
+                    #
+                    try:
+                        _ppp = self.getProp(self.display, window,'DESKTOP')
+                    except:
+                        _ppp = [0]
+                    if _ppp and _ppp[0]:
+                        on_desktop = _ppp[0]
+                    else:
+                        on_desktop = 0
+                    # the exec name
+                    win_exec = "Unknown"
+                    win_name_t = window.get_wm_class()
+                    if win_name_t is not None:
+                        win_exec = str(win_name_t[0])
+                    # else:
+                        # win_exec = "Unknown"
+                    #
+                    self.on_dock_items([w, on_desktop, win_exec])
+                except:
+                    pass
 
     
     # a window has been destroyed
@@ -2112,17 +2133,16 @@ class menuWin(QtWidgets.QWidget):
         win_height = parent_geom.height()
         screensize = app.primaryScreen()
         #
-        if dock_position == 1:
-            if use_menu == 1:
-                if CENTRALIZE_EL == 1:
-                    sx = int((screensize.size().width() - menu_width)/2)
-                elif CENTRALIZE_EL == 0:
-                    sx = parent_geom.x() + menu_padx
-            elif use_menu == 2:
-                sx = screensize.size().width() - menu_width - menu_padx
-            #
-        elif dock_position == 0:
-            pass
+        # if dock_position == 1:
+        # left
+        if use_menu == 1:
+            if CENTRALIZE_EL == 1:
+                sx = int((screensize.size().width() - menu_width)/2)
+            elif CENTRALIZE_EL == 0:
+                sx = parent_geom.x() + menu_padx
+        # right
+        elif use_menu == 2:
+            sx = screensize.size().width() - menu_width - menu_padx
         #
         # if dock_position == 1:
             # sx += menu_padx
@@ -2284,8 +2304,12 @@ class menuWin(QtWidgets.QWidget):
         self.hide()
         self.setGeometry(sx,sy,sw,sh)
         self.show()
-        sy = screensize.size().height() - parent_geom.height() - self.geometry().height() - menu_pady
         self.updateGeometry()
+        #
+        if dock_position == 1:
+            sy = screensize.size().height() - parent_geom.height() - self.geometry().height() - menu_pady
+        elif dock_position == 0:
+            sy = parent_geom.height() + menu_pady
         self.move(sx,sy)
         #
         # if self.window.cw_is_shown:
@@ -2862,14 +2886,15 @@ class calendarWin(QtWidgets.QWidget):
         cwY = 0
         screensize = app.primaryScreen()
         #
+        if use_clock == 1:
+            cwX = clock_gapx
+        if use_clock == 2:
+            cwX = screensize.size().width() - self.width() - clock_gapx
+        #
         if dock_position == 1:
-            if use_clock == 1:
-                cwX = clock_gapx
-            if use_clock == 2:
-                cwX = screensize.size().width() - self.width() - clock_gapx
             cwY = screensize.size().height() - self.height() - self.window.height() - clock_gapy
         elif dock_position == 0:
-            pass
+            cwY = self.window.height() + clock_gapy
         #
         self.setGeometry(cwX, cwY, -1,-1)
         #
@@ -2934,8 +2959,8 @@ class calendarWin(QtWidgets.QWidget):
         nmonth2 = datetime.datetime.strptime(str(selectedMonth+1), '%m')
         nmonth = nmonth2.strftime('%B')
         self.mlabel.setText(str(nmonth)+" "+str(selectedYear))
-        #
         
+
 class ClickLabel(QtWidgets.QLabel):
     # clicked = QtCore.pyqtSignal()
     
@@ -2952,7 +2977,8 @@ class ClickLabel(QtWidgets.QLabel):
         # self.clicked.emit()
         QtWidgets.QLabel.mousePressEvent(self, event)      
 
-# 
+
+
 class Calendar(QtWidgets.QCalendarWidget):
   
     # constructor
@@ -3069,26 +3095,53 @@ if __name__ == '__main__':
     this_window = _display.create_resource_object('window', this_windowID)
     # always above
     ewmh.setWmState(this_window, 1, '_NET_WM_STATE_ABOVE')
-    # space reserved
+    # reserved space
     L = 0
     R = 0
     T = 0
     B = 0
     #
-    if fixed_position == 1:
-        B = WINH
+    if dock_position == 1:
+        B = dock_height
         # 
         this_window.change_property(_display.intern_atom('_NET_WM_STRUT'),
                                     _display.intern_atom('CARDINAL'),
                                     32, [L, R, T, B])
-        #
-        x = 0
-        y = x+WINW-1
-        this_window.change_property(_display.intern_atom('_NET_WM_STRUT_PARTIAL'),
-                            _display.intern_atom('CARDINAL'), 32,
-                           	[L, R, T, B, 0, 0, 0, 0, x, y, T, B],
-                           	X.PropModeReplace)
-    	
+        # #
+        # x = 0
+        # # y = x+WINW-1
+        # y = WINH - dock_height
+        # # left, right, top, bottom,
+        # # left_start_y, left_end_y, right_start_y, right_end_y,
+        # # top_start_x, top_end_x, bottom_start_x, bottom_end_x
+        # this_window.change_property(_display.intern_atom('_NET_WM_STRUT_PARTIAL'),
+                            # _display.intern_atom('CARDINAL'), 32,
+                           	# [L, R, T, B, 0, 0, 0, 0, x, y, T, B],
+                           	# X.PropModeReplace)
+    elif dock_position == 0:
+        T = dock_height
+        # 
+        this_window.change_property(_display.intern_atom('_NET_WM_STRUT'),
+                                    _display.intern_atom('CARDINAL'),
+                                    32, [L, R, T, B])
+        # #
+        # x = 0
+        # y = 0
+        # lys1 = 0
+        # lye1 = 0
+        # rys = 0
+        # rye = 0
+        # tsx = 0
+        # tex = 0
+        # # left, right, top, bottom,
+        # # left_start_y, left_end_y, right_start_y, right_end_y,
+        # # top_start_x, top_end_x, bottom_start_x, bottom_end_x
+        # this_window.change_property(_display.intern_atom('_NET_WM_STRUT_PARTIAL'),
+                            # _display.intern_atom('CARDINAL'), 32,
+                           	# [L, R, T, B, 0, 0, 0, 0, x, y, T, B],
+                           	# X.PropModeReplace)
+    
+    
     # this_window.change_property(_display.intern_atom("_NET_WM_WINDOW_TYPE"),
     #         Xatom.ATOM, 32, [_display.intern_atom("_NET_WM_WINDOW_TYPE_DOCK")])
     
@@ -3097,7 +3150,10 @@ if __name__ == '__main__':
     # sec_window.show()
     #
     sx = 0
-    sy = size.height() - dock_height
+    if dock_position == 1:
+        sy = size.height() - dock_height
+    elif dock_position == 0:
+        sy = 0
     sw = WINW
     sh = WINH
     sec_window.setGeometry(sx, sy, sw, sh)
