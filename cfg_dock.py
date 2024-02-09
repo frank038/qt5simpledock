@@ -14,7 +14,7 @@ tbutton_size = button_size
 dock_height=38
 # position: 0 top - 1 bottom
 dock_position=1
-# tasklist position: 0 left - 1 center - 2 right
+# tasklist position: 0 left - 1 center
 tasklist_position=1
 # theme style: "" to use the default theme
 theme_style=""
@@ -30,6 +30,8 @@ button_background_color="#FFA500"
 SKIP_APP=[]
 # centralize elements menu, app launchers, tasklist: 0 no - 1 yes
 CENTRALIZE_EL=0
+# close the menu and the clock applet if focus is lost on another window: 0 no - 1 yes
+LOST_FOCUS_CLOSE=0
 ######### MENU ##########
 # show the application menu: 0 no - 1 left - 2 right
 use_menu=1

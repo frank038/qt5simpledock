@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# V 0.9.19
+# V 0.9.20
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
@@ -389,7 +389,7 @@ class SecondaryWin(QtWidgets.QWidget):
                     # self.tlabel.setStyleSheet("QLabel {0} color: {1}; {2} QLabel::hover {0} background-color: lightgrey; border: 2px lightgrey; border-radius: 15px;{2}".format("{", calendar_label_font_color, "}"))
                 # else:
                     # self.tlabel.setStyleSheet("QLabel::hover { background-color: lightgrey; border: 2px lightgrey; border-radius: 15px;}")
-                self.tlabel.setAlignment(QtCore.Qt.AlignCenter)
+                #self.tlabel.setAlignment(QtCore.Qt.AlignCenter)
                 self.cbox.addWidget(self.tlabel)
                 #
                 if USE_AP:
@@ -428,19 +428,19 @@ class SecondaryWin(QtWidgets.QWidget):
                     self.abox.insertLayout(1, self.cbox)
             ##########
             if CENTRALIZE_EL == 1:
-                self.abox.addStretch(10)
+                self.abox.addStretch(1)
             ## menu
             self.mw_is_shown = None
             if use_menu:
                 self.mbtnbox = QtWidgets.QHBoxLayout()
                 self.mbtnbox.setContentsMargins(4,0,4,0)
-                self.mbtnbox.setSpacing(4)
+                #self.mbtnbox.setSpacing(4)
                 if use_menu == 1:
                     self.abox.insertLayout(2, self.mbtnbox)
                 # the window menu
                 self.mbutton = QtWidgets.QPushButton(flat=True)
                 self.mbutton.setFlat(True)
-                self.mbutton.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+                #self.mbutton.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
                 self.mbutton.setIcon(QtGui.QIcon("icons/menu.png"))
                 self.mbutton.setIconSize(QtCore.QSize(button_size, button_size))
                 self.mbtnbox.addWidget(self.mbutton)
@@ -474,7 +474,7 @@ class SecondaryWin(QtWidgets.QWidget):
             self.prog_box.setContentsMargins(4,0,4,0)
             self.prog_box.setSpacing(4)
             self.prog_box.desk = "p"
-            self.prog_box.setAlignment(QtCore.Qt.AlignCenter)
+            #self.prog_box.setAlignment(QtCore.Qt.AlignCenter)
             self.abox.insertLayout(4, self.prog_box)
             # self.abox.setAlignment(self.prog_box, QtCore.Qt.AlignVCenter)
             ## add the applications to prog_box
@@ -533,9 +533,11 @@ class SecondaryWin(QtWidgets.QWidget):
                 # self.ibox.addWidget(pframe)
             elif tasklist_position == 1:
                 self.ibox.setAlignment(QtCore.Qt.AlignCenter)
-            elif tasklist_position == 2:
-                self.ibox.setAlignment(QtCore.Qt.AlignRight)
-                self.ibox.setDirection(QtWidgets.QBoxLayout.RightToLeft)
+                if CENTRALIZE_EL == 0:
+                    self.abox.addStretch(1)
+            # elif tasklist_position == 2:
+                # self.ibox.setAlignment(QtCore.Qt.AlignRight)
+                # self.ibox.setDirection(QtWidgets.QBoxLayout.RightToLeft)
             # the first virtual desktop
             self.ibox.desk = 0
             # fake button
@@ -550,7 +552,7 @@ class SecondaryWin(QtWidgets.QWidget):
             self.ibox.addWidget(self.fake_btn)
             self.abox.insertLayout(5, self.ibox)
             # if dock_width == 0:
-            self.abox.setStretchFactor(self.ibox,1)
+            #self.abox.setStretchFactor(self.ibox,1)
         #
         ################################
         # winid - desktop
@@ -592,6 +594,8 @@ class SecondaryWin(QtWidgets.QWidget):
                     elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_COMBO') in prop.value.tolist():
                         continue
                     elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_POPUP_MENU') in prop.value.tolist():
+                        continue
+                    elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_TOOLTIP') in prop.value.tolist():
                         continue
                 #
                 # if self.display.intern_atom('_NET_WM_WINDOW_TYPE_NORMAL') in prop.value.tolist():
@@ -645,8 +649,8 @@ class SecondaryWin(QtWidgets.QWidget):
         self.mythread.start()
         ########
         #
-        if CENTRALIZE_EL == 1:
-            self.abox.addStretch(10)
+        # if CENTRALIZE_EL == 1:
+        self.abox.addStretch(1)
         # 
         if label1_script:
             self.labelw1 = QtWidgets.QLabel()
@@ -1187,6 +1191,8 @@ class SecondaryWin(QtWidgets.QWidget):
                     elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_COMBO') in prop.value.tolist():
                         continue
                     elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_POPUP_MENU') in prop.value.tolist():
+                        continue
+                    elif self.display.intern_atom('_NET_WM_WINDOW_TYPE_TOOLTIP') in prop.value.tolist():
                         continue
                     # else:
                         #
@@ -2009,12 +2015,10 @@ class trayThread(QtCore.QThread):
                 # print("damage for applet::", e)
             # properties
             elif (e.type == X.PropertyNotify):
-                # 37 WM_ICON_NAME (con nm-applet solo questo) - 356 _NET_WM_ICON_NAME
                 if e.atom == self.display.intern_atom("WM_ICON_NAME") or e.atom == self.display.intern_atom("_NET_WM_ICON_NAME"):
-                    pass
-                    # e.window.change_attributes(background_pixel = self.background)
-                    # self.display.flush()
-                    # self.display.sync()
+                    e.window.change_attributes(background_pixel = self.background)
+                    self.display.flush()
+                    self.display.sync()
             #
             if self.data_run == 0:
                 break
@@ -2332,7 +2336,8 @@ class menuWin(QtWidgets.QWidget):
         self.itemBookmark = 1
         # while an item is been searching
         self.itemSearching = 0
-        self.installEventFilter(self)
+        if LOST_FOCUS_CLOSE == 0:
+            self.installEventFilter(self)
         #
         # self.setAttribute(QtCore.Qt.WA_X11NetWmWindowTypeDock)
     
@@ -2898,7 +2903,8 @@ class calendarWin(QtWidgets.QWidget):
         #
         self.setGeometry(cwX, cwY, -1,-1)
         #
-        self.installEventFilter(self)
+        if LOST_FOCUS_CLOSE == 0:
+            self.installEventFilter(self)
     
     def eventFilter(self, object, event):
         if event.type() == QtCore.QEvent.WindowDeactivate:
