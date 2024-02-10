@@ -1,3 +1,5 @@
+# the height of the dock
+dock_height=42
 # icon button max size to get from application (even number)
 button_size=32
 # program launchers button size
@@ -9,13 +11,11 @@ virtual_desktops=0
 # use the builtin tray: 0 no - 1 yes
 use_tray=1
 # tray icon size (even number)
-tbutton_size = button_size
-# the height of the dock
-dock_height=38
+tbutton_size = dock_height-2
 # position: 0 top - 1 bottom
 dock_position=1
 # tasklist position: 0 left - 1 center
-tasklist_position=1
+tasklist_position=0
 # theme style: "" to use the default theme
 theme_style=""
 # icon theme: "" to use the default theme
@@ -30,8 +30,11 @@ button_background_color="#FFA500"
 SKIP_APP=[]
 # centralize elements menu, app launchers, tasklist: 0 no - 1 yes
 CENTRALIZE_EL=0
+# add gaps to better centralize elements (L left, R right): 0 or > 0
+CENTRALIZE_GAP_L=0
+CENTRALIZE_GAP_R=0
 # close the menu and the clock applet if focus is lost on another window: 0 no - 1 yes
-LOST_FOCUS_CLOSE=0
+LOST_FOCUS_CLOSE=1
 ######### MENU ##########
 # show the application menu: 0 no - 1 left - 2 right
 use_menu=1
@@ -131,9 +134,9 @@ label0_font_weight=75
 # font italic: 0 no - 1 yes
 label0_font_italic=0
 # command to execute
-label0_command1=""
+label0_command1="yad-icon-browser"
 # command to execute - center mouse button
-label0_command2=""
+label0_command2="xterm"
 ######### label1 - at right
 # exec label1 script: 0 to disable - 1 yes
 label1_script=0

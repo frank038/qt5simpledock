@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# V 0.9.20
+# V 0.9.21
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
@@ -343,7 +343,7 @@ class SecondaryWin(QtWidgets.QWidget):
             #
             if label0_script:
                 self.labelw0 = QtWidgets.QLabel()
-                self.labelw0.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignVCenter)
+                # self.labelw0.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignVCenter)
                 self.abox.insertWidget(0, self.labelw0)
                 if label1_use_richtext:
                     self.labelw0.setTextFormat(QtCore.Qt.RichText)
@@ -362,11 +362,6 @@ class SecondaryWin(QtWidgets.QWidget):
                     self.labelw0.setFont(tfont)
                 # 
                 self.labelw0.mouseDoubleClickEvent = self.on_labelw0
-                # self.l1p = QtCore.QProcess()
-                # self.l1p.readyReadStandardOutput.connect(self.p1ready)
-                # self.l1p.finished.connect(self.p1finished)
-                # self.l1p.start("scripts/./label1.sh")
-                #
                 self.label0thread = label1Thread(["scripts/./label0.sh", label0_interval])
                 self.label0thread.label1sig.connect(self.on_label0)
                 self.label0thread.start()
@@ -429,6 +424,12 @@ class SecondaryWin(QtWidgets.QWidget):
             ##########
             if CENTRALIZE_EL == 1:
                 self.abox.addStretch(1)
+                if CENTRALIZE_GAP_L > 0:
+                    clabell = QtWidgets.QLabel()
+                    clabell.setText(" "*CENTRALIZE_GAP_L)
+                    self.abox.insertWidget(2, clabell)
+            # else:
+                # self.abox.addStretch(0)
             ## menu
             self.mw_is_shown = None
             if use_menu:
@@ -436,11 +437,11 @@ class SecondaryWin(QtWidgets.QWidget):
                 self.mbtnbox.setContentsMargins(4,0,4,0)
                 #self.mbtnbox.setSpacing(4)
                 if use_menu == 1:
-                    self.abox.insertLayout(2, self.mbtnbox)
+                    self.abox.insertLayout(3, self.mbtnbox)
                 # the window menu
                 self.mbutton = QtWidgets.QPushButton(flat=True)
                 self.mbutton.setFlat(True)
-                #self.mbutton.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+                self.mbutton.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
                 self.mbutton.setIcon(QtGui.QIcon("icons/menu.png"))
                 self.mbutton.setIconSize(QtCore.QSize(button_size, button_size))
                 self.mbtnbox.addWidget(self.mbutton)
@@ -452,7 +453,7 @@ class SecondaryWin(QtWidgets.QWidget):
                 self.virtbox.setContentsMargins(0,0,0,0)
                 self.virtbox.setSpacing(4)
                 self.virtbox.desk = "v"
-                self.abox.insertLayout(3, self.virtbox)
+                self.abox.insertLayout(4, self.virtbox)
                 #
                 vbtn = QtWidgets.QPushButton()
                 vbtn.setFlat(True)
@@ -475,7 +476,7 @@ class SecondaryWin(QtWidgets.QWidget):
             self.prog_box.setSpacing(4)
             self.prog_box.desk = "p"
             #self.prog_box.setAlignment(QtCore.Qt.AlignCenter)
-            self.abox.insertLayout(4, self.prog_box)
+            self.abox.insertLayout(5, self.prog_box)
             # self.abox.setAlignment(self.prog_box, QtCore.Qt.AlignVCenter)
             ## add the applications to prog_box
             progs = os.listdir("applications")
@@ -550,7 +551,7 @@ class SecondaryWin(QtWidgets.QWidget):
             self.fake_btn.desktop = 0
             self.fake_btn.setVisible(False)
             self.ibox.addWidget(self.fake_btn)
-            self.abox.insertLayout(5, self.ibox)
+            self.abox.insertLayout(6, self.ibox)
             # if dock_width == 0:
             #self.abox.setStretchFactor(self.ibox,1)
         #
@@ -649,13 +650,18 @@ class SecondaryWin(QtWidgets.QWidget):
         self.mythread.start()
         ########
         #
-        # if CENTRALIZE_EL == 1:
-        self.abox.addStretch(1)
+        #if CENTRALIZE_EL == 1:
+        if CENTRALIZE_GAP_R > 0:
+            clabelr = QtWidgets.QLabel()
+            clabelr.setText(" "*CENTRALIZE_GAP_R)
+            self.abox.insertWidget(7, clabelr)
         # 
+        self.abox.addStretch(1)
+        #
         if label1_script:
             self.labelw1 = QtWidgets.QLabel()
             self.labelw1.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignVCenter)
-            self.abox.insertWidget(6, self.labelw1)
+            self.abox.insertWidget(8, self.labelw1)
             if label1_use_richtext:
                 self.labelw1.setTextFormat(QtCore.Qt.RichText)
             else:
@@ -686,7 +692,7 @@ class SecondaryWin(QtWidgets.QWidget):
         if label2_script:
             self.labelw2 = QtWidgets.QLabel()
             self.labelw2.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignVCenter)
-            self.abox.insertWidget(7, self.labelw2)
+            self.abox.insertWidget(9, self.labelw2)
             if label2_use_richtext:
                 self.labelw2.setTextFormat(QtCore.Qt.RichText)
             else:
@@ -731,10 +737,10 @@ class SecondaryWin(QtWidgets.QWidget):
             self.frame_box = QtWidgets.QHBoxLayout()
             self.frame_box.setContentsMargins(0,0,0,0)
             self.frame_box.setSpacing(0)
-            self.tframe.setLayout(self.frame_box)
+            # self.tframe.setLayout(self.frame_box)
             self.tray_box = self.frame_box
             #
-            self.abox.insertWidget(8, self.tframe)
+            self.abox.insertLayout(10, self.frame_box)
             # frame widget counter
             self.frame_counter = 0
             # widget background color
@@ -746,10 +752,10 @@ class SecondaryWin(QtWidgets.QWidget):
         #
         # clock at right
         if use_clock == 2:
-            self.abox.insertLayout(9, self.cbox)
+            self.abox.insertLayout(11, self.cbox)
         # menu at right
         if use_menu == 2:
-            self.abox.insertLayout(10, self.mbtnbox)
+            self.abox.insertLayout(12, self.mbtnbox)
         #
         # if not fixed_position:
             # QtCore.QTimer.singleShot(1500, self.on_leave_event)
@@ -758,8 +764,9 @@ class SecondaryWin(QtWidgets.QWidget):
             # self.on_move_win()
         #
     
-    # click on label 0
+    # double click on label 0
     def on_labelw0(self, e):
+        comm = None
         if e.button() == QtCore.Qt.LeftButton:
             comm = label0_command1
         elif e.button() == QtCore.Qt.MiddleButton:
@@ -769,9 +776,12 @@ class SecondaryWin(QtWidgets.QWidget):
                 subprocess.Popen([comm])
             except:
                 pass
+        # QtWidgets.QLabel.mouseDoubleClickEvent(self, e)
     
+        
     # click on label 1
     def on_labelw1(self, e):
+        comm = None
         if e.button() == QtCore.Qt.LeftButton:
             comm = label1_command1
         elif e.button() == QtCore.Qt.MiddleButton:
@@ -784,6 +794,7 @@ class SecondaryWin(QtWidgets.QWidget):
     
     # click on label 2
     def on_labelw2(self, e):
+        comm = None
         if e.button() == QtCore.Qt.LeftButton:
             comm = label2_command1
         elif e.button() == QtCore.Qt.MiddleButton:
@@ -839,11 +850,14 @@ class SecondaryWin(QtWidgets.QWidget):
     
     def tadd(self, wid):
         fwin = QtGui.QWindow.fromWinId(wid)
+        # fwin.setMinimumSize(QtCore.QSize(tbutton_size, tbutton_size))
+        # fwin.setGeometry(QtCore.QRect(0,0,tbutton_size,tbutton_size))
+        # fwin.resize(tbutton_size, tbutton_size)
         # fwin.setFlags(QtCore.Qt.FramelessWindowHint)
         fwin.setFlags(QtCore.Qt.FramelessWindowHint | QtCore.Qt.ForeignWindow)
         fwidget = QtWidgets.QWidget.createWindowContainer(fwin)
         fwidget.setContentsMargins(0,0,0,0)
-        fwidget.setMinimumSize(tbutton_size, tbutton_size)
+        fwidget.setMinimumSize(QtCore.QSize(tbutton_size, tbutton_size))
         fwidget.resize(tbutton_size, tbutton_size)
         fwidget.id = wid
         self.tray_box.update()
@@ -1839,8 +1853,17 @@ class SecondaryWin(QtWidgets.QWidget):
     def on_vbtn_clicked(self):
         self.sender().setChecked(True)
         vdesk = self.sender().desk
-        ewmh.setCurrentDesktop(vdesk)
-        ewmh.display.flush()
+        # ewmh.setCurrentDesktop(vdesk)
+        # ewmh.display.flush()
+        # virtual desktops
+        ctype = self.display.intern_atom('_NET_CURRENT_DESKTOP')
+        data = [vdesk, X.CurrentTime, 0,0,0]
+        ev = pe.ClientMessage(window=self.root, client_type=ctype, data=(32,(data)))
+        #
+        mask = (X.SubstructureRedirectMask|X.SubstructureNotifyMask)
+        self.root.send_event(ev, event_mask=mask)
+        self.display.flush()
+        
     
     # # move the window when a button is added or removed
     # def on_move_win(self):
@@ -2336,7 +2359,7 @@ class menuWin(QtWidgets.QWidget):
         self.itemBookmark = 1
         # while an item is been searching
         self.itemSearching = 0
-        if LOST_FOCUS_CLOSE == 0:
+        if LOST_FOCUS_CLOSE == 1:
             self.installEventFilter(self)
         #
         # self.setAttribute(QtCore.Qt.WA_X11NetWmWindowTypeDock)
@@ -3101,6 +3124,21 @@ if __name__ == '__main__':
     this_window = _display.create_resource_object('window', this_windowID)
     # always above
     ewmh.setWmState(this_window, 1, '_NET_WM_STATE_ABOVE')
+    ewmh.display.flush()
+    #
+    # # _NET_WM_DESKTOP 0xFFFFFFFF indicates that the window SHOULD appear on all desktops.
+    # wm_state = _display.intern_atom('_NET_WM_DESKTOP')
+    # _data = [0xFFFFFFFF,0,0,0,0]
+    # #
+    # sevent = pe.ClientMessage(
+            # window = this_window,
+            # client_type = wm_state,
+            # data=(32, (_data))
+            # )
+    # mask = (X.SubstructureRedirectMask | X.SubstructureNotifyMask)
+    # _display.screen().root.send_event(event=sevent, event_mask=mask)
+    # _display.flush()
+    #
     # reserved space
     L = 0
     R = 0
