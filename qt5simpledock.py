@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# V 0.9.22
+# V 0.9.25
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
@@ -1522,15 +1522,18 @@ class SecondaryWin(QtWidgets.QWidget):
         ## its the actual active window, minimize
         if btn.winid == active_window_id:
             # 1 add - 2 toggle - 0 remove
-            self.NET_WM_STATE = self.display.intern_atom("_NET_WM_STATE")
-            self.WM_HIDDEN = self.display.intern_atom("_NET_WM_STATE_HIDDEN")
+            # self.NET_WM_STATE = self.display.intern_atom("_NET_WM_STATE")
+            # self.WM_HIDDEN = self.display.intern_atom("_NET_WM_STATE_HIDDEN")
+            self.WM_CHANGE_STATE = self.display.intern_atom("WM_CHANGE_STATE")
             #
-            wm_state = self.NET_WM_STATE
-            wm_state2 = self.WM_HIDDEN
-            _data = [2, wm_state2, 0, 0, 0]
+            # wm_state = self.NET_WM_STATE
+            # wm_state2 = self.WM_HIDDEN
+            # _data = [2, wm_state2, 0, 0, 0]
+            wm_state3 = self.WM_CHANGE_STATE
+            _data = [3, 0, 0, 0, 0]
             sevent = pe.ClientMessage(
             window = window,
-            client_type = wm_state,
+            client_type = wm_state3,
             data=(32, (_data))
             )
             mask = (X.SubstructureRedirectMask | X.SubstructureNotifyMask)
@@ -2339,12 +2342,12 @@ class menuWin(QtWidgets.QWidget):
             sy = parent_geom.height() + menu_pady
         self.move(sx,sy)
         #
-        # if self.window.cw_is_shown:
-            # self.window.cw_is_shown.close()
-            # self.window.cw_is_shown = None
-        # if self.window.cwin_is_shown:
-            # self.window.cwin_is_shown.close()
-            # self.window.cwin_is_shown = None
+        if self.window.cw_is_shown:
+            self.window.cw_is_shown.close()
+            self.window.cw_is_shown = None
+        if self.window.cwin_is_shown:
+            self.window.cwin_is_shown.close()
+            self.window.cwin_is_shown = None
         #
         self.emulate_clicked(self.pref, 100)
         self.pref.setChecked(True)
