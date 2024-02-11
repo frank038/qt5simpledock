@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# V 0.9.21
+# V 0.9.22
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time

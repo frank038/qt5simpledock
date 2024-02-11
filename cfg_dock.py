@@ -5,7 +5,7 @@ button_size=32
 # program launchers button size
 pbutton_size=30
 # padding - space between button and icon (size icon: button_size - button_padding)
-button_padding=8
+button_padding=6
 # show virtual desktops: 0 no - 1 yes
 virtual_desktops=0
 # use the builtin tray: 0 no - 1 yes
@@ -73,7 +73,7 @@ USER_TERMINAL=""
 use_clock=2
 # clock font
 clock_font=""
-clock_font_size=20
+clock_font_size=12
 # Thin 0 - ExtraLight 12 - Light 25 - Normal 50 - Medium 57 - DemiBold 63 - Bold 75 - ExtraBold 81 - Black 87
 clock_font_weight=50
 # 0 no - 1 yes
@@ -128,15 +128,15 @@ label0_color="green"
 # font to be used in the label
 label0_font=""
 # font size
-label0_font_size=24
+label0_font_size=12
 # font weight: Thin 0 - ExtraLight 12 - Light 25 - Normal 50 - Medium 57 - DemiBold 63 - Bold 75 - ExtraBold 81 - Black 87
 label0_font_weight=75
 # font italic: 0 no - 1 yes
 label0_font_italic=0
 # command to execute
-label0_command1="yad-icon-browser"
+label0_command1=""
 # command to execute - center mouse button
-label0_command2="xterm"
+label0_command2=""
 ######### label1 - at right
 # exec label1 script: 0 to disable - 1 yes
 label1_script=0
@@ -149,7 +149,7 @@ label1_color="green"
 # font to be used in the label
 label1_font=""
 # font size
-label1_font_size=24
+label1_font_size=12
 # font weight: Thin 0 - ExtraLight 12 - Light 25 - Normal 50 - Medium 57 - DemiBold 63 - Bold 75 - ExtraBold 81 - Black 87
 label1_font_weight=75
 # font italic: 0 no - 1 yes
@@ -170,7 +170,7 @@ label2_color="white"
 # font to be used in the label
 label2_font=""
 # font size
-label2_font_size=20
+label2_font_size=12
 # font weight: Thin 0 - ExtraLight 12 - Light 25 - Normal 50 - Medium 57 - DemiBold 63 - Bold 75 - ExtraBold 81 - Black 87
 label2_font_weight=75
 # font italic: 0 no - 1 yes
