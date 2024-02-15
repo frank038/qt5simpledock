@@ -29,12 +29,16 @@ button_background_color="#FFA500"
 # application to be skipped from the dock (executables between double quotes with comma separator)
 SKIP_APP=[]
 # centralize elements menu, app launchers, tasklist: 0 no - 1 yes
-CENTRALIZE_EL=0
+CENTRALIZE_EL=1
 # add gaps to better centralize elements (L left, R right): 0 or > 0
 CENTRALIZE_GAP_L=0
 CENTRALIZE_GAP_R=0
 # close the menu and the clock applet if focus is lost on another window: 0 no - 1 yes
 LOST_FOCUS_CLOSE=1
+# play sounds as a window opens or closes: 1 yes - 0 no
+PLAY_SOUND=0
+# audio player: "NAME" or ""
+A_PLAYER="aplay"
 ######### MENU ##########
 # show the application menu: 0 no - 1 left - 2 right
 use_menu=1
@@ -118,7 +122,7 @@ clock_gapy=4
 ############
 ######### label0 - at far left
 # exec label1 script: 0 to disable - 1 yes
-label0_script=0
+label0_script=1
 # seconds to wait for executing the script again
 label0_interval=1
 # use html tags instead of plain text - override the next label1 options
@@ -134,9 +138,9 @@ label0_font_weight=75
 # font italic: 0 no - 1 yes
 label0_font_italic=0
 # command to execute
-label0_command1=""
+label0_command1="yad-icon-browser"
 # command to execute - center mouse button
-label0_command2=""
+label0_command2="xterm"
 ######### label1 - at right
 # exec label1 script: 0 to disable - 1 yes
 label1_script=0

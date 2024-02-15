@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# V 0.9.25
+# V 0.9.26
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
@@ -19,6 +19,7 @@ from cfg_dock import *
 if use_clock:
     import datetime
 
+curr_path = os.getcwd()
 
 ################## MENU
 sys.path.append("modules")
@@ -178,6 +179,19 @@ tray_already_used = 0
 #############
 stopCD = 0
 data_run = 1
+
+def play_sound(_sound):
+    if not shutil.which(A_PLAYER):
+        return
+    sound_full_path = os.path.join(curr_path, "sounds", _sound)
+    command = [A_PLAYER, sound_full_path]
+    try:
+        subprocess.Popen(command, 
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.STDOUT)
+    except: pass
+    return
+
 # 
 class winThread(QtCore.QThread):
     
@@ -239,6 +253,37 @@ class winThread(QtCore.QThread):
                         elif data[0] == 2:
                             self.sig.emit(["URGENCY", 2, event.window])
             # 
+            elif event.type == X.UnmapNotify:
+                if event.window == self.root or event.window == None:
+                    continue
+                try:
+                    attrs = event.window.get_attributes()
+                    if hasattr(attrs, "override_redirect"):
+                        attrs = event.window.get_attributes()
+                        if attrs.override_redirect:
+                            continue
+                except:
+                    pass
+                try:
+                    if hasattr(event.window.get_wm_state(), "state"):
+                        if event.window.get_wm_state().state == 0:
+                            continue
+                except:
+                    pass
+                self.sig.emit(["UNMAPMAP", event.window, 0])
+            #
+            elif event.type == X.MapNotify:
+                if event.window == self.root or event.window == None:
+                    continue
+                try:
+                    attrs = event.window.get_attributes()
+                    if hasattr(attrs, "override_redirect"):
+                        attrs = event.window.get_attributes()
+                        if attrs.override_redirect:
+                            continue
+                except:
+                    pass
+                self.sig.emit(["UNMAPMAP", event.window, 1])
             # elif event.type == self.display.extension_event.DamageNotify:
                 # print("damage event from main::", event.window.id)
             #
@@ -856,6 +901,7 @@ class SecondaryWin(QtWidgets.QWidget):
         # fwin.setFlags(QtCore.Qt.FramelessWindowHint)
         fwin.setFlags(QtCore.Qt.FramelessWindowHint | QtCore.Qt.ForeignWindow)
         fwidget = QtWidgets.QWidget.createWindowContainer(fwin)
+        #fwidget.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         fwidget.setContentsMargins(0,0,0,0)
         fwidget.setMinimumSize(QtCore.QSize(tbutton_size, tbutton_size))
         fwidget.resize(tbutton_size, tbutton_size)
@@ -1001,6 +1047,9 @@ class SecondaryWin(QtWidgets.QWidget):
             #
             elif data[0] == "SCREEN_CHANGED":
                 self._screen_changed()
+            #
+            elif data[0] == "UNMAPMAP":
+                self._unmapmap(data[1], data[2])
             # #
             # elif data[0] == "EXPOSE":
                 # self.adjustSize()
@@ -1008,6 +1057,19 @@ class SecondaryWin(QtWidgets.QWidget):
                 # # # self.resize(self.sizeHint())
                 # # self.resize(self.sizeHint().width(), dock_height)
     
+    # hide the button from the taskbar when unmapped or unhide it
+    def _unmapmap(self, win, _type):
+        for i in range(self.ibox.count()):
+            item = self.ibox.itemAt(i).widget()
+            if not item:
+                continue
+            if isinstance(item, QtWidgets.QPushButton):
+                if item.winid == win.id:
+                    if _type == 0:
+                        item.setVisible(False)
+                    elif _type == 1:
+                        item.setVisible(True)
+                    break
     
     def _screen_changed(self):
         global WINW
@@ -1248,6 +1310,9 @@ class SecondaryWin(QtWidgets.QWidget):
             if w not in window_list:
                 self.wid_l.remove(w)
                 self.on_remove_win(w)
+                #
+                if PLAY_SOUND:
+                    play_sound("window-close.wav")
                 is_changed = 1
         # 
         # if is_changed or self.is_started:
@@ -1359,84 +1424,84 @@ class SecondaryWin(QtWidgets.QWidget):
                                     licon = QtGui.QIcon.fromTheme(wicon)
                                 else:
                                     licon = None
-        #
-        if not licon:
-            window = self.display.create_resource_object('window', winid)
             #
-            win_name_class_tmp = window.get_wm_class()
-            if not win_name_class_tmp:
-                win_name_class = ""
-            else:
-                win_name_class = win_name_class_tmp[0]
-            #
-            if win_name_class and QtGui.QIcon.hasThemeIcon(win_name_class):
-                licon = QtGui.QIcon.fromTheme(win_name_class)
-        #
-        if not licon:
-            icon_icon = window.get_full_property(self.display.intern_atom('_NET_WM_ICON'), 0)
-            #
-            icon_data = None
-            target = button_size
-            icon_lista = []
-            if icon_icon is not None:
-            # if not licon:
-                data = icon_icon.value[:]
-                icon_width  = data[0]
-                icon_height = data[1]
-                icon_image  = data[2:data[0]*data[1]+2].tobytes()  
-                icon_data = [icon_width,icon_height,icon_image]
+            if not licon:
+                # window = self.display.create_resource_object('window', winid)
                 #
-                w = 0
-                h = 0
-                len_data = len(data)
-                datat = data
-                ii = 1
-                while ii:
-                    len_data = len(datat)
-                    w = datat[0]
-                    h = datat[1]
-                    icon_lista.append([w, h])
-                    if (w*h+2) < len_data: 
-                        if datat[w*h+2] > 0:
-                            datat = datat[w*h+2:]
-                    else:
-                        ii = 0
-            #
-            if icon_lista:
-                item_idx = -1
-                if target > max(icon_lista)[0]:
-                    target = max(icon_lista)[0]
-                for item in icon_lista:
-                    if item[0] > (target - 1):
-                        item_idx = icon_lista.index(item)
-                        break
-                if item_idx > -1:
-                    start_idx = 0
-                    for i in range(item_idx):
-                        ww = icon_lista[i][0]
-                        hh = icon_lista[i][1]
-                        i_size = (ww*hh+2)
-                        start_idx += i_size
-                #
-                dataa = data[start_idx:]
-                wa = dataa[0]
-                ha = dataa[1]
-                icon_image = dataa[2:dataa[0]*dataa[1]+2].tobytes()
-                icon_data = [wa, ha, icon_image]
-
-                #### pbtn.setIcon(picon)
-                if icon_data:
-                    w = icon_data[0]
-                    h = icon_data[1]
-                    img = icon_data[2]
-                    image = QtGui.QImage(img, w, h, QtGui.QImage.Format_ARGB32)
+                win_name_class_tmp = window.get_wm_class()
+                if not win_name_class_tmp:
+                    win_name_class = ""
                 else:
-                    image = QtGui.QImage("icons/unknown.svg")
-            else:
-                image = QtGui.QImage("icons/unknown.svg")
-            #
-            pixmap = QtGui.QPixmap(image)
-            licon = QtGui.QIcon(pixmap)
+                    win_name_class = win_name_class_tmp[0]
+                #
+                if win_name_class and QtGui.QIcon.hasThemeIcon(win_name_class):
+                    licon = QtGui.QIcon.fromTheme(win_name_class)
+                #
+                if not licon:
+                    icon_icon = window.get_full_property(self.display.intern_atom('_NET_WM_ICON'), 0)
+                    #
+                    icon_data = None
+                    target = button_size
+                    icon_lista = []
+                    if icon_icon is not None:
+                    # if not licon:
+                        data = icon_icon.value[:]
+                        icon_width  = data[0]
+                        icon_height = data[1]
+                        icon_image  = data[2:data[0]*data[1]+2].tobytes()  
+                        icon_data = [icon_width,icon_height,icon_image]
+                        #
+                        w = 0
+                        h = 0
+                        len_data = len(data)
+                        datat = data
+                        ii = 1
+                        while ii:
+                            len_data = len(datat)
+                            w = datat[0]
+                            h = datat[1]
+                            icon_lista.append([w, h])
+                            if (w*h+2) < len_data: 
+                                if datat[w*h+2] > 0:
+                                    datat = datat[w*h+2:]
+                            else:
+                                ii = 0
+                        #
+                        if icon_lista:
+                            item_idx = -1
+                            if target > max(icon_lista)[0]:
+                                target = max(icon_lista)[0]
+                            for item in icon_lista:
+                                if item[0] > (target - 1):
+                                    item_idx = icon_lista.index(item)
+                                    break
+                            if item_idx > -1:
+                                start_idx = 0
+                                for i in range(item_idx):
+                                    ww = icon_lista[i][0]
+                                    hh = icon_lista[i][1]
+                                    i_size = (ww*hh+2)
+                                    start_idx += i_size
+                            #
+                            dataa = data[start_idx:]
+                            wa = dataa[0]
+                            ha = dataa[1]
+                            icon_image = dataa[2:dataa[0]*dataa[1]+2].tobytes()
+                            icon_data = [wa, ha, icon_image]
+
+                            #### pbtn.setIcon(picon)
+                            if icon_data:
+                                w = icon_data[0]
+                                h = icon_data[1]
+                                img = icon_data[2]
+                                image = QtGui.QImage(img, w, h, QtGui.QImage.Format_ARGB32)
+                            else:
+                                image = QtGui.QImage("icons/unknown.svg")
+                        else:
+                            image = QtGui.QImage("icons/unknown.svg")
+                        #
+                        pixmap = QtGui.QPixmap(image)
+                        licon = QtGui.QIcon(pixmap)
         #
         btn = QtWidgets.QPushButton()
         btn.setCheckable(True)
@@ -1482,6 +1547,9 @@ class SecondaryWin(QtWidgets.QWidget):
             self.ibox.addWidget(btn)
         elif pitem[1] > 0:
             self.ibox.insertWidget(pitem[1] * 100, btn)
+        #
+        if PLAY_SOUND:
+            play_sound("window-new.wav")
         #
         btn.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         btn.customContextMenuRequested.connect(self.btnClicked)
@@ -1676,13 +1744,14 @@ class SecondaryWin(QtWidgets.QWidget):
                                 ficon = entry.getIcon()
                                 fpath = entry.getPath()
                                 # desktop file - exec - name - icon - program path
-                                app_found.append([os.path.join(ddir, ffile), pgexec, fname, ficon or "unknown", fpath or ""])
+                                app_found.append([os.path.join(ddir, ffile), pexec, fname, ficon or "unknown", fpath or ""])
                                 break
                         else:
-                            dlg = showDialog(1, "File desktop not found.", self)
-                            result = dlg.exec_()
-                            dlg.close()
-                            return
+                            continue
+                            # dlg = showDialog(1, "File desktop not found.", self)
+                            # result = dlg.exec_()
+                            # dlg.close()
+                            # return
                     except Exception as E:
                         dlg = showDialog(1, str(E), self)
                         result = dlg.exec_()
@@ -1698,7 +1767,11 @@ class SecondaryWin(QtWidgets.QWidget):
             icon = app_found[0][3]
             fname = app_found[0][2]
             fpath = app_found[0][4]
-            picon = QtGui.QIcon.fromTheme(icon, QtGui.QIcon("icons/unknown.svg"))
+            picon = QtGui.QIcon.fromTheme(icon)
+            if picon.isNull():
+                picon = QIcon(icon)
+            if picon.isNull():
+                picon = QIcon("icons/unknown.svg")
             pbtn.setFixedSize(QtCore.QSize(button_size, button_size))
             pbtn.setIcon(picon)
             pbtn.setIconSize(pbtn.size())
@@ -1728,7 +1801,10 @@ class SecondaryWin(QtWidgets.QWidget):
                 pbtn.setFlat(True)
                 icon = app_found[idx][3]
                 fname = app_found[idx][2]
-                picon = QtGui.QIcon.fromTheme(icon, QtGui.QIcon("icons/unknown.svg"))
+                if picon.isNull():
+                    picon = QIcon(icon)
+                if picon.isNull():
+                    picon = QIcon("icons/unknown.svg")
                 pbtn.setFixedSize(QtCore.QSize(button_size, button_size))
                 pbtn.setIcon(picon)
                 pbtn.setIconSize(pbtn.size())
@@ -2041,7 +2117,7 @@ class trayThread(QtCore.QThread):
                 # print("damage for applet::", e)
             # properties
             elif (e.type == X.PropertyNotify):
-                if e.atom == self.display.intern_atom("WM_ICON_NAME") or e.atom == self.display.intern_atom("_NET_WM_ICON_NAME"):
+                if e.atom == self.display.intern_atom("WM_ICON_NAME") or e.atom == self.display.intern_atom("_NET_WM_ICON_NAME") or e.atom == self.display.intern_atom("_NET_WM_USER_TIME"):
                     e.window.change_attributes(background_pixel = self.background)
                     self.display.flush()
                     self.display.sync()
@@ -2058,7 +2134,8 @@ class trayThread(QtCore.QThread):
             try:
                 self.loop(self.display, self.root, self.selowin)
             except Exception as E:
-                print("Some problems with the systray:", str(E))
+                # print("Some problems with the systray:", str(E))
+                pass
             #
             if self.data_run == 0:
                 break
@@ -2743,7 +2820,7 @@ class menuWin(QtWidgets.QWidget):
             TOOLTIP = el[3].strip("\n")
             PATH = el[4].strip("\n")
             TTERM = el[5].strip("\n")
-            FILENAME = el[6].strip("\n")
+            # FILENAME = el[6].strip("\n")
             # # 
             # if len(el) > 5:
                 # PATH_TEMP = el[4].strip("\n")
@@ -2763,12 +2840,16 @@ class menuWin(QtWidgets.QWidget):
                     # icon = QtGui.QIcon.fromTheme(ICON)
                     # if icon.name() == "none":
                         # icon = QtGui.QIcon("icons/none.svg")
-            icon = QtGui.QIcon.fromTheme(ICON, QtGui.QIcon("icons/none.svg"))
+            icon = QtGui.QIcon.fromTheme(ICON)
+            if icon.isNull():
+                icon = QtGui.QIcon(icon)
+            if icon.isNull():
+                QtGui.QIcon("icons/none.svg")
             litem = QtWidgets.QListWidgetItem(icon, NAME)
+            litem.lbookmark = bb
             litem.exec_n = EXEC
-            litem.setToolTip(TOOLTIP)
-            litem.file_name = FILENAME
             litem.ppath = PATH
+            litem.setToolTip(TOOLTIP)
             if TTERM == "True":
                 litem.tterm = True
             else:
@@ -2789,9 +2870,13 @@ class menuWin(QtWidgets.QWidget):
         if action == item_b:
             item_idx = self.listWidget.indexAt(QPos)
             item_row = item_idx.row()
+            _item = self.listWidget.item(item_row)
             item_removed = self.listWidget.takeItem(item_row)
             #
-       
+            try:
+                os.remove(os.path.join("bookmarks",str(_item.lbookmark)))
+            except:
+                pass
 
 # popup per calendar
 class calendarWin(QtWidgets.QWidget):
@@ -2929,7 +3014,7 @@ class calendarWin(QtWidgets.QWidget):
         #
         self.setGeometry(cwX, cwY, -1,-1)
         #
-        if LOST_FOCUS_CLOSE == 0:
+        if LOST_FOCUS_CLOSE == 1:
             self.installEventFilter(self)
     
     def eventFilter(self, object, event):
