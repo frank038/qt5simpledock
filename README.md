@@ -20,6 +20,7 @@ Features:
 - systemtray icons support
 - closing applications by right mouse clicking on its icon
 - closing and restarting this program by right mouse clicking
+- can play sounds when a window opens or closes
 - customizations in the cfg_dock file.
 
 In the image below from the left: the dock with the virtual desktops, one application launcher, the tasklist with two programs in it and two messages.
