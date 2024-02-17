@@ -34,7 +34,7 @@ CENTRALIZE_EL=1
 CENTRALIZE_GAP_L=0
 CENTRALIZE_GAP_R=0
 # close the menu and the clock applet if focus is lost on another window: 0 no - 1 yes
-LOST_FOCUS_CLOSE=1
+LOST_FOCUS_CLOSE=0
 # play sounds as a window opens or closes: 1 yes - 0 no
 PLAY_SOUND=0
 # audio player: "NAME" or ""
@@ -122,7 +122,7 @@ clock_gapy=4
 ############
 ######### label0 - at far left
 # exec label1 script: 0 to disable - 1 yes
-label0_script=1
+label0_script=0
 # seconds to wait for executing the script again
 label0_interval=1
 # use html tags instead of plain text - override the next label1 options
@@ -138,9 +138,9 @@ label0_font_weight=75
 # font italic: 0 no - 1 yes
 label0_font_italic=0
 # command to execute
-label0_command1="yad-icon-browser"
+label0_command1=""
 # command to execute - center mouse button
-label0_command2="xterm"
+label0_command2=""
 ######### label1 - at right
 # exec label1 script: 0 to disable - 1 yes
 label1_script=0
@@ -183,10 +183,28 @@ label2_font_italic=0
 label2_command1=""
 # command to execute - center mouse button
 label2_command2=""
-##########
+########## service commands
 # /usr/bin/systemctl poweroff
 shutdown_command="xterm"
 # /usr/bin/systemctl reboot
 restart_command="xterm"
 # 
 logout_command="xterm"
+##### custom commands
+# one word command - with full path eventually
+# command and name mandatory
+COMM1_COMMAND=""
+COMM1_ICON=""
+COMM1_NAME=""
+COMM1_TOOLTIP=""
+#
+COMM2_COMMAND=""
+COMM2_ICON=""
+COMM2_NAME=""
+COMM2_TOOLTIP=""
+#
+COMM3_COMMAND=""
+COMM3_ICON=""
+COMM3_NAME=""
+COMM3_TOOLTIP=""
+#

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# V 0.9.26
+# V 0.9.27
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
@@ -354,6 +354,8 @@ class SecondaryWin(QtWidgets.QWidget):
         self.attention_windows = {}
         # list of windows demanding attention
         self.list_uitem = []
+        # taskbar button in clicked state
+        self.taskb_btn = None
         ## the number of virtual desktops
         global virtual_desktops
         if virtual_desktops:
@@ -586,24 +588,24 @@ class SecondaryWin(QtWidgets.QWidget):
                 # self.ibox.setDirection(QtWidgets.QBoxLayout.RightToLeft)
             # the first virtual desktop
             self.ibox.desk = 0
-            # fake button
-            self.fake_btn = QtWidgets.QPushButton()
-            self.fake_btn.setAutoExclusive(True)
-            self.fake_btn.setCheckable(True)
-            self.fake_btn.setFixedSize(QtCore.QSize(1,1))
-            self.fake_btn.setFlat(True)
-            self.fake_btn.winid = 1
-            self.fake_btn.desktop = 0
-            self.fake_btn.setVisible(False)
-            self.ibox.addWidget(self.fake_btn)
             self.abox.insertLayout(6, self.ibox)
-            # if dock_width == 0:
-            #self.abox.setStretchFactor(self.ibox,1)
+            # # fake button
+            # self.fake_btn = QtWidgets.QPushButton()
+            # self.fake_btn.setAutoExclusive(True)
+            # self.fake_btn.setCheckable(True)
+            # self.fake_btn.setFixedSize(QtCore.QSize(1,1))
+            # self.fake_btn.setFlat(True)
+            # self.fake_btn.winid = 1
+            # self.fake_btn.desktop = 0
+            # self.fake_btn.setVisible(False)
+            # self.ibox.addWidget(self.fake_btn)
+            # # if dock_width == 0:
+            # #self.abox.setStretchFactor(self.ibox,1)
         #
         ################################
         # winid - desktop
         self.list_prog = []
-        # desktop in which the program appared
+        # desktop in which the program appeared
         on_desktop = 0
         winid_list_temp = self.root.get_full_property(self.display.intern_atom('_NET_CLIENT_LIST'), X.AnyPropertyType)
         if winid_list_temp:
@@ -1530,7 +1532,7 @@ class SecondaryWin(QtWidgets.QWidget):
         csa = csaa+csab+csac+csad+csae+csaf
         btn.setStyleSheet(csa)
         ###########
-        btn.setAutoExclusive(True)
+        # btn.setAutoExclusive(True)
         btn.clicked.connect(self.on_btn_clicked)
         # btn.setFixedSize(QtCore.QSize(dock_height, dock_height))
         btn.setFixedSize(QtCore.QSize(button_size, button_size))
@@ -1555,7 +1557,8 @@ class SecondaryWin(QtWidgets.QWidget):
         btn.customContextMenuRequested.connect(self.btnClicked)
     
     # 3
-    # get the active window when the program starts
+    # get the active window when this program starts
+    # set checked the button
     def get_active_window_first(self):
         window_id_temp = self.root.get_full_property(self.display.intern_atom('_NET_ACTIVE_WINDOW'), X.AnyPropertyType)
         #
@@ -1574,6 +1577,7 @@ class SecondaryWin(QtWidgets.QWidget):
                 if isinstance(item, QtWidgets.QPushButton):
                     if item.winid == window_id:
                         item.setChecked(True)
+                        self.taskb_btn = item
                         break
     
     # 4
@@ -1650,7 +1654,10 @@ class SecondaryWin(QtWidgets.QWidget):
             window_id = window_id_temp.value[0]
             # no active window
             if window_id == 0:
-                self.fake_btn.setChecked(True)
+                # self.fake_btn.setChecked(True)
+                if self.taskb_btn:
+                    self.taskb_btn.setChecked(False)
+                self.taskb_btn = None
             #
             else:
                 window = self.display.create_resource_object('window', window_id)
@@ -1659,7 +1666,11 @@ class SecondaryWin(QtWidgets.QWidget):
                     btn = self.ibox.itemAt(i).widget()
                     if isinstance(btn, QtWidgets.QPushButton):
                         if btn.winid == window_id:
+                            if self.taskb_btn:
+                                self.taskb_btn.setChecked(False)
+                                self.taskb_btn = None
                             btn.setChecked(True)
+                            self.taskb_btn = btn
                             is_found = 1
                             # # remove urgency
                             # if btn in self.list_uitem:
@@ -1669,7 +1680,10 @@ class SecondaryWin(QtWidgets.QWidget):
                             break
                 if not is_found:
                     # in case no window has been activated
-                    self.fake_btn.setChecked(True)
+                    # self.fake_btn.setChecked(True)
+                    if self.taskb_btn:
+                        self.taskb_btn.setChecked(False)
+                    self.taskb_btn = None
         
     # 6
     # remove the buttons
@@ -2332,20 +2346,20 @@ class menuWin(QtWidgets.QWidget):
         self.pref.setIconSize(QtCore.QSize(menu_icon_size, menu_icon_size))
         self.pref.setFlat(True)
         #
-        # hpalette = self.palette().mid().color().name()
-        # csaa = ("QPushButton::hover:!pressed { border: none;")
-        # csab = ("background-color: {};".format(hpalette))
-        # csac = ("border-radius: 3px;")
-        # csad = ("text-align: left; }")
-        # csae = ("QPushButton { text-align: left;  padding: 5px;}")
-        # csaf = ("QPushButton::checked { text-align: left; ")
-        # csag = ("background-color: {};".format(self.palette().midlight().color().name()))
-        # csah = ("padding: 5px; border-radius: 3px;}")
-        # csa = csaa+csab+csac+csad+csae+csaf+csag+csah
-        # self.pref.setStyleSheet(csa)
+        hpalette = self.palette().mid().color().name()
+        csaa = ("QPushButton::hover:!pressed { border: none;")
+        csab = ("background-color: {};".format(hpalette))
+        csac = ("border-radius: 3px;")
+        csad = ("text-align: left; }")
+        csae = ("QPushButton { text-align: left;  padding: 5px;}")
+        csaf = ("QPushButton::checked { text-align: left; ")
+        csag = ("background-color: {};".format(self.palette().midlight().color().name()))
+        csah = ("padding: 5px; border-radius: 3px;}")
+        csa = csaa+csab+csac+csad+csae+csaf+csag+csah
+        self.pref.setStyleSheet(csa)
         #
         # self.pref.setStyleSheet("QPushButton { text-align: left; }")
-        self.pref.setStyleSheet("text-align: left;")
+        # self.pref.setStyleSheet("text-align: left;")
         self.pref.setCheckable(True)
         self.pref.setAutoExclusive(True)
         self.pref.clicked.connect(self.on_pref_clicked)
@@ -2367,6 +2381,49 @@ class menuWin(QtWidgets.QWidget):
         ##### buttons
         self.btn_box = QtWidgets.QHBoxLayout()
         self.rbox.addLayout(self.btn_box)
+        ## custom commands
+        # self.combobtn = QtWidgets.QComboBox()
+        self.commBtn = QtWidgets.QPushButton(QtGui.QIcon("icons/list-commands.svg"), "")
+        self.commBtn.setIconSize(QtCore.QSize(service_icon_size, service_icon_size))
+        self.commMenu = QtWidgets.QMenu()
+        self.commMenu.setToolTipsVisible(True)
+        self.commBtn.setMenu(self.commMenu)
+        #
+        if COMM1_COMMAND or COMM2_COMMAND or COMM3_COMMAND:
+            self.btn_box.addWidget(self.commBtn)
+            #
+            if COMM1_COMMAND:
+                if COMM1_ICON:
+                    icon = QtGui.QIcon(COMM1_ICON)
+                    if icon.isNull():
+                        icon = QtGui.QIcon("icons/none.svg")
+                else:
+                    icon = QtGui.QIcon("icons/none.svg")
+                baction = self.commMenu.addAction(icon, COMM1_NAME, lambda:self._on_change(COMM1_COMMAND))
+                if COMM1_TOOLTIP:
+                    baction.setToolTip(COMM1_TOOLTIP)
+            if COMM2_COMMAND:
+                if COMM2_ICON:
+                    icon = QtGui.QIcon(COMM2_ICON)
+                    if icon.isNull():
+                        icon = QtGui.QIcon("icons/none.svg")
+                else:
+                    icon = QtGui.QIcon("icons/none.svg")
+                baction = self.commMenu.addAction(icon, COMM2_NAME, lambda:self._on_change(COMM2_COMMAND))
+                if COMM2_TOOLTIP:
+                    baction.setToolTip(COMM2_TOOLTIP)
+            if COMM3_COMMAND:
+                if COMM3_ICON:
+                    icon = QtGui.QIcon(COMM3_ICON)
+                    if icon.isNull():
+                        icon = QtGui.QIcon("icons/none.svg")
+                else:
+                    icon = QtGui.QIcon("icons/none.svg")
+                baction = self.commMenu.addAction(icon, COMM3_NAME, lambda:self._on_change(COMM3_COMMAND))
+                if COMM3_TOOLTIP:
+                    baction.setToolTip(COMM3_TOOLTIP)
+        # self.combobtn.currentIndexChanged[str].connect(self._on_change) 
+        #
         ## add custom applications
         if app_prog:
             self.menu_btn = QtWidgets.QPushButton()
@@ -2444,9 +2501,32 @@ class menuWin(QtWidgets.QWidget):
         #
         # self.setAttribute(QtCore.Qt.WA_X11NetWmWindowTypeDock)
     
+    #
+    # def custom_comm(self, comm):
+    def _on_change(self, comm):
+        self.close()
+        self.window.mw_is_shown = None
+        print("2529", comm)
+        #
+        _ret = 0
+        if shutil.which(comm):
+            try:
+                subprocess.Popen(["{}".format(comm)])
+            except Exception as E:
+                _ret = str(E)
+        #
+        if _ret:
+            dlg = showDialog(1, "Command not found: {}".format(_ret), self.window)
+            result = dlg.exec_()
+            if result == QtWidgets.QDialog.Accepted:
+                dlg.close()
+            else:
+                dlg.close()
     
     #
     def _on_cmd_service(self, _msg, _cmd):
+        self.close()
+        self.window.mw_is_shown = None
         dlg = showDialog(2, _msg, self.window)
         result = dlg.exec_()
         _ret = 0
@@ -2479,6 +2559,7 @@ class menuWin(QtWidgets.QWidget):
     def f_appWin(self):
         os.system("{} &".format(app_prog))
         self.close()
+        self.window.mw_is_shown = None
     
     # button category clicked
     def itemClicked(self, QPos):
@@ -2586,17 +2667,17 @@ class menuWin(QtWidgets.QWidget):
             # btn.setStyleSheet("QPushButton { text-align: left; }")
             btn.setStyleSheet("text-align: left;")
             ##########
-            # hpalette = self.palette().mid().color().name()
-            # csaa = ("QPushButton::hover:!pressed { border: none;")
-            # csab = ("background-color: {};".format(hpalette))
-            # csac = ("border-radius: 3px;")
-            # csad = ("text-align: left; }")
-            # csae = ("QPushButton { text-align: left;  padding: 5px;}")
-            # csaf = ("QPushButton::checked { text-align: left; ")
-            # csag = ("background-color: {};".format(self.palette().midlight().color().name()))
-            # csah = ("padding: 5px; border-radius: 3px;}")
-            # csa = csaa+csab+csac+csad+csae+csaf+csag+csah
-            # btn.setStyleSheet(csa)
+            hpalette = self.palette().mid().color().name()
+            csaa = ("QPushButton::hover:!pressed { border: none;")
+            csab = ("background-color: {};".format(hpalette))
+            csac = ("border-radius: 3px;")
+            csad = ("text-align: left; }")
+            csae = ("QPushButton { text-align: left;  padding: 5px;}")
+            csaf = ("QPushButton::checked { text-align: left; ")
+            csag = ("background-color: {};".format(self.palette().midlight().color().name()))
+            csah = ("padding: 5px; border-radius: 3px;}")
+            csa = csaa+csab+csac+csad+csae+csaf+csag+csah
+            btn.setStyleSheet(csa)
             ##########
             btn.setCheckable(True)
             btn.setAutoExclusive(True)
