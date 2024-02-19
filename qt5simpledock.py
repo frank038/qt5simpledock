@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# V 0.9.27
+# V 0.9.28
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
@@ -777,9 +777,9 @@ class SecondaryWin(QtWidgets.QWidget):
             use_tray = 0
         #
         if use_tray:
-            self.tframe = QtWidgets.QFrame()
-            self.tframe.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
-            # self.tframe.setStyleSheet("background: palette(window); border-top-left-radius:{0}px; border-top-right-radius:{0}px".format(border_radius))
+            # self.tframe = QtWidgets.QFrame()
+            # self.tframe.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
+            # # self.tframe.setStyleSheet("background: palette(window); border-top-left-radius:{0}px; border-top-right-radius:{0}px".format(border_radius))
             #
             self.frame_box = QtWidgets.QHBoxLayout()
             self.frame_box.setContentsMargins(0,0,0,0)
@@ -787,6 +787,7 @@ class SecondaryWin(QtWidgets.QWidget):
             # self.tframe.setLayout(self.frame_box)
             self.tray_box = self.frame_box
             #
+            # self.abox.insertWidget(10, self.tframe)
             self.abox.insertLayout(10, self.frame_box)
             # frame widget counter
             self.frame_counter = 0
@@ -903,14 +904,17 @@ class SecondaryWin(QtWidgets.QWidget):
         # fwin.setFlags(QtCore.Qt.FramelessWindowHint)
         fwin.setFlags(QtCore.Qt.FramelessWindowHint | QtCore.Qt.ForeignWindow)
         fwidget = QtWidgets.QWidget.createWindowContainer(fwin)
+        fwidget.setAutoFillBackground(True)
         #fwidget.setAttribute(QtCore.Qt.WA_NoSystemBackground)
         fwidget.setContentsMargins(0,0,0,0)
         fwidget.setMinimumSize(QtCore.QSize(tbutton_size, tbutton_size))
-        fwidget.resize(tbutton_size, tbutton_size)
+        fwidget.setMaximumSize(QtCore.QSize(tbutton_size, tbutton_size))
+        #fwidget.resize(fwidget.sizeHint())
+        #fwidget.resize(tbutton_size, tbutton_size)
         fwidget.id = wid
         self.tray_box.update()
         #
-        self.tray_box.addWidget(fwidget, stretch=1)
+        self.tray_box.addWidget(fwidget, 1, QtCore.Qt.AlignCenter)
         for i in range(self.tray_box.count()):
             widget = self.tray_box.itemAt(i).widget()
         #
@@ -2219,8 +2223,13 @@ class showDialog(QtWidgets.QDialog):
         self.buttonBox.rejected.connect(self.reject)
 
         self.layout = QtWidgets.QVBoxLayout()
+        lay2 = QtWidgets.QHBoxLayout()
+        self.layout.addLayout(lay2)
+        licon = QtWidgets.QLabel()
+        licon.setPixmap(QtGui.QPixmap("icons/user.png"))
+        lay2.addWidget(licon)
         message = QtWidgets.QLabel(lcontent)
-        self.layout.addWidget(message)
+        lay2.addWidget(message, QtCore.Qt.AlignCenter)
         self.layout.addWidget(self.buttonBox)
         self.setLayout(self.layout)
         
@@ -2293,31 +2302,31 @@ class menuWin(QtWidgets.QWidget):
         csa = csaa+csab+csac
         self.listWidget.setStyleSheet(csa)
         ###########
-        # cssa = ("QScrollBar:vertical {"
-    # "border: 0px solid #999999;"
-    # "background:white;"
-    # "width:8px;"
-    # "margin: 0px 0px 0px 0px;"
-# "}"
-# "QScrollBar::handle:vertical {")       
-        # cssb = ("min-height: 0px;"
-    # "border: 0px solid red;"
-    # "border-radius: 4px;"
-    # "background-color: {};".format(scroll_handle_col))
-        # cssc = ("}"
-# "QScrollBar::add-line:vertical {"       
-    # "height: 0px;"
-    # "subcontrol-position: bottom;"
-    # "subcontrol-origin: margin;"
-# "}"
-# "QScrollBar::sub-line:vertical {"
-    # "height: 0 px;"
-    # "subcontrol-position: top;"
-    # "subcontrol-origin: margin;"
-# "}")
-        # css = cssa+cssb+cssc
-        # self.listWidget.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-        # self.listWidget.verticalScrollBar().setStyleSheet(css)
+        cssa = ("QScrollBar:vertical {"
+    "border: 0px solid #999999;"
+    "background:white;"
+    "width:8px;"
+    "margin: 0px 0px 0px 0px;"
+"}"
+"QScrollBar::handle:vertical {")       
+        cssb = ("min-height: 0px;"
+    "border: 0px solid red;"
+    "border-radius: 4px;"
+    "background-color: {};".format(scroll_handle_col))
+        cssc = ("}"
+"QScrollBar::add-line:vertical {"       
+    "height: 0px;"
+    "subcontrol-position: bottom;"
+    "subcontrol-origin: margin;"
+"}"
+"QScrollBar::sub-line:vertical {"
+    "height: 0 px;"
+    "subcontrol-position: top;"
+    "subcontrol-origin: margin;"
+"}")
+        css = cssa+cssb+cssc
+        self.listWidget.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.listWidget.verticalScrollBar().setStyleSheet(css)
         ###########
         self.line_edit = QtWidgets.QLineEdit("")
         self.line_edit.setFrame(True)
@@ -2378,19 +2387,26 @@ class menuWin(QtWidgets.QWidget):
         #
         self.rbox.addStretch(1)
         #
+        sepLine2 = QtWidgets.QFrame()
+        sepLine2.setFrameShape(QtWidgets.QFrame.HLine)
+        sepLine2.setFrameShadow(QtWidgets.QFrame.Plain)
+        sepLine2.setContentsMargins(0,0,0,0)
+        self.rbox.addWidget(sepLine2)
         ##### buttons
         self.btn_box = QtWidgets.QHBoxLayout()
+        # self.btn_box.setContentsMargins(0,0,0,2)
         self.rbox.addLayout(self.btn_box)
         ## custom commands
-        # self.combobtn = QtWidgets.QComboBox()
         self.commBtn = QtWidgets.QPushButton(QtGui.QIcon("icons/list-commands.svg"), "")
+        self.commBtn.setFlat(True)
+        self.commBtn.setStyleSheet("border: none;")
         self.commBtn.setIconSize(QtCore.QSize(service_icon_size, service_icon_size))
         self.commMenu = QtWidgets.QMenu()
         self.commMenu.setToolTipsVisible(True)
         self.commBtn.setMenu(self.commMenu)
         #
         if COMM1_COMMAND or COMM2_COMMAND or COMM3_COMMAND:
-            self.btn_box.addWidget(self.commBtn)
+            # self.btn_box.addWidget(self.commBtn)
             #
             if COMM1_COMMAND:
                 if COMM1_ICON:
@@ -2427,6 +2443,8 @@ class menuWin(QtWidgets.QWidget):
         ## add custom applications
         if app_prog:
             self.menu_btn = QtWidgets.QPushButton()
+            self.menu_btn.setFlat(True)
+            self.menu_btn.setStyleSheet("border: none;")
             self.menu_btn.setToolTip("Modify the menu")
             self.menu_btn.setIcon(QtGui.QIcon("icons/menu.png"))
             self.menu_btn.setIconSize(QtCore.QSize(service_icon_size, service_icon_size))
@@ -2434,9 +2452,14 @@ class menuWin(QtWidgets.QWidget):
             #
             self.menu_btn.clicked.connect(self.f_appWin)
             self.btn_box.addWidget(self.menu_btn)
+        # menu
+        if COMM1_COMMAND or COMM2_COMMAND or COMM3_COMMAND:
+            self.btn_box.addWidget(self.commBtn)
         # logout button
         if logout_command:
             self.lo_cmd_btn = QtWidgets.QPushButton()
+            self.lo_cmd_btn.setFlat(True)
+            self.lo_cmd_btn.setStyleSheet("border: none;")
             self.lo_cmd_btn.setToolTip("Logout")
             self.lo_cmd_btn.setIcon(QtGui.QIcon("icons/system-logout.svg"))
             self.lo_cmd_btn.setIconSize(QtCore.QSize(service_icon_size, service_icon_size))
@@ -2447,6 +2470,8 @@ class menuWin(QtWidgets.QWidget):
         # restart button
         if restart_command:
             self.rs_cmd_btn = QtWidgets.QPushButton()
+            self.rs_cmd_btn.setFlat(True)
+            self.rs_cmd_btn.setStyleSheet("border: none;")
             self.rs_cmd_btn.setToolTip("Restart")
             self.rs_cmd_btn.setIcon(QtGui.QIcon("icons/system-restart.svg"))
             self.rs_cmd_btn.setIconSize(QtCore.QSize(service_icon_size, service_icon_size))
@@ -2457,6 +2482,8 @@ class menuWin(QtWidgets.QWidget):
         # shutdown button
         if shutdown_command:
             self.st_cmd_btn = QtWidgets.QPushButton()
+            self.st_cmd_btn.setFlat(True)
+            self.st_cmd_btn.setStyleSheet("border: none;")
             self.st_cmd_btn.setToolTip("Shutdown")
             self.st_cmd_btn.setIcon(QtGui.QIcon("icons/system-shutdown.svg"))
             self.st_cmd_btn.setIconSize(QtCore.QSize(service_icon_size, service_icon_size))
@@ -2464,6 +2491,13 @@ class menuWin(QtWidgets.QWidget):
             #
             self.st_cmd_btn.clicked.connect(lambda x: self._on_cmd_service("Shutdown?", shutdown_command))
             self.btn_box.addWidget(self.st_cmd_btn)
+        #
+        sepLine2 = QtWidgets.QFrame()
+        sepLine2.setFrameShape(QtWidgets.QFrame.HLine)
+        sepLine2.setFrameShadow(QtWidgets.QFrame.Plain)
+        sepLine2.setContentsMargins(0,0,0,0)
+        sepLine2.setStyleSheet("QFrame{border: None; background-color: transparent;}")
+        self.rbox.addWidget(sepLine2)
         #
         self.hide()
         self.setGeometry(sx,sy,sw,sh)
@@ -2506,7 +2540,6 @@ class menuWin(QtWidgets.QWidget):
     def _on_change(self, comm):
         self.close()
         self.window.mw_is_shown = None
-        print("2529", comm)
         #
         _ret = 0
         if shutil.which(comm):
@@ -3018,30 +3051,30 @@ class calendarWin(QtWidgets.QWidget):
         self.scroll.setFixedWidth(appointment_window_size)
         self.scroll.setWidget(self.widget)
         #
-        # cssa = ("QScrollBar:vertical {"
-    # "border: 0px solid #999999;"
-    # "background:white;"
-    # "width:8px;"
-    # "margin: 0px 0px 0px 0px;"
-# "}"
-# "QScrollBar::handle:vertical {")       
-        # cssb = ("min-height: 0px;"
-    # "border: 0px solid red;"
-    # "border-radius: 4px;"
-    # "background-color: {};".format(scroll_handle_col))
-        # cssc = ("}"
-# "QScrollBar::add-line:vertical {"       
-    # "height: 0px;"
-    # "subcontrol-position: bottom;"
-    # "subcontrol-origin: margin;"
-# "}"
-# "QScrollBar::sub-line:vertical {"
-    # "height: 0 px;"
-    # "subcontrol-position: top;"
-    # "subcontrol-origin: margin;"
-# "}")
-        # css = cssa+cssb+cssc
-        # self.scroll.setStyleSheet(css)
+        cssa = ("QScrollBar:vertical {"
+    "border: 0px solid #999999;"
+    "background:white;"
+    "width:8px;"
+    "margin: 0px 0px 0px 0px;"
+"}"
+"QScrollBar::handle:vertical {")       
+        cssb = ("min-height: 0px;"
+    "border: 0px solid red;"
+    "border-radius: 4px;"
+    "background-color: {};".format(scroll_handle_col))
+        cssc = ("}"
+"QScrollBar::add-line:vertical {"       
+    "height: 0px;"
+    "subcontrol-position: bottom;"
+    "subcontrol-origin: margin;"
+"}"
+"QScrollBar::sub-line:vertical {"
+    "height: 0 px;"
+    "subcontrol-position: top;"
+    "subcontrol-origin: margin;"
+"}")
+        css = cssa+cssb+cssc
+        self.scroll.setStyleSheet(css)
         #
         self.vbox_1.addWidget(self.scroll)
         
