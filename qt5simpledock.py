@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# V 0.9.28
+# V 0.9.29
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys, os, time
@@ -1665,14 +1665,26 @@ class SecondaryWin(QtWidgets.QWidget):
             #
             else:
                 window = self.display.create_resource_object('window', window_id)
+                ######## check self.taskb_btn is still present
+                _btn_found = 0
+                for i in range(self.ibox.count()):
+                    if self.ibox.itemAt(i).widget() == self.taskb_btn:
+                        _btn_found = 1
+                        break
+                #
+                if _btn_found == 0:
+                    self.taskb_btn = None
+                ########
                 is_found = 0
                 for i in range(self.ibox.count()):
                     btn = self.ibox.itemAt(i).widget()
                     if isinstance(btn, QtWidgets.QPushButton):
                         if btn.winid == window_id:
                             if self.taskb_btn:
-                                self.taskb_btn.setChecked(False)
-                                self.taskb_btn = None
+                                if self.taskb_btn:
+                                    self.taskb_btn.setChecked(False)
+                                    self.taskb_btn = None
+                            #
                             btn.setChecked(True)
                             self.taskb_btn = btn
                             is_found = 1
@@ -2130,7 +2142,7 @@ class trayThread(QtCore.QThread):
                         self._is_unmap = None
                         continue
                 #
-                self.sig.emit(["c", e.window, self.background])
+                # self.sig.emit(["c", e.window, self.background])
             # elif e.type == self.display.extension_event.DamageNotify:
                 # print("damage for applet::", e)
             # properties
@@ -2493,7 +2505,7 @@ class menuWin(QtWidgets.QWidget):
             self.btn_box.addWidget(self.st_cmd_btn)
         #
         sepLine2 = QtWidgets.QFrame()
-        sepLine2.setFrameShape(QtWidgets.QFrame.HLine)
+        sepLine2.setFrameShape(QtWidgets.QFrame.VLine)
         sepLine2.setFrameShadow(QtWidgets.QFrame.Plain)
         sepLine2.setContentsMargins(0,0,0,0)
         sepLine2.setStyleSheet("QFrame{border: None; background-color: transparent;}")
@@ -2637,7 +2649,7 @@ class menuWin(QtWidgets.QWidget):
                     continue
                 for el in globals()[ell]:
                     if (text.casefold() in el[1].casefold()) or (text.casefold() in el[3].casefold()):
-                        # exe_path = sh_which(el[1].split(" ")[0])
+                        # exe_path = shutil.which(el[1].split(" ")[0])
                         # file_info = QtCore.QFileInfo(exe_path)
                         # if exe_path:
                         # search for the icon by executable
@@ -2740,7 +2752,7 @@ class menuWin(QtWidgets.QWidget):
         # 
         for el in cat_list:
             # 0 name - 1 executable - 2 icon - 3 comment - 4 path
-            # exe_path = sh_which(el[1].split(" ")[0])
+            # exe_path = shutil.which(el[1].split(" ")[0])
             # file_info = QtCore.QFileInfo(exe_path)
             #
             # if exe_path:
@@ -2888,7 +2900,7 @@ class menuWin(QtWidgets.QWidget):
                 except KeyError:
                     pass
             #
-            if not tterminal or not sh_which(tterminal):
+            if not tterminal or not shutil.which(tterminal):
                 MyDialog("Error", "Terminal not found or not setted.", self)
                 return
             else:
@@ -2945,7 +2957,7 @@ class menuWin(QtWidgets.QWidget):
                 # FILENAME = el[4].strip("\n")
                 # PATH = ""
             #
-            # exe_path = sh_which(EXEC.split(" ")[0])
+            # exe_path = shutil.which(EXEC.split(" ")[0])
             # file_info = QtCore.QFileInfo(exe_path)
             # if file_info.exists():
                 # if os.path.exists(ICON):
@@ -2958,7 +2970,7 @@ class menuWin(QtWidgets.QWidget):
             if icon.isNull():
                 icon = QtGui.QIcon(icon)
             if icon.isNull():
-                QtGui.QIcon("icons/none.svg")
+                icon = QtGui.QIcon("icons/none.svg")
             litem = QtWidgets.QListWidgetItem(icon, NAME)
             litem.lbookmark = bb
             litem.exec_n = EXEC
