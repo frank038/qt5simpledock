@@ -2142,7 +2142,7 @@ class trayThread(QtCore.QThread):
                         self._is_unmap = None
                         continue
                 #
-                # self.sig.emit(["c", e.window, self.background])
+                self.sig.emit(["c", e.window, self.background])
             # elif e.type == self.display.extension_event.DamageNotify:
                 # print("damage for applet::", e)
             # properties
