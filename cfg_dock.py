@@ -41,6 +41,10 @@ PLAY_SOUND=1
 A_PLAYER="aplay"
 # use internal clipboard
 USE_CLIPBOARD=1
+# custom widgets at left
+USE_CUSTOM_WIDGET_LEFT=0
+# custom widgets at right
+USE_CUSTOM_WIDGET_RIGHT=0
 ######### MENU ##########
 # show the application menu: 0 no - 1 left - 2 right
 use_menu=1
@@ -207,11 +211,11 @@ label3_command1=""
 # command to execute - center mouse button
 label3_command2=""
 ########## service commands
-# /usr/bin/systemctl poweroff
+# one word or script - /usr/bin/systemctl poweroff
 shutdown_command="xterm"
-# /usr/bin/systemctl reboot
+# one word or script - /usr/bin/systemctl reboot
 restart_command="xterm"
-# 
+# one word or script
 logout_command="xterm"
 ##### custom commands
 # one word command - with full path eventually

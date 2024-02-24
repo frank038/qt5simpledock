@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
-# V 0.9.30
+# V 0.9.31
 
 from PyQt5.QtCore import (QThread,pyqtSignal,Qt,QTimer,QTime,QDate,QSize,QRect,QCoreApplication,QEvent,QPoint,QFileSystemWatcher,QProcess)
 # from PyQt5.QtCore import (QFileInfo)
-from PyQt5.QtWidgets import(QWidget,QHBoxLayout,QBoxLayout,QLabel,QPushButton,QSizePolicy,QMenu,QVBoxLayout,QTabWidget,QListWidget,QScrollArea,QListWidgetItem,QDialog,QMessageBox,QMenu,qApp,QAction,QDialogButtonBox,QTreeWidget,QTreeWidgetItem,QDesktopWidget,QLineEdit,QFrame,QCalendarWidget,QTableView,QStyleFactory,QApplication)
+from PyQt5.QtWidgets import (QWidget,QHBoxLayout,QBoxLayout,QLabel,QPushButton,QSizePolicy,QMenu,QVBoxLayout,QTabWidget,QListWidget,QScrollArea,QListWidgetItem,QDialog,QMessageBox,QMenu,qApp,QAction,QDialogButtonBox,QTreeWidget,QTreeWidgetItem,QDesktopWidget,QLineEdit,QFrame,QCalendarWidget,QTableView,QStyleFactory,QApplication)
 from PyQt5.QtGui import (QFont,QIcon,QImage,QPixmap,QPalette,QWindow,QColor,QPainterPath)
 import sys, os, time
 import shutil
@@ -22,9 +22,14 @@ from cfg_dock import *
 if use_clock:
     import datetime
 
+if USE_CUSTOM_WIDGET_LEFT:
+    from widgets1 import widgets_left
+
+if USE_CUSTOM_WIDGET_RIGHT:
+    from widgets2 import widgets_right
+
 if button_size > dock_height:
     button_size = dock_height
-
 
 app = None
 
@@ -472,7 +477,7 @@ class SecondaryWin(QWidget):
         # 0 top - 1 bottom
         if self.position in [0,1]:
             self.abox = QHBoxLayout()
-            self.abox.setContentsMargins(0,0,10,0)
+            self.abox.setContentsMargins(0,0,0,0)
             self.abox.setDirection(QBoxLayout.LeftToRight)
             self.abox.setSpacing(0)
             self.setLayout(self.abox)
@@ -501,31 +506,6 @@ class SecondaryWin(QWidget):
                 self.label0thread = label1Thread(["scripts/./label0.sh", label0_interval])
                 self.label0thread.label1sig.connect(self.on_label0)
                 self.label0thread.start()
-            #
-            if label3_script:
-                self.labelw3 = QLabel()
-                # self.labelw3.setAlignment(Qt.AlignRight|Qt.AlignVCenter)
-                self.abox.insertWidget(1, self.labelw3)
-                if label3_use_richtext:
-                    self.labelw3.setTextFormat(Qt.RichText)
-                else:
-                    if label3_color:
-                        self.labelw3.setStyleSheet("color: {}".format(label3_color))
-                    tfont = QFont()
-                    if label3_font:
-                        tfont.setFamily(label3_font)
-                    if label3_font_size:
-                        tfont.setPointSize(label3_font_size)
-                    if label3_font_weight:
-                        tfont.setWeight(label3_font_weight)
-                    if label3_font_italic:
-                        tfont.setItalic(label3_font_italic)
-                    self.labelw3.setFont(tfont)
-                # 
-                self.labelw3.mouseDoubleClickEvent = self.on_labelw3
-                self.label3thread = label1Thread(["scripts/./label3.sh", label3_interval])
-                self.label3thread.label1sig.connect(self.on_label3)
-                self.label3thread.start()
             #
             ##### clock
             self.cw_is_shown = None
@@ -582,7 +562,7 @@ class SecondaryWin(QWidget):
                 self.tlabel.mousePressEvent = self.on_tlabel
                 #
                 if use_clock == 1:
-                    self.abox.insertLayout(2, self.cbox)
+                    self.abox.insertLayout(1, self.cbox)
             ##########
             if CENTRALIZE_EL == 1:
                 self.abox.addStretch(1)
@@ -600,7 +580,7 @@ class SecondaryWin(QWidget):
                 self.mbtnbox.setContentsMargins(4,0,4,0)
                 #self.mbtnbox.setSpacing(4)
                 if use_menu == 1:
-                    self.abox.insertLayout(5, self.mbtnbox)
+                    self.abox.insertLayout(4, self.mbtnbox)
                 # the window menu
                 self.mbutton = QPushButton(flat=True)
                 self.mbutton.setStyleSheet("border: none;")
@@ -617,7 +597,7 @@ class SecondaryWin(QWidget):
                 self.virtbox.setContentsMargins(0,0,0,0)
                 self.virtbox.setSpacing(4)
                 self.virtbox.desk = "v"
-                self.abox.insertLayout(6, self.virtbox)
+                self.abox.insertLayout(5, self.virtbox)
                 #
                 vbtn = QPushButton()
                 vbtn.setFlat(True)
@@ -634,13 +614,40 @@ class SecondaryWin(QWidget):
                 vbtn.clicked.connect(self.on_vbtn_clicked)
                 self.on_virt_desk(self.num_virtual_desktops)
             #
+            if label3_script:
+                self.labelw3 = QLabel()
+                # self.labelw3.setAlignment(Qt.AlignRight|Qt.AlignVCenter)
+                self.abox.insertWidget(6, self.labelw3)
+                if label3_use_richtext:
+                    self.labelw3.setTextFormat(Qt.RichText)
+                else:
+                    if label3_color:
+                        self.labelw3.setStyleSheet("color: {}".format(label3_color))
+                    tfont = QFont()
+                    if label3_font:
+                        tfont.setFamily(label3_font)
+                    if label3_font_size:
+                        tfont.setPointSize(label3_font_size)
+                    if label3_font_weight:
+                        tfont.setWeight(label3_font_weight)
+                    if label3_font_italic:
+                        tfont.setItalic(label3_font_italic)
+                    self.labelw3.setFont(tfont)
+                # 
+                self.labelw3.mouseDoubleClickEvent = self.on_labelw3
+                self.label3thread = label1Thread(["scripts/./label3.sh", label3_interval])
+                self.label3thread.label1sig.connect(self.on_label3)
+                self.label3thread.start()
+            #
+            if USE_CUSTOM_WIDGET_LEFT:
+                self.abox.insertWidget(7, widgets_left())
             ## program box
             self.prog_box = QHBoxLayout()
             self.prog_box.setContentsMargins(4,0,4,0)
             self.prog_box.setSpacing(4)
             self.prog_box.desk = "p"
             #self.prog_box.setAlignment(Qt.AlignCenter)
-            self.abox.insertLayout(7, self.prog_box)
+            self.abox.insertLayout(8, self.prog_box)
             # self.abox.setAlignment(self.prog_box, Qt.AlignVCenter)
             ## add the applications to prog_box
             progs = os.listdir("applications")
@@ -705,7 +712,7 @@ class SecondaryWin(QWidget):
                 # self.ibox.setDirection(QBoxLayout.RightToLeft)
             # the first virtual desktop
             self.ibox.desk = 0
-            self.abox.insertLayout(9, self.ibox)
+            self.abox.insertLayout(10, self.ibox)
             # # fake button
             # self.fake_btn = QPushButton()
             # self.fake_btn.setAutoExclusive(True)
@@ -814,19 +821,19 @@ class SecondaryWin(QWidget):
         self.mythread.start()
         ########
         #
-        # # if CENTRALIZE_EL == 1:
-        if CENTRALIZE_GAP_R > 0:
-            # clabelr = QLabel()
-            # clabelr.setText(" "*CENTRALIZE_GAP_R)
-            # self.abox.insertWidget(7, clabelr)
-            self.abox.addStretch(CENTRALIZE_GAP_R)
-        # 
-        self.abox.addStretch(1)
+        if CENTRALIZE_EL != 2:
+            if CENTRALIZE_GAP_R > 0:
+                # clabelr = QLabel()
+                # clabelr.setText(" "*CENTRALIZE_GAP_R)
+                # self.abox.insertWidget(7, clabelr)
+                self.abox.addStretch(CENTRALIZE_GAP_R)
+            # 
+            self.abox.addStretch(1)
         #
         if label1_script:
             self.labelw1 = QLabel()
             self.labelw1.setAlignment(Qt.AlignRight|Qt.AlignVCenter)
-            self.abox.insertWidget(12, self.labelw1)
+            self.abox.insertWidget(13, self.labelw1)
             if label1_use_richtext:
                 self.labelw1.setTextFormat(Qt.RichText)
             else:
@@ -856,8 +863,8 @@ class SecondaryWin(QWidget):
         # label 2
         if label2_script:
             self.labelw2 = QLabel()
-            self.labelw2.setAlignment(Qt.AlignRight|Qt.AlignVCenter)
-            self.abox.insertWidget(13, self.labelw2)
+            # self.labelw2.setAlignment(Qt.AlignRight|Qt.AlignVCenter)
+            self.abox.insertWidget(14, self.labelw2)
             if label2_use_richtext:
                 self.labelw2.setTextFormat(Qt.RichText)
             else:
@@ -906,7 +913,7 @@ class SecondaryWin(QWidget):
             self.tray_box = self.frame_box
             #
             # self.abox.insertWidget(10, self.tframe)
-            self.abox.insertLayout(14, self.frame_box)
+            self.abox.insertLayout(15, self.frame_box)
             # frame widget counter
             self.frame_counter = 0
             # widget background color
@@ -926,7 +933,7 @@ class SecondaryWin(QWidget):
             self.btn_clip.setContextMenuPolicy(Qt.CustomContextMenu)
             self.btn_clip.customContextMenuRequested.connect(self.on_clipboard2)
             #
-            self.abox.insertWidget(15, self.btn_clip)
+            self.abox.insertWidget(16, self.btn_clip)
             #
             self.stop_tracking = 0
             app.clipboard().changed.connect(self.clipboardChanged)
@@ -942,12 +949,14 @@ class SecondaryWin(QWidget):
                 self.imageAction = self.menu.addAction("Store images (stopped)")
             self.imageAction.triggered.connect(self.storeImages)
         #
+        if USE_CUSTOM_WIDGET_RIGHT:
+            self.abox.insertWidget(17, widgets_right())
         # clock at right
         if use_clock == 2:
-            self.abox.insertLayout(16, self.cbox)
+            self.abox.insertLayout(18, self.cbox)
         # menu at right
         if use_menu == 2:
-            self.abox.insertLayout(17, self.mbtnbox)
+            self.abox.insertLayout(19, self.mbtnbox)
         #
         # if not fixed_position:
             # QTimer.singleShot(1500, self.on_leave_event)
@@ -955,6 +964,9 @@ class SecondaryWin(QWidget):
         # if dock_width:
             # self.on_move_win()
         #
+        if CENTRALIZE_EL == 2:
+            # the main window to the center
+            self.main_window_center()
     
 ############# clipboard ##############
     def stoptracking(self, action):
