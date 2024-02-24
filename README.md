@@ -18,6 +18,7 @@ Features:
 - task list with icon support and application comment while hovering on it
 - three slots for periodical custom messagges (just modify the files in the script folder; they accept both plain text or rich text; see the sample files); can execute programs double clicking with the left mouse button or the middle mouse button. 
 - systemtray icons support
+- integrated clipboard (text and images)
 - closing applications by right mouse clicking on its icon
 - closing and restarting this program by right mouse clicking
 - can play sounds when a window opens or closes
