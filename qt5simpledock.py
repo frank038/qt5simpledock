@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 
-# V 0.9.29
+# V 0.9.30
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtCore import (QThread,pyqtSignal,Qt,QTimer,QTime,QDate,QSize,QRect,QCoreApplication,QEvent,QPoint,QFileSystemWatcher,QProcess)
+# from PyQt5.QtCore import (QFileInfo)
+from PyQt5.QtWidgets import(QWidget,QHBoxLayout,QBoxLayout,QLabel,QPushButton,QSizePolicy,QMenu,QVBoxLayout,QTabWidget,QListWidget,QScrollArea,QListWidgetItem,QDialog,QMessageBox,QMenu,qApp,QAction,QDialogButtonBox,QTreeWidget,QTreeWidgetItem,QDesktopWidget,QLineEdit,QFrame,QCalendarWidget,QTableView,QStyleFactory,QApplication)
+from PyQt5.QtGui import (QFont,QIcon,QImage,QPixmap,QPalette,QWindow,QColor,QPainterPath)
 import sys, os, time
 import shutil
 from Xlib.display import Display
@@ -19,7 +22,90 @@ from cfg_dock import *
 if use_clock:
     import datetime
 
+if button_size > dock_height:
+    button_size = dock_height
+
+
+app = None
+
 curr_path = os.getcwd()
+
+
+if USE_CLIPBOARD:
+    from pathlib import Path
+    from cfg_clipboard import *
+    #
+    STORE_IMAGES = STORE_IMAGES
+    ccdir = os.getcwd()
+    clips_path = os.path.join(ccdir, "clips")
+    images_path = os.path.join(ccdir, "images")
+    def cr_clips_images():
+        if Path(clips_path).exists() == False:
+            try:
+                os.mkdir(clips_path)
+            except Exception as E:
+                app = QApplication(sys.argv)
+                fm = firstMessage("Error", str(E)+"\n\n    Exiting...")
+                sys.exit(app.exec_())
+        #
+        if Path(images_path).exists() == False:
+            try:
+                os.mkdir(images_path)
+            except Exception as E:
+                app = QApplication(sys.argv)
+                fm = firstMessage("Error", str(E)+"\n\n    Exiting...")
+                sys.exit(app.exec_())
+    cr_clips_images()
+    #
+    CWINW = 600
+    CWINH = 600
+    try:
+        ffile = open(os.path.join(ccdir, "progsize.cfg"), "r")
+        CWINW, CWINH = ffile.readline().split(";")
+        CWINW = int(CWINW)
+        CWINH = int(CWINH)
+        ffile.close()
+    except:
+        CWINW = 600
+        CWINH = 600
+    #
+    DWINW = 400
+    DWINH = 400
+    #
+    try:
+        ffile = open(os.path.join(ccdir, "previewsize.cfg"), "r")
+        DWINW, DWINH = ffile.readline().split(";")
+        DWINW = int(DWINW)
+        DWINH = int(DWINH)
+        ffile.close()
+    except:
+        DWINW = 400
+        DWINH = 400
+    #
+    dialWidth = 500
+    #
+    # store each preview
+    CLIPS_DICT = {}
+    ### clips
+    clips_temp = os.listdir(clips_path)
+    for iitem in sorted(clips_temp, reverse=False):
+        iitem_text = ""
+        try:
+            tfile = open(os.path.join(clips_path, iitem), "r")
+            iitem_text = tfile.read()
+            tfile.close()
+        except Exception as E:
+            app = QApplication(sys.argv)
+            fm = firstMessage("Error", str(E)+"\n\n    Exiting...")
+            sys.exit(app.exec_())
+        #
+        if len(iitem_text) > int(CHAR_PREVIEW):
+            text_prev = iitem_text[0:int(CHAR_PREVIEW)]+" [...]"
+            CLIPS_DICT[iitem] = [text_prev]
+        else:
+            CLIPS_DICT[iitem] = [iitem_text]
+    #
+
 
 ################## MENU
 sys.path.append("modules")
@@ -164,8 +250,11 @@ get_events()
 WINW = 0
 WINH = 0
 
+# screen width and height
+NW = 0
+NH = 0
+
 dock_width = 0
-# fixed_position = 1
 
 this_window = None
 this_windowID = None
@@ -193,9 +282,9 @@ def play_sound(_sound):
     return
 
 # 
-class winThread(QtCore.QThread):
+class winThread(QThread):
     
-    sig = QtCore.pyqtSignal(list)
+    sig = pyqtSignal(list)
     
     def __init__(self, display, parent=None):
         super(winThread, self).__init__(parent)
@@ -299,9 +388,9 @@ class winThread(QtCore.QThread):
 ######################
 
 # label executors
-class label1Thread(QtCore.QThread):
+class label1Thread(QThread):
     
-    label1sig = QtCore.pyqtSignal(list)
+    label1sig = pyqtSignal(list)
     
     def __init__(self, label1_data):
         super(label1Thread, self).__init__()
@@ -316,28 +405,28 @@ class label1Thread(QtCore.QThread):
                 break
 
 
-# screen resolution changed
-class winThread2(QtCore.QThread):
+# # screen resolution changed
+# class winThread2(QThread):
     
-    sig = QtCore.pyqtSignal(list)
+    # sig = pyqtSignal(list)
     
-    def __init__(self, display, parent=None):
-        super(winThread2, self).__init__(parent)
-        self.display = display
-        self.root = self.display.screen().root
-        #
-        self.win_l = []
-        self.root.change_attributes(event_mask=X.PropertyChangeMask)
+    # def __init__(self, display, parent=None):
+        # super(winThread2, self).__init__(parent)
+        # self.display = display
+        # self.root = self.display.screen().root
+        # #
+        # self.win_l = []
+        # self.root.change_attributes(event_mask=X.PropertyChangeMask)
         
-    #
-    def run(self):
-        while True:
-            event = self.display.next_event()
-            if event.type == X.ConfigureNotify:
-                self.sig.emit([root.get_geometry().width, root.get_geometry().height])
+    # #
+    # def run(self):
+        # while True:
+            # event = self.display.next_event()
+            # if event.type == X.ConfigureNotify:
+                # self.sig.emit([root.get_geometry().width, root.get_geometry().height])
     
 
-class SecondaryWin(QtWidgets.QWidget):
+class SecondaryWin(QWidget):
     def __init__(self, position):
         super(SecondaryWin, self).__init__()
         # super().__init__()
@@ -382,22 +471,22 @@ class SecondaryWin(QtWidgets.QWidget):
         #
         # 0 top - 1 bottom
         if self.position in [0,1]:
-            self.abox = QtWidgets.QHBoxLayout()
+            self.abox = QHBoxLayout()
             self.abox.setContentsMargins(0,0,10,0)
-            self.abox.setDirection(QtWidgets.QBoxLayout.LeftToRight)
+            self.abox.setDirection(QBoxLayout.LeftToRight)
             self.abox.setSpacing(0)
             self.setLayout(self.abox)
             #
             if label0_script:
-                self.labelw0 = QtWidgets.QLabel()
-                # self.labelw0.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignVCenter)
+                self.labelw0 = QLabel()
+                # self.labelw0.setAlignment(Qt.AlignRight|Qt.AlignVCenter)
                 self.abox.insertWidget(0, self.labelw0)
                 if label1_use_richtext:
-                    self.labelw0.setTextFormat(QtCore.Qt.RichText)
+                    self.labelw0.setTextFormat(Qt.RichText)
                 else:
                     if label0_color:
                         self.labelw0.setStyleSheet("color: {}".format(label0_color))
-                    tfont = QtGui.QFont()
+                    tfont = QFont()
                     if label0_font:
                         tfont.setFamily(label0_font)
                     if label0_font_size:
@@ -412,14 +501,40 @@ class SecondaryWin(QtWidgets.QWidget):
                 self.label0thread = label1Thread(["scripts/./label0.sh", label0_interval])
                 self.label0thread.label1sig.connect(self.on_label0)
                 self.label0thread.start()
+            #
+            if label3_script:
+                self.labelw3 = QLabel()
+                # self.labelw3.setAlignment(Qt.AlignRight|Qt.AlignVCenter)
+                self.abox.insertWidget(1, self.labelw3)
+                if label3_use_richtext:
+                    self.labelw3.setTextFormat(Qt.RichText)
+                else:
+                    if label3_color:
+                        self.labelw3.setStyleSheet("color: {}".format(label3_color))
+                    tfont = QFont()
+                    if label3_font:
+                        tfont.setFamily(label3_font)
+                    if label3_font_size:
+                        tfont.setPointSize(label3_font_size)
+                    if label3_font_weight:
+                        tfont.setWeight(label3_font_weight)
+                    if label3_font_italic:
+                        tfont.setItalic(label3_font_italic)
+                    self.labelw3.setFont(tfont)
+                # 
+                self.labelw3.mouseDoubleClickEvent = self.on_labelw3
+                self.label3thread = label1Thread(["scripts/./label3.sh", label3_interval])
+                self.label3thread.label1sig.connect(self.on_label3)
+                self.label3thread.start()
+            #
             ##### clock
             self.cw_is_shown = None
             self.cwin_is_shown = None
             if use_clock:
-                self.cbox = QtWidgets.QHBoxLayout()
+                self.cbox = QHBoxLayout()
                 self.cbox.setContentsMargins(4,0,4,0)
-                self.tlabel = QtWidgets.QLabel("")
-                tfont = QtGui.QFont()
+                self.tlabel = QLabel("")
+                tfont = QFont()
                 if calendar_label_font:
                     tfont.setFamily(calendar_label_font)
                 tfont.setPointSize(calendar_label_font_size)
@@ -431,22 +546,22 @@ class SecondaryWin(QtWidgets.QWidget):
                     # self.tlabel.setStyleSheet("QLabel {0} color: {1}; {2} QLabel::hover {0} background-color: lightgrey; border: 2px lightgrey; border-radius: 15px;{2}".format("{", calendar_label_font_color, "}"))
                 # else:
                     # self.tlabel.setStyleSheet("QLabel::hover { background-color: lightgrey; border: 2px lightgrey; border-radius: 15px;}")
-                #self.tlabel.setAlignment(QtCore.Qt.AlignCenter)
+                #self.tlabel.setAlignment(Qt.AlignCenter)
                 self.cbox.addWidget(self.tlabel)
                 #
                 if USE_AP:
-                    cur_time = QtCore.QTime.currentTime().toString("hh:mm ap")
+                    cur_time = QTime.currentTime().toString("hh:mm ap")
                 else:
-                    cur_time = QtCore.QTime.currentTime().toString("hh:mm")
+                    cur_time = QTime.currentTime().toString("hh:mm")
                 if day_name:
-                    curr_date = QtCore.QDate.currentDate().toString("ddd d")
+                    curr_date = QDate.currentDate().toString("ddd d")
                     self.tlabel.setText(" "+curr_date+"  "+cur_time+" ")
                 else:
                     self.tlabel.setText(" "+cur_time+" ")
-                    curr_date = QtCore.QDate.currentDate().toString("ddd d")
+                    curr_date = QDate.currentDate().toString("ddd d")
                     self.tlabel.setToolTip(" "+curr_date+" ")
                 #
-                tfont = QtGui.QFont()
+                tfont = QFont()
                 if clock_font:
                     tfont.setFamily(clock_font)
                 if clock_font_size:
@@ -459,7 +574,7 @@ class SecondaryWin(QtWidgets.QWidget):
                 # if clock_font:
                 self.tlabel.setFont(tfont)
                 #
-                timer = QtCore.QTimer(self)
+                timer = QTimer(self)
                 timer.timeout.connect(self.update_label)
                 timer.start(60 * 1000)
                 #
@@ -467,46 +582,48 @@ class SecondaryWin(QtWidgets.QWidget):
                 self.tlabel.mousePressEvent = self.on_tlabel
                 #
                 if use_clock == 1:
-                    self.abox.insertLayout(1, self.cbox)
+                    self.abox.insertLayout(2, self.cbox)
             ##########
             if CENTRALIZE_EL == 1:
                 self.abox.addStretch(1)
                 if CENTRALIZE_GAP_L > 0:
-                    clabell = QtWidgets.QLabel()
-                    clabell.setText(" "*CENTRALIZE_GAP_L)
-                    self.abox.insertWidget(2, clabell)
+                    self.abox.addStretch(CENTRALIZE_GAP_L)
+                    # clabell = QLabel()
+                    # clabell.setText(" "*CENTRALIZE_GAP_L)
+                    # self.abox.insertWidget(2, clabell)
             # else:
                 # self.abox.addStretch(0)
             ## menu
             self.mw_is_shown = None
             if use_menu:
-                self.mbtnbox = QtWidgets.QHBoxLayout()
+                self.mbtnbox = QHBoxLayout()
                 self.mbtnbox.setContentsMargins(4,0,4,0)
                 #self.mbtnbox.setSpacing(4)
                 if use_menu == 1:
-                    self.abox.insertLayout(3, self.mbtnbox)
+                    self.abox.insertLayout(5, self.mbtnbox)
                 # the window menu
-                self.mbutton = QtWidgets.QPushButton(flat=True)
+                self.mbutton = QPushButton(flat=True)
+                self.mbutton.setStyleSheet("border: none;")
                 self.mbutton.setFlat(True)
-                self.mbutton.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
-                self.mbutton.setIcon(QtGui.QIcon("icons/menu.png"))
-                self.mbutton.setIconSize(QtCore.QSize(button_size, button_size))
+                self.mbutton.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
+                self.mbutton.setIcon(QIcon("icons/menu.png"))
+                self.mbutton.setIconSize(QSize(button_size, button_size))
                 self.mbtnbox.addWidget(self.mbutton)
                 # self.btn_style_sheet(self.mbutton)
                 self.mbutton.clicked.connect(self.on_click)
             ## virtual desktop box
             if virtual_desktops:
-                self.virtbox = QtWidgets.QHBoxLayout()
+                self.virtbox = QHBoxLayout()
                 self.virtbox.setContentsMargins(0,0,0,0)
                 self.virtbox.setSpacing(4)
                 self.virtbox.desk = "v"
-                self.abox.insertLayout(4, self.virtbox)
+                self.abox.insertLayout(6, self.virtbox)
                 #
-                vbtn = QtWidgets.QPushButton()
+                vbtn = QPushButton()
                 vbtn.setFlat(True)
                 # vbtn.setAutoExclusive(True)
                 vbtn.setCheckable(True)
-                vbtn.setFixedSize(QtCore.QSize(int(dock_height*1.3), dock_height))
+                vbtn.setFixedSize(QSize(int(dock_height*1.3), dock_height))
                 #
                 # if virtual_desktops:
                 self.virtbox.addWidget(vbtn)
@@ -518,13 +635,13 @@ class SecondaryWin(QtWidgets.QWidget):
                 self.on_virt_desk(self.num_virtual_desktops)
             #
             ## program box
-            self.prog_box = QtWidgets.QHBoxLayout()
+            self.prog_box = QHBoxLayout()
             self.prog_box.setContentsMargins(4,0,4,0)
             self.prog_box.setSpacing(4)
             self.prog_box.desk = "p"
-            #self.prog_box.setAlignment(QtCore.Qt.AlignCenter)
-            self.abox.insertLayout(5, self.prog_box)
-            # self.abox.setAlignment(self.prog_box, QtCore.Qt.AlignVCenter)
+            #self.prog_box.setAlignment(Qt.AlignCenter)
+            self.abox.insertLayout(7, self.prog_box)
+            # self.abox.setAlignment(self.prog_box, Qt.AlignVCenter)
             ## add the applications to prog_box
             progs = os.listdir("applications")
             # args to remove from the exec entry
@@ -547,53 +664,53 @@ class SecondaryWin(QtWidgets.QWidget):
                     fpath = ""
                     fpath = entry.getPath()
                     #
-                    self.pbtn = QtWidgets.QPushButton()
+                    self.pbtn = QPushButton()
                     self.pbtn.setFlat(True)
-                    picon = QtGui.QIcon.fromTheme(icon)
+                    picon = QIcon.fromTheme(icon)
                     if picon.isNull():
-                        image = QtGui.QImage(icon)
+                        image = QImage(icon)
                         if image.isNull():
-                            image = QtGui.QImage("icons/unknown.svg")
-                        pixmap = QtGui.QPixmap(image)
-                        picon = QtGui.QIcon(pixmap)
-                    self.pbtn.setFixedSize(QtCore.QSize(pbutton_size, pbutton_size))
+                            image = QImage("icons/unknown.svg")
+                        pixmap = QPixmap(image)
+                        picon = QIcon(pixmap)
+                    self.pbtn.setFixedSize(QSize(pbutton_size, pbutton_size))
                     self.pbtn.setIcon(picon)
                     self.pbtn.setToolTip(fname or pexec)
-                    self.pbtn.setIconSize(QtCore.QSize(pbutton_size, pbutton_size))
+                    self.pbtn.setIconSize(QSize(pbutton_size, pbutton_size))
                     self.pbtn.pexec = pexec_temp
                     self.pbtn.pdesktop = ffile
                     self.pbtn.ppath = fpath
-                    self.prog_box.addWidget(self.pbtn, alignment=QtCore.Qt.AlignCenter)
+                    self.prog_box.addWidget(self.pbtn, alignment=Qt.AlignCenter)
                     self.pbtn.clicked.connect(self.on_pbtn)
-                    self.pbtn.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+                    self.pbtn.setContextMenuPolicy(Qt.CustomContextMenu)
                     self.pbtn.customContextMenuRequested.connect(self.pbtnClicked)
             #
             ## tasklist
-            self.ibox = QtWidgets.QHBoxLayout()
+            self.ibox = QHBoxLayout()
             # (int left, int top, int right, int bottom)
             self.ibox.setContentsMargins(4,0,4,0)
             self.ibox.setSpacing(4)
             if tasklist_position == 0:
-                self.ibox.setAlignment(QtCore.Qt.AlignLeft)
+                self.ibox.setAlignment(Qt.AlignLeft)
                 # #
-                # pframe = QtWidgets.QFrame()
-                # pframe.setFrameShape(QtWidgets.QFrame.VLine)
+                # pframe = QFrame()
+                # pframe.setFrameShape(QFrame.VLine)
                 # self.ibox.addWidget(pframe)
             elif tasklist_position == 1:
-                self.ibox.setAlignment(QtCore.Qt.AlignCenter)
+                self.ibox.setAlignment(Qt.AlignCenter)
                 if CENTRALIZE_EL == 0:
                     self.abox.addStretch(1)
             # elif tasklist_position == 2:
-                # self.ibox.setAlignment(QtCore.Qt.AlignRight)
-                # self.ibox.setDirection(QtWidgets.QBoxLayout.RightToLeft)
+                # self.ibox.setAlignment(Qt.AlignRight)
+                # self.ibox.setDirection(QBoxLayout.RightToLeft)
             # the first virtual desktop
             self.ibox.desk = 0
-            self.abox.insertLayout(6, self.ibox)
+            self.abox.insertLayout(9, self.ibox)
             # # fake button
-            # self.fake_btn = QtWidgets.QPushButton()
+            # self.fake_btn = QPushButton()
             # self.fake_btn.setAutoExclusive(True)
             # self.fake_btn.setCheckable(True)
-            # self.fake_btn.setFixedSize(QtCore.QSize(1,1))
+            # self.fake_btn.setFixedSize(QSize(1,1))
             # self.fake_btn.setFlat(True)
             # self.fake_btn.winid = 1
             # self.fake_btn.desktop = 0
@@ -697,24 +814,25 @@ class SecondaryWin(QtWidgets.QWidget):
         self.mythread.start()
         ########
         #
-        #if CENTRALIZE_EL == 1:
+        # # if CENTRALIZE_EL == 1:
         if CENTRALIZE_GAP_R > 0:
-            clabelr = QtWidgets.QLabel()
-            clabelr.setText(" "*CENTRALIZE_GAP_R)
-            self.abox.insertWidget(7, clabelr)
+            # clabelr = QLabel()
+            # clabelr.setText(" "*CENTRALIZE_GAP_R)
+            # self.abox.insertWidget(7, clabelr)
+            self.abox.addStretch(CENTRALIZE_GAP_R)
         # 
         self.abox.addStretch(1)
         #
         if label1_script:
-            self.labelw1 = QtWidgets.QLabel()
-            self.labelw1.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignVCenter)
-            self.abox.insertWidget(8, self.labelw1)
+            self.labelw1 = QLabel()
+            self.labelw1.setAlignment(Qt.AlignRight|Qt.AlignVCenter)
+            self.abox.insertWidget(12, self.labelw1)
             if label1_use_richtext:
-                self.labelw1.setTextFormat(QtCore.Qt.RichText)
+                self.labelw1.setTextFormat(Qt.RichText)
             else:
                 if label1_color:
                     self.labelw1.setStyleSheet("color: {}".format(label1_color))
-                tfont = QtGui.QFont()
+                tfont = QFont()
                 if label1_font:
                     tfont.setFamily(label1_font)
                 if label1_font_size:
@@ -726,7 +844,7 @@ class SecondaryWin(QtWidgets.QWidget):
                 self.labelw1.setFont(tfont)
             # 
             self.labelw1.mouseDoubleClickEvent = self.on_labelw1
-            # self.l1p = QtCore.QProcess()
+            # self.l1p = QProcess()
             # self.l1p.readyReadStandardOutput.connect(self.p1ready)
             # self.l1p.finished.connect(self.p1finished)
             # self.l1p.start("scripts/./label1.sh")
@@ -737,15 +855,15 @@ class SecondaryWin(QtWidgets.QWidget):
         #
         # label 2
         if label2_script:
-            self.labelw2 = QtWidgets.QLabel()
-            self.labelw2.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignVCenter)
-            self.abox.insertWidget(9, self.labelw2)
+            self.labelw2 = QLabel()
+            self.labelw2.setAlignment(Qt.AlignRight|Qt.AlignVCenter)
+            self.abox.insertWidget(13, self.labelw2)
             if label2_use_richtext:
-                self.labelw2.setTextFormat(QtCore.Qt.RichText)
+                self.labelw2.setTextFormat(Qt.RichText)
             else:
                 if label2_color:
                     self.labelw2.setStyleSheet("color: {}".format(label2_color))
-                tfont = QtGui.QFont()
+                tfont = QFont()
                 if label2_font:
                     tfont.setFamily(label2_font)
                 if label2_font_size:
@@ -758,7 +876,7 @@ class SecondaryWin(QtWidgets.QWidget):
             ###
             self.labelw2.mouseDoubleClickEvent = self.on_labelw2
             ###
-            # self.l2p = QtCore.QProcess()
+            # self.l2p = QProcess()
             # self.l2p.readyReadStandardOutput.connect(self.p2ready)
             # self.l2p.finished.connect(self.p2finished)
             # self.l2p.start("scripts/./label2.sh")
@@ -777,62 +895,529 @@ class SecondaryWin(QtWidgets.QWidget):
             use_tray = 0
         #
         if use_tray:
-            # self.tframe = QtWidgets.QFrame()
-            # self.tframe.setSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
+            # self.tframe = QFrame()
+            # self.tframe.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
             # # self.tframe.setStyleSheet("background: palette(window); border-top-left-radius:{0}px; border-top-right-radius:{0}px".format(border_radius))
             #
-            self.frame_box = QtWidgets.QHBoxLayout()
+            self.frame_box = QHBoxLayout()
             self.frame_box.setContentsMargins(0,0,0,0)
             self.frame_box.setSpacing(0)
             # self.tframe.setLayout(self.frame_box)
             self.tray_box = self.frame_box
             #
             # self.abox.insertWidget(10, self.tframe)
-            self.abox.insertLayout(10, self.frame_box)
+            self.abox.insertLayout(14, self.frame_box)
             # frame widget counter
             self.frame_counter = 0
             # widget background color
-            bcolor = self.palette().color(QtGui.QPalette.Background).name()
+            bcolor = self.palette().color(QPalette.Background).name()
             #
             self.tthread = trayThread(1, bcolor, data_run)
             self.tthread.sig.connect(self.tthreadslot)
             self.tthread.start()
+        # clipboard
+        if USE_CLIPBOARD:
+            self.btn_clip = QPushButton(icon=QIcon("icons/qpasteboard.png"))
+            self.btn_clip.setFlat(True)
+            self.btn_clip.setStyleSheet("border: none;")
+            self._is_clipboard_shown = 0
+            self.actual_clip = None
+            self.btn_clip.clicked.connect(self.on_clipboard)
+            self.btn_clip.setContextMenuPolicy(Qt.CustomContextMenu)
+            self.btn_clip.customContextMenuRequested.connect(self.on_clipboard2)
+            #
+            self.abox.insertWidget(15, self.btn_clip)
+            #
+            self.stop_tracking = 0
+            app.clipboard().changed.connect(self.clipboardChanged)
+            #
+            self.menu = QMenu()
+            #
+            self.settingAction = self.menu.addAction("Stop tracking")
+            self.settingAction.triggered.connect(self.stoptracking)
+            #
+            if STORE_IMAGES:
+                self.imageAction = self.menu.addAction("Store images")
+            else:
+                self.imageAction = self.menu.addAction("Store images (stopped)")
+            self.imageAction.triggered.connect(self.storeImages)
         #
         # clock at right
         if use_clock == 2:
-            self.abox.insertLayout(11, self.cbox)
+            self.abox.insertLayout(16, self.cbox)
         # menu at right
         if use_menu == 2:
-            self.abox.insertLayout(12, self.mbtnbox)
+            self.abox.insertLayout(17, self.mbtnbox)
         #
         # if not fixed_position:
-            # QtCore.QTimer.singleShot(1500, self.on_leave_event)
+            # QTimer.singleShot(1500, self.on_leave_event)
         # #
         # if dock_width:
             # self.on_move_win()
         #
     
+############# clipboard ##############
+    def stoptracking(self, action):
+        if self.stop_tracking:
+            self.settingAction.setText("Stop tracking")
+            if TRAY_ICON_THEME == 1:
+                icon = QIcon("icons/qpasteboard2.png")
+            else:
+                icon = QIcon("icons/qpasteboard.png")
+            self.stop_tracking = 0
+        else:
+            self.settingAction.setText("Start tracking")
+            if TRAY_ICON_THEME == 1:
+                icon = QIcon("icons/qpasteboard-stop2.png")
+            else:
+                icon = QIcon("icons/qpasteboard-stop.png")
+            self.stop_tracking = 1
+        #
+        self.btn_clip.setIcon(icon)
+    
+    def storeImages(self, mode):
+        global STORE_IMAGES
+        STORE_IMAGES = not STORE_IMAGES
+        if STORE_IMAGES:
+            self.imageAction.setText("Store images")
+        else:
+            self.imageAction.setText("Store images (stopped)")
+    
+    def clipboardChanged(self, mode):
+        #
+        if mode == 0 and not self.stop_tracking:
+            if SKIP_FILES:
+                if app.clipboard().mimeData().hasFormat("x-special/gnome-copied-files"):
+                    return
+            #
+            if app.clipboard().mimeData().hasFormat("text/plain"):
+                text = app.clipboard().text()
+                # skip if too large
+                if len(text) > CLIP_MAX_SIZE:
+                    # self.tray.showMessage("Info", "Text too large.")
+                    MyDialog("Info", "Text lenght too large.", None)
+                    return
+                #
+                if text and text != self.actual_clip:
+                    idx = time_now = str(int(time.time()))
+                    i = 0
+                    while os.path.exists(os.path.join(clips_path, time_now)):
+                        sleep(0.1)
+                        time_now = str(int(time.time()))
+                        i += 1
+                        if i == 10:
+                            break
+                        return
+                    #
+                    try:
+                        ff = open(os.path.join(clips_path, idx), "w")
+                        ff.write(text)
+                        ff.close()
+                        self.actual_clip = text
+                    except Exception as E:
+                        MyDialog("Error", str(E), None)
+                        return
+                    #
+                    if len(text) > int(CHAR_PREVIEW):
+                        text_prev = text[0:int(CHAR_PREVIEW)]+" [...]"
+                        CLIPS_DICT[str(idx)] = [text_prev]
+                    else:
+                        CLIPS_DICT[str(idx)] = [text]
+                    # remove older entries
+                    if HISTORY_SIZE:
+                        list_clips = sorted(os.listdir(clips_path), reverse=True)
+                        num_clips = len(list_clips)
+                        #
+                        if num_clips > int(HISTORY_SIZE):
+                            iitem = list_clips[-1]
+                            try:
+                                os.remove(os.path.join(clips_path, iitem))
+                            except Exception as E:
+                                MyDialog("Error", str(E), None)
+                                return
+            #
+            elif app.clipboard().mimeData().hasFormat("image/png"):
+                if STORE_IMAGES:
+                    image = app.clipboard().image()
+                    if image.isNull():
+                        return
+                    #
+                    idx = time_now = str(int(time.time()))
+                    i = 0
+                    while os.path.exists(os.path.join(clips_path, time_now)):
+                        sleep(0.1)
+                        time_now = str(int(time.time()))
+                        i += 1
+                        if i == 10:
+                            break
+                        return
+                    #
+                    try:
+                        image.save(os.path.join(images_path, idx), IMAGE_FORMAT)
+                    except Exception as E:
+                        MyDialog("Error", str(E), None)
+    
+    def on_clipboard(self):
+        if self._is_clipboard_shown == 0:
+            self.mainCLipWidget()
+        else:
+            try:
+                self._is_clipboard_shown = 0
+                self.cwindow.close()
+            except:
+                pass
+    
+    def on_clipboard2(self, point):
+        self.menu.exec_(self.sender().mapToGlobal(point))
+        
+    def on_label_text(self, lbl, num, text):
+        lbl.setText("<b>{}</b> {}".format(num, text))
+        lbl.setAlignment(Qt.AlignCenter)
+    
+    # the main clipboard window
+    def mainCLipWidget(self):
+        self.item_text_num = 0
+        self.item_image_num = 0
+        #
+        self.cwindow = QWidget()
+        self.cwindow.setWindowIcon(QIcon("icons/clipman.svg"))
+        self.cwindow.setContentsMargins(0,0,0,0)
+        self.cwindow.resize(CWINW, CWINH)
+        self.cwindow.setAttribute(Qt.WA_DeleteOnClose)
+        self.cwindow.setWindowTitle("qt5clipboard-1")
+        #
+        self.cwindow.setWindowFlags(Qt.CustomizeWindowHint | Qt.FramelessWindowHint | Qt.Tool)
+        #
+        self.mainBox = QHBoxLayout()
+        self.mainBox.setContentsMargins(2,2,2,2)
+        self.cwindow.setLayout(self.mainBox)
+        ####### left
+        self.leftBox = QVBoxLayout()
+        self.mainBox.addLayout(self.leftBox)
+        #
+        self.historyLBL = QLabel()
+        self.on_label_text(self.historyLBL, 0, "in history")
+        self.leftBox.addWidget(self.historyLBL)
+        #
+        if STORE_IMAGES:
+            self.imageLBL = QLabel()
+            self.on_label_text(self.imageLBL, 0, "images")
+            self.leftBox.addWidget(self.imageLBL)
+        #
+        self.clearBTN = QPushButton("Empty history")
+        self.clearBTN.clicked.connect(self.on_clear_history)
+        self.leftBox.addWidget(self.clearBTN)
+        #
+        self.leftBox.addStretch()
+        #
+        self.closeBTN = QPushButton("Close")
+        self.closeBTN.clicked.connect(self.on_cwindow_close)
+        self.leftBox.addWidget(self.closeBTN)
+        ####### right
+        self.ctab = QTabWidget()
+        self.ctab.setMovable(False)
+        self.mainBox.addWidget(self.ctab)
+        self.ctab.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        #
+        self.textLW = QListWidget()
+        self.textLW.setSelectionMode(1)
+        self.textLW.itemClicked.connect(self.on_item_clicked)
+        self.ctab.addTab(self.textLW, "Text")
+        ####
+        # texts
+        self.actual_clip = None
+        list_items = sorted(CLIPS_DICT, reverse=True)
+        #
+        for iitem in list_items:
+            iitem_text = CLIPS_DICT[iitem][0]
+            self.on_add_item(iitem_text, iitem)
+        #
+        self.on_label_text(self.historyLBL, self.item_text_num, "in history")
+        # images
+        if STORE_IMAGES:
+            image_temp = os.listdir(images_path)
+            if image_temp:
+                for iimage in image_temp:
+                    iwidget = QWidget()
+                    ilayout = QVBoxLayout()
+                    ilayout.setContentsMargins(2,2,2,2)
+                    btn_layout = QHBoxLayout()
+                    btn_layout.setContentsMargins(0,0,0,0)
+                    iwidget.setLayout(ilayout)
+                    #
+                    image_scroll = QScrollArea()
+                    image_scroll.setWidgetResizable(True)
+                    pimage = QPixmap(os.path.join(images_path, iimage))
+                    limage = QLabel()
+                    limage.setPixmap(pimage)
+                    image_scroll.setWidget(limage)
+                    ilayout.addWidget(image_scroll)
+                    #
+                    apply_btn = QPushButton()
+                    apply_btn.setIcon(QIcon("icons/apply.png"))
+                    apply_btn.setToolTip("Copy this image")
+                    apply_btn.clicked.connect(self.on_apply_image)
+                    btn_layout.addWidget(apply_btn)
+                    #
+                    save_btn = QPushButton()
+                    save_btn.setIcon(QIcon("icons/save.png"))
+                    save_btn.setToolTip("Save this image")
+                    save_btn.clicked.connect(self.on_save_image)
+                    btn_layout.addWidget(save_btn)
+                    #
+                    delete_btn = QPushButton()
+                    delete_btn.setIcon(QIcon("icons/remove.png"))
+                    delete_btn.setToolTip("Delete this image")
+                    delete_btn.clicked.connect(self.on_delete_image)
+                    btn_layout.addWidget(delete_btn)
+                    #
+                    ilayout.addLayout(btn_layout)
+                    #
+                    iwidget.iimage = iimage
+                    iwidget.pimage = pimage
+                    self.ctab.insertTab(1, iwidget, "Image")
+                    #
+                    self.item_image_num += 1
+            #
+            if self.item_image_num == 1:
+                self.on_label_text(self.imageLBL, self.item_image_num, "image")
+            else:
+                self.on_label_text(self.imageLBL, self.item_image_num, "images")
+        #
+        self.cwindow.show()
+        self._is_clipboard_shown = 1
+    
+    def on_cwindow_close(self):
+        self.cwindow.close()
+        self._is_clipboard_shown = 0
+    
+    #
+    def on_add_item(self, text, idx):
+        lw = QListWidgetItem()
+        widgetItem = QWidget()
+        widgetTXT =  QLabel(text=text)
+        #
+        previewBTN = QPushButton()
+        previewBTN.setIcon(QIcon("icons/preview.png"))
+        previewBTN.clicked.connect(lambda:self.on_preview(idx))
+        previewBTN.setToolTip("Preview")
+        #
+        removeBTN = QPushButton()
+        removeBTN.setIcon(QIcon("icons/list-remove.png"))
+        removeBTN.clicked.connect(lambda:self.on_delete_item(idx))
+        removeBTN.setToolTip("Delete this item")
+        #
+        widgetItemL = QHBoxLayout()
+        widgetItemL.addWidget(widgetTXT)
+        widgetItemL.addStretch()
+        widgetItemL.addWidget(previewBTN)
+        widgetItemL.addWidget(removeBTN)
+        #
+        widgetItem.setLayout(widgetItemL)  
+        lw.setSizeHint(widgetItem.sizeHint())
+        #
+        lw.idx = idx
+        #
+        self.textLW.addItem(lw)
+        self.textLW.setItemWidget(lw, widgetItem)
+        #
+        self.item_text_num += 1
+    
+    def on_preview(self, idx):
+        self.dialogp = QDialog()
+        self.dialogp.resize(int(DWINW), int(DWINH))
+        self.dialogp.setContentsMargins(0,0,0,0)
+        self.dialogp.setWindowTitle("Preview")
+        self.dialogp.setWindowIcon(QIcon("icons/clipman.svg"))
+        self.dialogp.setModal(True)
+        self.dialogp.setAttribute(Qt.WA_DeleteOnClose)
+        #
+        layout = QVBoxLayout()
+        layout.setContentsMargins(2,2,2,2)
+        self.dialogp.setLayout(layout)
+        #
+        scrollArea = QScrollArea()
+        scrollArea.setWidgetResizable(True)
+        layout.addWidget(scrollArea)
+        #
+        textW = QLabel()
+        scrollArea.setWidget(textW)
+        textW.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        text = ""
+        with open(os.path.join(clips_path, idx), "r") as ff:
+            text = ff.read()
+        textW.setText(text)
+        textW.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        #
+        closeDBTN = QPushButton("Close")
+        closeDBTN.clicked.connect(self.dialogp.close)
+        layout.addWidget(closeDBTN)
+        #
+        self.dialogp.show()
+    
+    # text
+    def on_delete_item(self, idx):
+        num_items = self.textLW.count()
+        itemW = None
+        _item_num = None
+        #
+        for i in range(num_items):
+            if self.textLW.item(i).idx == idx:
+                itemW = self.textLW.item(i)
+                _item_num = i
+                break
+        if itemW:
+            # remove the file
+            try:
+                os.remove(os.path.join(clips_path, str(itemW.idx)))
+            except Exception as E:
+                MyDialog("Error", str(E), self.cwindow)
+                return
+            #
+            del CLIPS_DICT[str(itemW.idx)]
+            self.textLW.takeItem(self.textLW.row(itemW))
+            del itemW
+            #
+            self.item_text_num -= 1
+            self.on_label_text(self.historyLBL, self.item_text_num, "in history")
+            #
+            if _item_num != 0:
+                if CLIPS_DICT:
+                    self.actual_clip = CLIPS_DICT[self.textLW.item(0).idx][0]
+    
+    def on_item_clicked(self, iitem):
+        clip_text = ""
+        ff = open(os.path.join(clips_path, iitem.idx), "r")
+        clip_text = ff.read()
+        ff.close()
+        # 
+        if clip_text == self.actual_clip:
+            app.clipboard().setText(clip_text)
+        else:
+            # remove the clip file
+            try:
+                os.remove(os.path.join(clips_path, str(iitem.idx)))
+            except Exception as E:
+                MyDialog("Error", str(E), self.cwindow)
+                return
+            self.actual_clip = clip_text
+            self.textLW.takeItem(self.textLW.row(iitem))
+            del CLIPS_DICT[iitem.idx]
+            del iitem
+            app.clipboard().setText(clip_text)
+            ####
+            idx = time_now = str(int(time.time()))
+            i = 0
+            while os.path.exists(os.path.join(clips_path, time_now)):
+                sleep(0.1)
+                time_now = str(int(time.time()))
+                i += 1
+                if i == 10:
+                    break
+                return
+            #
+            try:
+                ff = open(os.path.join(clips_path, idx), "w")
+                ff.write(clip_text)
+                ff.close()
+            except Exception as E:
+                MyDialog("Error", str(E), self.cwindow)
+                return
+            #
+            if len(clip_text) > int(CHAR_PREVIEW):
+                text_prev = clip_text[0:int(CHAR_PREVIEW)]+" [...]"
+                CLIPS_DICT[str(idx)] = [text_prev]
+            else:
+                CLIPS_DICT[str(idx)] = [clip_text]
+            ####
+        self.cwindow.close()
+        self._is_clipboard_shown = 0
+        
+    def on_apply_image(self):
+        try:
+            curr_idx = self.ctab.currentIndex()
+            pimage = self.ctab.widget(curr_idx).pimage
+            app.clipboard().setPixmap(pimage)
+        except Exception as E:
+            MyDialog("Error", str(E), self.cwindow)
+    
+    def on_save_image(self):
+        try:
+            curr_idx = self.ctab.currentIndex()
+            iimage = self.ctab.widget(curr_idx).iimage
+            iname = "Image_"+str(int(time.time()))
+            shutil.copy(os.path.join(images_path, iimage), os.path.join( os.path.expanduser("~"), iname ) )
+            MyDialog("Info", "\n{}\nsaved in your home folder.".format(iname), self.cwindow)
+        except Exception as E:
+            MyDialog("Error", str(E), self.cwindow)
+    
+    def on_delete_image(self):
+        try:
+            curr_idx = self.ctab.currentIndex()
+            twidget = self.ctab.widget(curr_idx)
+            os.remove(os.path.join(images_path, twidget.iimage))
+            self.ctab.removeTab(curr_idx)
+            twidget.deleteLater()
+            self.item_image_num -= 1
+            if self.item_image_num == 1:
+                self.on_label_text(self.imageLBL, self.item_image_num, "image")
+            else:
+                self.on_label_text(self.imageLBL, self.item_image_num, "images")
+        except Exception as E:
+            MyDialog("Error", str(E), self.cwindow)
+    
+    def on_clear_history(self):
+        ret = MyDialog("Question", "Remove all the items?", self.cwindow)
+        if ret.retval == QMessageBox.Yes:
+            global CLIPS_DICT
+            try:
+                clips_temp = os.listdir(clips_path)
+                if clips_temp:
+                    for iitem in clips_temp:
+                        os.remove(os.path.join(clips_path, iitem))
+                        del CLIPS_DICT[iitem]
+                #
+                self.textLW.clear()
+            except Exception as E:
+                MyDialog("Error", str(E), self.cwindow)
+            try:
+                #
+                images_temp = os.listdir(images_path)
+                if images_temp:
+                    for iitem in images_temp:
+                        os.remove(os.path.join(images_path, iitem))
+            except Exception as E:
+                MyDialog("Error", str(E), self.cwindow)
+            #
+            self.textLW.clear()
+            self.actual_clip = None
+            #
+            self.cwindow.close()
+            self._is_clipboard_shown = 0
+
+############# clipboard end ############## 
+    
     # double click on label 0
     def on_labelw0(self, e):
         comm = None
-        if e.button() == QtCore.Qt.LeftButton:
+        if e.button() == Qt.LeftButton:
             comm = label0_command1
-        elif e.button() == QtCore.Qt.MiddleButton:
+        elif e.button() == Qt.MiddleButton:
             comm = label0_command2
         if comm:
             try:
                 subprocess.Popen([comm])
             except:
                 pass
-        # QtWidgets.QLabel.mouseDoubleClickEvent(self, e)
+        # QLabel.mouseDoubleClickEvent(self, e)
     
         
     # click on label 1
     def on_labelw1(self, e):
         comm = None
-        if e.button() == QtCore.Qt.LeftButton:
+        if e.button() == Qt.LeftButton:
             comm = label1_command1
-        elif e.button() == QtCore.Qt.MiddleButton:
+        elif e.button() == Qt.MiddleButton:
             comm = label1_command2
         if comm:
             try:
@@ -843,10 +1428,23 @@ class SecondaryWin(QtWidgets.QWidget):
     # click on label 2
     def on_labelw2(self, e):
         comm = None
-        if e.button() == QtCore.Qt.LeftButton:
+        if e.button() == Qt.LeftButton:
             comm = label2_command1
-        elif e.button() == QtCore.Qt.MiddleButton:
+        elif e.button() == Qt.MiddleButton:
             comm = label2_command2
+        if comm:
+            try:
+                subprocess.Popen([comm])
+            except:
+                pass
+    
+    # click on label 3
+    def on_labelw3(self, e):
+        comm = None
+        if e.button() == Qt.LeftButton:
+            comm = label3_command1
+        elif e.button() == Qt.MiddleButton:
+            comm = label3_command2
         if comm:
             try:
                 subprocess.Popen([comm])
@@ -855,7 +1453,7 @@ class SecondaryWin(QtWidgets.QWidget):
     
     # click on tlabel
     def on_tlabel(self, e):
-        if e.button() == QtCore.Qt.LeftButton:
+        if e.button() == Qt.LeftButton:
             if self.cw_is_shown is not None:
                 self.cw_is_shown.close()
                 self.cw_is_shown = None
@@ -867,12 +1465,12 @@ class SecondaryWin(QtWidgets.QWidget):
     # label time    
     def update_label(self):
         if USE_AP:
-            cur_time = QtCore.QTime.currentTime().toString("hh:mm ap")
+            cur_time = QTime.currentTime().toString("hh:mm ap")
         else:
-            cur_time = QtCore.QTime.currentTime().toString("hh:mm")
+            cur_time = QTime.currentTime().toString("hh:mm")
         #
         if day_name:
-            curr_date = QtCore.QDate.currentDate().toString("ddd d")
+            curr_date = QDate.currentDate().toString("ddd d")
             self.tlabel.setText(" "+curr_date+"  "+cur_time+" ")
         else:
             self.tlabel.setText(" "+cur_time+" ")
@@ -897,28 +1495,30 @@ class SecondaryWin(QtWidgets.QWidget):
             self.tupdate(aa[1], aa[2])
     
     def tadd(self, wid):
-        fwin = QtGui.QWindow.fromWinId(wid)
-        # fwin.setMinimumSize(QtCore.QSize(tbutton_size, tbutton_size))
-        # fwin.setGeometry(QtCore.QRect(0,0,tbutton_size,tbutton_size))
+        fwin = QWindow.fromWinId(wid)
+        # fwin.setMinimumSize(QSize(tbutton_size, tbutton_size))
+        # fwin.setGeometry(QRect(0,0,tbutton_size,tbutton_size))
         # fwin.resize(tbutton_size, tbutton_size)
-        # fwin.setFlags(QtCore.Qt.FramelessWindowHint)
-        fwin.setFlags(QtCore.Qt.FramelessWindowHint | QtCore.Qt.ForeignWindow)
-        fwidget = QtWidgets.QWidget.createWindowContainer(fwin)
+        # fwin.setFlags(Qt.FramelessWindowHint)
+        fwin.setFlags(Qt.FramelessWindowHint | Qt.ForeignWindow)
+        fwidget = QWidget.createWindowContainer(fwin)
         fwidget.setAutoFillBackground(True)
-        #fwidget.setAttribute(QtCore.Qt.WA_NoSystemBackground)
+        #fwidget.setAttribute(Qt.WA_NoSystemBackground)
         fwidget.setContentsMargins(0,0,0,0)
-        fwidget.setMinimumSize(QtCore.QSize(tbutton_size, tbutton_size))
-        fwidget.setMaximumSize(QtCore.QSize(tbutton_size, tbutton_size))
+        fwidget.setMinimumSize(QSize(tbutton_size, tbutton_size))
+        fwidget.setMaximumSize(QSize(tbutton_size, tbutton_size))
         #fwidget.resize(fwidget.sizeHint())
         #fwidget.resize(tbutton_size, tbutton_size)
         fwidget.id = wid
         self.tray_box.update()
         #
-        self.tray_box.addWidget(fwidget, 1, QtCore.Qt.AlignCenter)
+        self.tray_box.addWidget(fwidget, 1, Qt.AlignCenter)
         for i in range(self.tray_box.count()):
             widget = self.tray_box.itemAt(i).widget()
         #
         # self.on_move_win()
+        # the main window to the center
+        self.main_window_center()
     
     def tremove(self, wid):
         for i in range(self.tray_box.count()):
@@ -930,6 +1530,8 @@ class SecondaryWin(QtWidgets.QWidget):
         self.tray_box.update()
         #
         # self.on_move_win()
+        # the main window to the center
+        self.main_window_center()
     
     # def tupdate(self, wid):
     def tupdate(self, win, bcolor):
@@ -985,11 +1587,15 @@ class SecondaryWin(QtWidgets.QWidget):
         # self.l2p.close()
         # del self.l2p
     
+    def on_label3(self, data):
+        if data:
+            self.labelw3.setText(data[0])
+    
     # launch the application from the prog_box
     def on_pbtn(self):
         prog = self.sender().pexec
         path = self.sender().ppath
-        # pp = QtCore.QProcess()
+        # pp = QProcess()
         # pp.setWorkingDirectory(os.getenv("HOME"))
         # pp.startDetached(prog)
         # subprocess.Popen(prog, cwd=os.getenv("HOME"))
@@ -1008,7 +1614,7 @@ class SecondaryWin(QtWidgets.QWidget):
             return [None]
     
     def contextMenuEvent(self, event):
-        contextMenu = QtWidgets.QMenu(self)
+        contextMenu = QMenu(self)
         reloadAct = contextMenu.addAction("Reload")
         quitAct = contextMenu.addAction("Exit")
         action = contextMenu.exec_(self.mapToGlobal(event.pos()))
@@ -1022,11 +1628,11 @@ class SecondaryWin(QtWidgets.QWidget):
         stopCD = 1
         global data_run
         data_run = 0
-        QtWidgets.qApp.quit()
+        qApp.quit()
 
     def restart(self):
-        QtCore.QCoreApplication.quit()
-        status = QtCore.QProcess.startDetached(sys.executable, sys.argv)
+        QCoreApplication.quit()
+        status = QProcess.startDetached(sys.executable, sys.argv)
     
     def threadslot(self, data):
         if data:
@@ -1069,7 +1675,7 @@ class SecondaryWin(QtWidgets.QWidget):
             item = self.ibox.itemAt(i).widget()
             if not item:
                 continue
-            if isinstance(item, QtWidgets.QPushButton):
+            if isinstance(item, QPushButton):
                 if item.winid == win.id:
                     if _type == 0:
                         item.setVisible(False)
@@ -1080,22 +1686,27 @@ class SecondaryWin(QtWidgets.QWidget):
     def _screen_changed(self):
         global WINW
         global WINH
+        global NW
+        global NH
         _size = screen.size()
-        #
-        NW = _size.width()
-        NH = _size.height()
-        #
-        if NW != WINW or NH != WINH:
+        if _size.width() != NW or _size.height() != NH:
+            #
+            NW = _size.width()
+            NH = _size.height()
             WINW = NW
-            WINH = NH
-            # if dock_width:
-                # WINW = dock_width
+            #
             if dock_position == 1:
-                sy = WINH - dock_height
+                sy = NH - dock_height
             elif dock_position == 0:
                 sy = 0
-            self.setGeometry(0, sy, WINW, dock_height)
-            self.updateGeometry()
+            #
+            if CENTRALIZE_EL != 2:
+                self.setGeometry(0, sy, WINW, dock_height)
+                self.updateGeometry()
+            elif CENTRALIZE_EL == 2:
+                self.setGeometry(0, sy, self.geometry().width(), dock_height)
+                self.updateGeometry()
+                self.main_window_center()
     
     
     def on_urgency(self, _n, item):
@@ -1103,10 +1714,10 @@ class SecondaryWin(QtWidgets.QWidget):
             if self.list_uitem:
                 # only one window with attention flag
                 self.utimer.stop()
-                self.list_uitem[0].setStyleSheet("border-color: {}; border=none".format(self.palette().color(QtGui.QPalette.Background).name()))
+                self.list_uitem[0].setStyleSheet("border-color: {}; border=none".format(self.palette().color(QPalette.Background).name()))
                 self.list_uitem = []
             #
-            self.utimer = QtCore.QTimer()
+            self.utimer = QTimer()
             self.utimer.setInterval(500)
             self._ut = 0
             self.list_uitem.append(item)
@@ -1119,7 +1730,7 @@ class SecondaryWin(QtWidgets.QWidget):
                 self.list_uitem.remove(item)
                 self.utimer.stop()
                 try:
-                    item.setStyleSheet("border-color: {}; border=none".format(self.palette().color(QtGui.QPalette.Background).name()))
+                    item.setStyleSheet("border-color: {}; border=none".format(self.palette().color(QPalette.Background).name()))
                     # del self._ut
                 except:
                     pass
@@ -1130,7 +1741,7 @@ class SecondaryWin(QtWidgets.QWidget):
                 item.setStyleSheet("border: 2px solid; border-radius: 2px; border-color: red;")
                 self._ut += 1
             elif self._ut == 1 or (self._ut % 2) != 0:
-                item.setStyleSheet("border-color: {}; border=none".format(self.palette().color(QtGui.QPalette.Background).name()))
+                item.setStyleSheet("border-color: {}; border=none".format(self.palette().color(QPalette.Background).name()))
                 self._ut += 1
             # timer limit 3 sec.
             if self._ut == 6:
@@ -1142,7 +1753,7 @@ class SecondaryWin(QtWidgets.QWidget):
                     if window_active_id_tmp:
                         window_active_id = window_active_id_tmp.value[0]
                         if window_active_id == item.winid:
-                            item.setStyleSheet("border-color: {}; border=none".format(self.palette().color(QtGui.QPalette.Background).name()))
+                            item.setStyleSheet("border-color: {}; border=none".format(self.palette().color(QPalette.Background).name()))
                             return
                 except:
                     return
@@ -1157,59 +1768,23 @@ class SecondaryWin(QtWidgets.QWidget):
     def _urgency(self, _type, win):
         # do not use get_wm_hints(): gives not updated values
         if _type == 1 or _type == 2:
-            # if not (win.id in self.attention_windows):
-                # self.attention_windows[win.id] = _type
-            # # skip active window
-            # try:
-                # window_active_id_tmp = self.root.get_full_property(self.display.intern_atom('_NET_ACTIVE_WINDOW'), X.AnyPropertyType)
-                # if window_active_id_tmp:
-                    # window_active_id = window_active_id_tmp.value[0]
-                    # if window_active_id == win.id:
-                        # return
-            # except:
-                # return
-            #
             for i in range(self.ibox.count()):
                 item = self.ibox.itemAt(i).widget()
                 if not item:
                     continue
-                if isinstance(item, QtWidgets.QPushButton):
+                if isinstance(item, QPushButton):
                     if item.winid == win.id:
                         self.on_urgency(1, item)
                         break
         elif _type == 0:
-            # if (win.id in self.attention_windows):
-                # del self.attention_windows[win.id]
-            #
             for i in range(self.ibox.count()):
                 item = self.ibox.itemAt(i).widget()
                 if not item:
                     continue
-                if isinstance(item, QtWidgets.QPushButton):
+                if isinstance(item, QPushButton):
                     if item.winid == win.id:
                         self.on_urgency(0, item)
                         break
-        # elif _type == 2:
-            # if not (win.id in self.attention_windows):
-                # self.attention_windows[win.id] = _type
-                # for i in range(self.ibox.count()):
-                    # item = self.ibox.itemAt(i).widget()
-                    # if not item:
-                        # continue
-                    # if isinstance(item, QtWidgets.QPushButton):
-                        # if item.winid == win.id:
-                            # self.on_urgency(1, item)
-                            # break
-            # elif (win.id in self.attention_windows):
-                # del self.attention_windows[win.id]
-                # for i in range(self.ibox.count()):
-                    # item = self.ibox.itemAt(i).widget()
-                    # if not item:
-                        # continue
-                    # if isinstance(item, QtWidgets.QPushButton):
-                        # if item.winid == win.id:
-                            # self.on_urgency(0, item)
-                            # break
     
     # number of virtual desktops changed
     def virtual_desktops_changed(self, ndesks):
@@ -1219,7 +1794,7 @@ class SecondaryWin(QtWidgets.QWidget):
     def active_virtual_desktop_changed(self, ndesk):
         for i in range(self.virtbox.count()):
             vbtn = self.virtbox.itemAt(i).widget()
-            if isinstance(vbtn, QtWidgets.QPushButton):
+            if isinstance(vbtn, QPushButton):
                 if vbtn.desk == ndesk:
                     vbtn.setChecked(True)
                 else:
@@ -1320,11 +1895,7 @@ class SecondaryWin(QtWidgets.QWidget):
                 if PLAY_SOUND:
                     play_sound("window-close.wav")
                 is_changed = 1
-        # 
-        # if is_changed or self.is_started:
-            # if dock_width:
-                # self.on_move_win()
-
+    
     # 1
     # add or remove virtual desktops
     def on_virt_desk(self, ndesks):
@@ -1332,9 +1903,9 @@ class SecondaryWin(QtWidgets.QWidget):
         n = ndesks - curr_ndesks
         if n > 0:
             for i in range(n):
-                vbtn = QtWidgets.QPushButton()
+                vbtn = QPushButton()
                 vbtn.setFlat(True)
-                vbtn.setFixedSize(QtCore.QSize(int(dock_height*1.3), dock_height))
+                vbtn.setFixedSize(QSize(int(dock_height*1.3), dock_height))
                 # vbtn.setAutoExclusive(True)
                 vbtn.setCheckable(True)
                 #
@@ -1346,17 +1917,19 @@ class SecondaryWin(QtWidgets.QWidget):
             # remove the virtual desktop widget
             for i in range(abs(n)):
                 item = self.virtbox.itemAt(curr_ndesks-1-i).widget()
-                if isinstance(item, QtWidgets.QPushButton):
+                if isinstance(item, QPushButton):
                     self.virtbox.removeWidget(item)
                     item.deleteLater()
         # check the button
         for i in range(self.virtbox.count()):
             item = self.virtbox.itemAt(i).widget()
-            if isinstance(item, QtWidgets.QPushButton):
+            if isinstance(item, QPushButton):
                 if item.desk == self.active_virtual_desktop:
                     item.setChecked(True)
                 else:
                     item.setChecked(False)
+        # the main window to the center
+        self.main_window_center()
     
     #
     def _icon_name_from_desktop(self, _prog):
@@ -1408,8 +1981,8 @@ class SecondaryWin(QtWidgets.QWidget):
         licon = None
         ret = self._icon_name_from_desktop(pitem[2])
         if ret:
-            if QtGui.QIcon.hasThemeIcon(ret):
-                licon = QtGui.QIcon.fromTheme(ret)
+            if QIcon.hasThemeIcon(ret):
+                licon = QIcon.fromTheme(ret)
         #
         if not licon:
             window = self.display.create_resource_object('window', winid)
@@ -1418,16 +1991,16 @@ class SecondaryWin(QtWidgets.QWidget):
             if icon_name_tmp:
                 if hasattr(icon_name_tmp, "value"):
                     wicon = icon_name_tmp.value.decode()
-                    if QtGui.QIcon.hasThemeIcon(wicon):
-                        licon = QtGui.QIcon.fromTheme(wicon)
+                    if QIcon.hasThemeIcon(wicon):
+                        licon = QIcon.fromTheme(wicon)
                     else:
                         icon_name_tmp = window.get_full_property(self.display.intern_atom('_NET_WM_ICON_NAME'), 0)
                         #
                         if icon_name_tmp:
                             if hasattr(icon_name_tmp, "value"):
                                 wicon = icon_name_tmp.value.decode()
-                                if QtGui.QIcon.hasThemeIcon(wicon):
-                                    licon = QtGui.QIcon.fromTheme(wicon)
+                                if QIcon.hasThemeIcon(wicon):
+                                    licon = QIcon.fromTheme(wicon)
                                 else:
                                     licon = None
             #
@@ -1440,8 +2013,8 @@ class SecondaryWin(QtWidgets.QWidget):
                 else:
                     win_name_class = win_name_class_tmp[0]
                 #
-                if win_name_class and QtGui.QIcon.hasThemeIcon(win_name_class):
-                    licon = QtGui.QIcon.fromTheme(win_name_class)
+                if win_name_class and QIcon.hasThemeIcon(win_name_class):
+                    licon = QIcon.fromTheme(win_name_class)
                 #
                 if not licon:
                     icon_icon = window.get_full_property(self.display.intern_atom('_NET_WM_ICON'), 0)
@@ -1500,16 +2073,16 @@ class SecondaryWin(QtWidgets.QWidget):
                                 w = icon_data[0]
                                 h = icon_data[1]
                                 img = icon_data[2]
-                                image = QtGui.QImage(img, w, h, QtGui.QImage.Format_ARGB32)
+                                image = QImage(img, w, h, QImage.Format_ARGB32)
                             else:
-                                image = QtGui.QImage("icons/unknown.svg")
+                                image = QImage("icons/unknown.svg")
                         else:
-                            image = QtGui.QImage("icons/unknown.svg")
+                            image = QImage("icons/unknown.svg")
                         #
-                        pixmap = QtGui.QPixmap(image)
-                        licon = QtGui.QIcon(pixmap)
+                        pixmap = QPixmap(image)
+                        licon = QIcon(pixmap)
         #
-        btn = QtWidgets.QPushButton()
+        btn = QPushButton()
         btn.setCheckable(True)
         btn.setFlat(True)
         ############
@@ -1538,12 +2111,12 @@ class SecondaryWin(QtWidgets.QWidget):
         ###########
         # btn.setAutoExclusive(True)
         btn.clicked.connect(self.on_btn_clicked)
-        # btn.setFixedSize(QtCore.QSize(dock_height, dock_height))
-        btn.setFixedSize(QtCore.QSize(button_size, button_size))
+        # btn.setFixedSize(QSize(dock_height, dock_height))
+        btn.setFixedSize(QSize(button_size, button_size))
         btn.setIcon(licon)
-        # btn.setIconSize(QtCore.QSize(dock_height-8, dock_height-8))
-        btn.setIconSize(QtCore.QSize(button_size-button_padding, button_size-button_padding))
-        # btn.setMinimumSize(QtCore.QSize(button_size, button_size))
+        # btn.setIconSize(QSize(dock_height-8, dock_height-8))
+        btn.setIconSize(QSize(button_size-button_padding, button_size-button_padding))
+        # btn.setMinimumSize(QSize(button_size, button_size))
         btn.winid = pitem[0]
         btn.desktop = pitem[1]
         btn.pexec = pitem[2]
@@ -1557,8 +2130,10 @@ class SecondaryWin(QtWidgets.QWidget):
         if PLAY_SOUND:
             play_sound("window-new.wav")
         #
-        btn.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        btn.setContextMenuPolicy(Qt.CustomContextMenu)
         btn.customContextMenuRequested.connect(self.btnClicked)
+        # the main window to the center
+        self.main_window_center()
     
     # 3
     # get the active window when this program starts
@@ -1578,7 +2153,7 @@ class SecondaryWin(QtWidgets.QWidget):
                 item = self.ibox.itemAt(i).widget()
                 if not item:
                     continue
-                if isinstance(item, QtWidgets.QPushButton):
+                if isinstance(item, QPushButton):
                     if item.winid == window_id:
                         item.setChecked(True)
                         self.taskb_btn = item
@@ -1678,7 +2253,7 @@ class SecondaryWin(QtWidgets.QWidget):
                 is_found = 0
                 for i in range(self.ibox.count()):
                     btn = self.ibox.itemAt(i).widget()
-                    if isinstance(btn, QtWidgets.QPushButton):
+                    if isinstance(btn, QPushButton):
                         if btn.winid == window_id:
                             if self.taskb_btn:
                                 if self.taskb_btn:
@@ -1691,7 +2266,7 @@ class SecondaryWin(QtWidgets.QWidget):
                             # # remove urgency
                             # if btn in self.list_uitem:
                                 # self.list_uitem.remove(btn)
-                                # btn.setStyleSheet("border-color: {}; border=none".format(self.palette().color(QtGui.QPalette.Background).name()))
+                                # btn.setStyleSheet("border-color: {}; border=none".format(self.palette().color(QPalette.Background).name()))
                             #
                             break
                 if not is_found:
@@ -1707,12 +2282,14 @@ class SecondaryWin(QtWidgets.QWidget):
         ibox_num = self.ibox.count()
         for i in range(ibox_num):
             item = self.ibox.itemAt(i).widget()
-            if isinstance(item, QtWidgets.QPushButton):
+            if isinstance(item, QPushButton):
                 winid = item.winid
                 if pitem == winid:
                     self.ibox.removeWidget(item)
                     item.deleteLater()
                     break
+        # the main window to the center
+        self.main_window_center()
     
     # check if the application is already in the launcher
     def on_pin(self, pexec):
@@ -1792,17 +2369,17 @@ class SecondaryWin(QtWidgets.QWidget):
             # copy the application in the folder applications
             shutil.copy(app_found[0][0], "applications"+"/"+os.path.basename(app_found[0][0]))
             # add the button
-            pbtn = QtWidgets.QPushButton()
+            pbtn = QPushButton()
             pbtn.setFlat(True)
             icon = app_found[0][3]
             fname = app_found[0][2]
             fpath = app_found[0][4]
-            picon = QtGui.QIcon.fromTheme(icon)
+            picon = QIcon.fromTheme(icon)
             if picon.isNull():
                 picon = QIcon(icon)
             if picon.isNull():
                 picon = QIcon("icons/unknown.svg")
-            pbtn.setFixedSize(QtCore.QSize(button_size, button_size))
+            pbtn.setFixedSize(QSize(button_size, button_size))
             pbtn.setIcon(picon)
             pbtn.setIconSize(pbtn.size())
             pbtn.setToolTip(fname or pexec)
@@ -1812,13 +2389,13 @@ class SecondaryWin(QtWidgets.QWidget):
             pbtn.ppath = fpath
             self.prog_box.addWidget(pbtn)
             pbtn.clicked.connect(self.on_pbtn)
-            pbtn.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+            pbtn.setContextMenuPolicy(Qt.CustomContextMenu)
             pbtn.customContextMenuRequested.connect(self.pbtnClicked)
         elif len(app_found) > 1:
             idx = None
             dlg = chooseDialog(app_found, self)
             result = dlg.exec_()
-            if result == QtWidgets.QDialog.Accepted:
+            if result == QDialog.Accepted:
                 # index - string
                 idx = int(dlg.getItem())
                 dlg.close()
@@ -1827,7 +2404,7 @@ class SecondaryWin(QtWidgets.QWidget):
             if idx:
                 shutil.copy(app_found[idx][0], "applications"+"/"+os.path.basename(app_found[idx][0]))
                 # add the button
-                pbtn = QtWidgets.QPushButton()
+                pbtn = QPushButton()
                 pbtn.setFlat(True)
                 icon = app_found[idx][3]
                 fname = app_found[idx][2]
@@ -1835,7 +2412,7 @@ class SecondaryWin(QtWidgets.QWidget):
                     picon = QIcon(icon)
                 if picon.isNull():
                     picon = QIcon("icons/unknown.svg")
-                pbtn.setFixedSize(QtCore.QSize(button_size, button_size))
+                pbtn.setFixedSize(QSize(button_size, button_size))
                 pbtn.setIcon(picon)
                 pbtn.setIconSize(pbtn.size())
                 pbtn.setToolTip(fname or pexec)
@@ -1845,20 +2422,22 @@ class SecondaryWin(QtWidgets.QWidget):
                 pbtn.ppath = fpath
                 self.prog_box.addWidget(pbtn)
                 pbtn.clicked.connect(self.on_pbtn)
-                pbtn.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+                pbtn.setContextMenuPolicy(Qt.CustomContextMenu)
                 pbtn.customContextMenuRequested.connect(self.pbtnClicked)
         elif len(app_found) == 0:
             # message
             dlg = showDialog(1, "File desktop not found.", self)
             result = dlg.exec_()
             dlg.close()
+        # the main window to the center
+        self.main_window_center()
     
     # right menu of each launcher program button
     def pbtnClicked(self, QPos):
         pbtn = self.sender()
         # create context menu
-        self.pbtnMenu = QtWidgets.QMenu(self)
-        self.unpin_prog = QtWidgets.QAction("Unpin")
+        self.pbtnMenu = QMenu(self)
+        self.unpin_prog = QAction("Unpin")
         self.pbtnMenu.addAction(self.unpin_prog)
         self.unpin_prog.triggered.connect(lambda:self.on_unpin_prog(pbtn.pdesktop))
         # show context menu
@@ -1870,7 +2449,7 @@ class SecondaryWin(QtWidgets.QWidget):
             os.remove("applications"+"/"+pdesktop)
             for i in range(len(self.prog_box)):
                 item = self.prog_box.itemAt(i)
-                if isinstance(item.widget(), QtWidgets.QPushButton):
+                if isinstance(item.widget(), QPushButton):
                     widget = item.widget()
                     if widget.pdesktop == pdesktop:
                         item.widget().deleteLater()
@@ -1880,34 +2459,35 @@ class SecondaryWin(QtWidgets.QWidget):
             dlg = showDialog(1, str(E), self)
             result = dlg.exec_()
             dlg.close()
+        # the main window to the center
+        self.main_window_center()
     
     # right menu of each application button
     def btnClicked(self, QPos):
         self.right_button_pressed = 1
         btn = self.sender()
         # create context menu
-        self.btnMenu = QtWidgets.QMenu(self)
-        self.close_prog = QtWidgets.QAction("Close")
+        self.btnMenu = QMenu(self)
+        self.close_prog = QAction("Close")
         self.btnMenu.addAction(self.close_prog)
         self.close_prog.triggered.connect(lambda:self.on_close_prog(btn))
         # 
         ret = self.on_pin(btn.pexec)
         if ret:
-            self.pin_ac = QtWidgets.QAction("Pin")
+            self.pin_ac = QAction("Pin")
             self.btnMenu.addAction(self.pin_ac)
             self.pin_ac.triggered.connect(lambda:self.on_pin_add_pin(btn.pexec))
         self.btnMenu.addSeparator()
-        self.restart_app_action = QtWidgets.QAction("Reload")
+        self.restart_app_action = QAction("Reload")
         self.btnMenu.addAction(self.restart_app_action)
         self.restart_app_action.triggered.connect(self.restart)
-        self.close_app_action = QtWidgets.QAction("Exit")
+        self.close_app_action = QAction("Exit")
         self.btnMenu.addAction(self.close_app_action)
         self.close_app_action.triggered.connect(self.winClose)
         # show context menu
         self.btnMenu.exec_(btn.mapToGlobal(QPos)) 
         
     
-    # def close_window(self, win):
     def on_close_prog(self, btn):
         win = self.display.create_resource_object('window', btn.winid)
         #
@@ -1944,8 +2524,8 @@ class SecondaryWin(QtWidgets.QWidget):
     
     
     def eventFilter(self, widget, event):
-        if isinstance(widget, QtWidgets.QPushButton):
-            if event.type() == QtCore.QEvent.HoverEnter:
+        if isinstance(widget, QPushButton):
+            if event.type() == QEvent.HoverEnter:
                 if not self.right_button_pressed:
                     winid = widget.winid
                     window = self.display.create_resource_object('window', winid)
@@ -1973,36 +2553,19 @@ class SecondaryWin(QtWidgets.QWidget):
         self.root.send_event(ev, event_mask=mask)
         self.display.flush()
         
+    # the main window to the center
+    def main_window_center(self):
+        if CENTRALIZE_EL == 2:
+            QApplication.processEvents()
+            self.adjustSize()
+            self.updateGeometry()
+            self.resize(self.sizeHint().width(), dock_height)
+            #
+            sec_geometry = self.geometry()
+            sy = sec_geometry.y()
+            sx = int((WINW-sec_geometry.width())/2)
+            self.move(sx, sy)
     
-    # # move the window when a button is added or removed
-    # def on_move_win(self):
-        # # if dock_width:
-            # # QtWidgets.QApplication.processEvents()
-            # # self.adjustSize()
-            # # self.updateGeometry()
-            # # # self.resize(self.sizeHint())
-            # # self.resize(self.sizeHint().width(), dock_height)
-        # #
-        # # if self.position in [2,3]:
-            # # pass
-        # # el
-        # if self.position in [0,1]:
-            # # if dock_width:
-                # # sx = int((self.screen_size.width() - self.size().width())/2)
-            # # else:
-            # sx = int((self.screen_size.width() - WINW)/2)
-            # if sec_position == 0:
-                # sy = 0
-            # elif sec_position == 1:
-                # if self.on_leave:
-                    # sy = self.screen_size.height() - WINH
-                # else:
-                    # sy = self.screen_size.height() - reserved_space
-            # # 
-            # # if not fixed_position:
-                # # self.move(sx, sy)
-            # # else:
-            # self.move(sx , sy - WINH)
     
     # # raise the dock
     # def enterEvent(self, event):
@@ -2030,7 +2593,7 @@ class SecondaryWin(QtWidgets.QWidget):
 
     # def leaveEvent(self, event):
         # if not fixed_position:
-            # self.on_leave = QtCore.QTimer()
+            # self.on_leave = QTimer()
             # self.on_leave.timeout.connect(self.on_leave_event)
             # self.on_leave.start(2000)
         # return super(SecondaryWin, self).leaveEvent(event)
@@ -2059,8 +2622,8 @@ class SecondaryWin(QtWidgets.QWidget):
 
 ############## TRAY
 
-class trayThread(QtCore.QThread):
-    sig = QtCore.pyqtSignal(list)
+class trayThread(QThread):
+    sig = pyqtSignal(list)
     
     def __init__(self, frame_id, bcolor, data_run, parent=None):
         super(trayThread, self).__init__(parent)
@@ -2175,21 +2738,21 @@ class trayThread(QtCore.QThread):
 
 ###################
 
-class chooseDialog(QtWidgets.QDialog):
+class chooseDialog(QDialog):
     def __init__(self, progs, parent):
         super().__init__(parent)
         self.setWindowTitle("Info")
         self.progs = progs
-        QBtn = QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
-        self.buttonBox = QtWidgets.QDialogButtonBox(QBtn)
+        QBtn = QDialogButtonBox.Ok | QDialogButtonBox.Cancel
+        self.buttonBox = QDialogButtonBox(QBtn)
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
         
-        self.layout = QtWidgets.QVBoxLayout()
-        message = QtWidgets.QLabel("Choose which application to add:")
+        self.layout = QVBoxLayout()
+        message = QLabel("Choose which application to add:")
         self.layout.addWidget(message)
         #
-        self.TWD = QtWidgets.QTreeWidget()
+        self.TWD = QTreeWidget()
         self.TWD.setHeaderLabels(["Applications"])
         self.TWD.setAlternatingRowColors(False)
         self.TWD.itemClicked.connect(self.fitem)
@@ -2198,7 +2761,7 @@ class chooseDialog(QtWidgets.QDialog):
         self.item_accepted = None
         for iitem in self.progs:
             idx = self.progs.index(iitem)
-            tl = QtWidgets.QTreeWidgetItem([" ".join(iitem[1]), str(idx)])
+            tl = QTreeWidgetItem([" ".join(iitem[1]), str(idx)])
             self.TWD.addTopLevelItem(tl)
         #
         self.layout.addWidget(self.buttonBox)
@@ -2208,7 +2771,7 @@ class chooseDialog(QtWidgets.QDialog):
         self.updateGeometry()
         self.resize(self.sizeHint())
         qr = self.frameGeometry()
-        cp = QtWidgets.QDesktopWidget().availableGeometry().center()
+        cp = QDesktopWidget().availableGeometry().center()
         qr.moveCenter(cp)
         self.move(qr.topLeft())
     
@@ -2219,29 +2782,29 @@ class chooseDialog(QtWidgets.QDialog):
         return self.item_accepted
 
 
-class showDialog(QtWidgets.QDialog):
+class showDialog(QDialog):
     def __init__(self, dtype, lcontent, parent):
         super().__init__(parent)
         
         self.setWindowTitle("Info")
         
         if dtype == 1:
-            QBtn = QtWidgets.QDialogButtonBox.Ok
+            QBtn = QDialogButtonBox.Ok
         elif dtype == 2:
-            QBtn = QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
+            QBtn = QDialogButtonBox.Ok | QDialogButtonBox.Cancel
 
-        self.buttonBox = QtWidgets.QDialogButtonBox(QBtn)
+        self.buttonBox = QDialogButtonBox(QBtn)
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
 
-        self.layout = QtWidgets.QVBoxLayout()
-        lay2 = QtWidgets.QHBoxLayout()
+        self.layout = QVBoxLayout()
+        lay2 = QHBoxLayout()
         self.layout.addLayout(lay2)
-        licon = QtWidgets.QLabel()
-        licon.setPixmap(QtGui.QPixmap("icons/user.png"))
+        licon = QLabel()
+        licon.setPixmap(QPixmap("icons/user.png"))
         lay2.addWidget(licon)
-        message = QtWidgets.QLabel(lcontent)
-        lay2.addWidget(message, QtCore.Qt.AlignCenter)
+        message = QLabel(lcontent)
+        lay2.addWidget(message, Qt.AlignCenter)
         self.layout.addWidget(self.buttonBox)
         self.setLayout(self.layout)
         
@@ -2249,21 +2812,21 @@ class showDialog(QtWidgets.QDialog):
         self.updateGeometry()
         self.resize(self.sizeHint())
         qr = self.frameGeometry()
-        cp = QtWidgets.QDesktopWidget().availableGeometry().center()
+        cp = QDesktopWidget().availableGeometry().center()
         qr.moveCenter(cp)
         self.move(qr.topLeft())
 
 
 
 # menu
-class menuWin(QtWidgets.QWidget):
+class menuWin(QWidget):
     def __init__(self, parent=None):
         super(menuWin, self).__init__(parent)
         self.window = parent
-        self.setWindowFlags(self.windowFlags() | QtCore.Qt.FramelessWindowHint | QtCore.Qt.Tool)
-        # self.setWindowFlags(self.windowFlags() | QtCore.Qt.FramelessWindowHint | QtCore.Qt.Window | QtCore.Qt.WindowStaysOnTopHint)
+        self.setWindowFlags(self.windowFlags() | Qt.FramelessWindowHint | Qt.Tool)
+        # self.setWindowFlags(self.windowFlags() | Qt.FramelessWindowHint | Qt.Window | Qt.WindowStaysOnTopHint)
         ####### 
-        self.mainBox = QtWidgets.QHBoxLayout()
+        self.mainBox = QHBoxLayout()
         self.setLayout(self.mainBox)
         #
         sw = menu_width
@@ -2275,36 +2838,17 @@ class menuWin(QtWidgets.QWidget):
         win_height = parent_geom.height()
         screensize = app.primaryScreen()
         #
-        # if dock_position == 1:
-        # left
-        if use_menu == 1:
-            if CENTRALIZE_EL == 1:
-                sx = int((screensize.size().width() - menu_width)/2)
-            elif CENTRALIZE_EL == 0:
-                sx = parent_geom.x() + menu_padx
-        # right
-        elif use_menu == 2:
-            sx = screensize.size().width() - menu_width - menu_padx
-        #
-        # if dock_position == 1:
-            # sx += menu_padx
-            # sy -= menu_pady
-        # elif dock_position == 0:
-            # pass
-        #
-        # self.setGeometry(sx,sy,sw,sh)
-        #
-        self.hbox = QtWidgets.QHBoxLayout()
+        self.hbox = QHBoxLayout()
         # 
         self.mainBox.setContentsMargins(2,2,2,2)
         self.mainBox.addLayout(self.hbox)
         #
         ##### left box
-        self.lbox = QtWidgets.QVBoxLayout()
+        self.lbox = QVBoxLayout()
         self.lbox.setContentsMargins(0,0,0,0)
         self.hbox.addLayout(self.lbox)
         #
-        self.listWidget = QtWidgets.QListWidget(self)
+        self.listWidget = QListWidget(self)
         self.listWidget.itemClicked.connect(self.listwidgetclicked)
         self.lbox.addWidget(self.listWidget)
         hpalette = self.palette().highlight().color().name()
@@ -2337,10 +2881,10 @@ class menuWin(QtWidgets.QWidget):
     "subcontrol-origin: margin;"
 "}")
         css = cssa+cssb+cssc
-        self.listWidget.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.listWidget.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.listWidget.verticalScrollBar().setStyleSheet(css)
         ###########
-        self.line_edit = QtWidgets.QLineEdit("")
+        self.line_edit = QLineEdit("")
         self.line_edit.setFrame(True)
         if search_field_bg:
             self.line_edit.setStyleSheet("background-color: {}".format(search_field_bg))
@@ -2350,21 +2894,21 @@ class menuWin(QtWidgets.QWidget):
         self.lbox.addWidget(self.line_edit)
         # self.line_edit.setFocus(True)
         self.listWidget.setFocus(True)
-        self.listWidget.setIconSize(QtCore.QSize(menu_app_icon_size, menu_app_icon_size))
+        self.listWidget.setIconSize(QSize(menu_app_icon_size, menu_app_icon_size))
         ##### right box
-        self.rbox = QtWidgets.QVBoxLayout()
+        self.rbox = QVBoxLayout()
         self.rbox.setContentsMargins(0,0,0,0)
         self.hbox.addLayout(self.rbox)
         #############
-        self.fake_btn = QtWidgets.QPushButton()
+        self.fake_btn = QPushButton()
         self.fake_btn.setCheckable(True)
         self.fake_btn.setAutoExclusive(True)
         self.rbox.addWidget(self.fake_btn)
         self.fake_btn.hide()
         #
-        self.pref = QtWidgets.QPushButton("Bookmarks")
-        self.pref.setIcon(QtGui.QIcon("icons/bookmark.svg"))
-        self.pref.setIconSize(QtCore.QSize(menu_icon_size, menu_icon_size))
+        self.pref = QPushButton("Bookmarks")
+        self.pref.setIcon(QIcon("icons/bookmark.svg"))
+        self.pref.setIconSize(QSize(menu_icon_size, menu_icon_size))
         self.pref.setFlat(True)
         #
         hpalette = self.palette().mid().color().name()
@@ -2386,12 +2930,12 @@ class menuWin(QtWidgets.QWidget):
         self.pref.clicked.connect(self.on_pref_clicked)
         self.rbox.addWidget(self.pref)
         #############
-        sepLine = QtWidgets.QFrame()
-        sepLine.setFrameShape(QtWidgets.QFrame.HLine)
-        sepLine.setFrameShadow(QtWidgets.QFrame.Plain)
+        sepLine = QFrame()
+        sepLine.setFrameShape(QFrame.HLine)
+        sepLine.setFrameShadow(QFrame.Plain)
         self.rbox.addWidget(sepLine)
         #
-        self.rboxBtn = QtWidgets.QVBoxLayout()
+        self.rboxBtn = QVBoxLayout()
         self.rboxBtn.setContentsMargins(0,0,0,0)
         self.rbox.addLayout(self.rboxBtn)
         #
@@ -2399,21 +2943,21 @@ class menuWin(QtWidgets.QWidget):
         #
         self.rbox.addStretch(1)
         #
-        sepLine2 = QtWidgets.QFrame()
-        sepLine2.setFrameShape(QtWidgets.QFrame.HLine)
-        sepLine2.setFrameShadow(QtWidgets.QFrame.Plain)
+        sepLine2 = QFrame()
+        sepLine2.setFrameShape(QFrame.HLine)
+        sepLine2.setFrameShadow(QFrame.Plain)
         sepLine2.setContentsMargins(0,0,0,0)
         self.rbox.addWidget(sepLine2)
         ##### buttons
-        self.btn_box = QtWidgets.QHBoxLayout()
+        self.btn_box = QHBoxLayout()
         # self.btn_box.setContentsMargins(0,0,0,2)
         self.rbox.addLayout(self.btn_box)
         ## custom commands
-        self.commBtn = QtWidgets.QPushButton(QtGui.QIcon("icons/list-commands.svg"), "")
+        self.commBtn = QPushButton(QIcon("icons/list-commands.svg"), "")
         self.commBtn.setFlat(True)
         self.commBtn.setStyleSheet("border: none;")
-        self.commBtn.setIconSize(QtCore.QSize(service_icon_size, service_icon_size))
-        self.commMenu = QtWidgets.QMenu()
+        self.commBtn.setIconSize(QSize(service_icon_size, service_icon_size))
+        self.commMenu = QMenu()
         self.commMenu.setToolTipsVisible(True)
         self.commBtn.setMenu(self.commMenu)
         #
@@ -2422,31 +2966,31 @@ class menuWin(QtWidgets.QWidget):
             #
             if COMM1_COMMAND:
                 if COMM1_ICON:
-                    icon = QtGui.QIcon(COMM1_ICON)
+                    icon = QIcon(COMM1_ICON)
                     if icon.isNull():
-                        icon = QtGui.QIcon("icons/none.svg")
+                        icon = QIcon("icons/none.svg")
                 else:
-                    icon = QtGui.QIcon("icons/none.svg")
+                    icon = QIcon("icons/none.svg")
                 baction = self.commMenu.addAction(icon, COMM1_NAME, lambda:self._on_change(COMM1_COMMAND))
                 if COMM1_TOOLTIP:
                     baction.setToolTip(COMM1_TOOLTIP)
             if COMM2_COMMAND:
                 if COMM2_ICON:
-                    icon = QtGui.QIcon(COMM2_ICON)
+                    icon = QIcon(COMM2_ICON)
                     if icon.isNull():
-                        icon = QtGui.QIcon("icons/none.svg")
+                        icon = QIcon("icons/none.svg")
                 else:
-                    icon = QtGui.QIcon("icons/none.svg")
+                    icon = QIcon("icons/none.svg")
                 baction = self.commMenu.addAction(icon, COMM2_NAME, lambda:self._on_change(COMM2_COMMAND))
                 if COMM2_TOOLTIP:
                     baction.setToolTip(COMM2_TOOLTIP)
             if COMM3_COMMAND:
                 if COMM3_ICON:
-                    icon = QtGui.QIcon(COMM3_ICON)
+                    icon = QIcon(COMM3_ICON)
                     if icon.isNull():
-                        icon = QtGui.QIcon("icons/none.svg")
+                        icon = QIcon("icons/none.svg")
                 else:
-                    icon = QtGui.QIcon("icons/none.svg")
+                    icon = QIcon("icons/none.svg")
                 baction = self.commMenu.addAction(icon, COMM3_NAME, lambda:self._on_change(COMM3_COMMAND))
                 if COMM3_TOOLTIP:
                     baction.setToolTip(COMM3_TOOLTIP)
@@ -2454,12 +2998,12 @@ class menuWin(QtWidgets.QWidget):
         #
         ## add custom applications
         if app_prog:
-            self.menu_btn = QtWidgets.QPushButton()
+            self.menu_btn = QPushButton()
             self.menu_btn.setFlat(True)
             self.menu_btn.setStyleSheet("border: none;")
             self.menu_btn.setToolTip("Modify the menu")
-            self.menu_btn.setIcon(QtGui.QIcon("icons/menu.png"))
-            self.menu_btn.setIconSize(QtCore.QSize(service_icon_size, service_icon_size))
+            self.menu_btn.setIcon(QIcon("icons/menu.png"))
+            self.menu_btn.setIconSize(QSize(service_icon_size, service_icon_size))
             self.menu_btn.setFlat(False)
             #
             self.menu_btn.clicked.connect(self.f_appWin)
@@ -2469,58 +3013,70 @@ class menuWin(QtWidgets.QWidget):
             self.btn_box.addWidget(self.commBtn)
         # logout button
         if logout_command:
-            self.lo_cmd_btn = QtWidgets.QPushButton()
+            self.lo_cmd_btn = QPushButton()
             self.lo_cmd_btn.setFlat(True)
             self.lo_cmd_btn.setStyleSheet("border: none;")
             self.lo_cmd_btn.setToolTip("Logout")
-            self.lo_cmd_btn.setIcon(QtGui.QIcon("icons/system-logout.svg"))
-            self.lo_cmd_btn.setIconSize(QtCore.QSize(service_icon_size, service_icon_size))
+            self.lo_cmd_btn.setIcon(QIcon("icons/system-logout.svg"))
+            self.lo_cmd_btn.setIconSize(QSize(service_icon_size, service_icon_size))
             self.lo_cmd_btn.setFlat(False)
             #
             self.lo_cmd_btn.clicked.connect(lambda x: self._on_cmd_service("Logout?", logout_command))
             self.btn_box.addWidget(self.lo_cmd_btn)
         # restart button
         if restart_command:
-            self.rs_cmd_btn = QtWidgets.QPushButton()
+            self.rs_cmd_btn = QPushButton()
             self.rs_cmd_btn.setFlat(True)
             self.rs_cmd_btn.setStyleSheet("border: none;")
             self.rs_cmd_btn.setToolTip("Restart")
-            self.rs_cmd_btn.setIcon(QtGui.QIcon("icons/system-restart.svg"))
-            self.rs_cmd_btn.setIconSize(QtCore.QSize(service_icon_size, service_icon_size))
+            self.rs_cmd_btn.setIcon(QIcon("icons/system-restart.svg"))
+            self.rs_cmd_btn.setIconSize(QSize(service_icon_size, service_icon_size))
             self.rs_cmd_btn.setFlat(False)
             #
             self.rs_cmd_btn.clicked.connect(lambda x: self._on_cmd_service("Restart?", restart_command))
             self.btn_box.addWidget(self.rs_cmd_btn)
         # shutdown button
         if shutdown_command:
-            self.st_cmd_btn = QtWidgets.QPushButton()
+            self.st_cmd_btn = QPushButton()
             self.st_cmd_btn.setFlat(True)
             self.st_cmd_btn.setStyleSheet("border: none;")
             self.st_cmd_btn.setToolTip("Shutdown")
-            self.st_cmd_btn.setIcon(QtGui.QIcon("icons/system-shutdown.svg"))
-            self.st_cmd_btn.setIconSize(QtCore.QSize(service_icon_size, service_icon_size))
+            self.st_cmd_btn.setIcon(QIcon("icons/system-shutdown.svg"))
+            self.st_cmd_btn.setIconSize(QSize(service_icon_size, service_icon_size))
             self.st_cmd_btn.setFlat(False)
             #
             self.st_cmd_btn.clicked.connect(lambda x: self._on_cmd_service("Shutdown?", shutdown_command))
             self.btn_box.addWidget(self.st_cmd_btn)
         #
-        sepLine2 = QtWidgets.QFrame()
-        sepLine2.setFrameShape(QtWidgets.QFrame.VLine)
-        sepLine2.setFrameShadow(QtWidgets.QFrame.Plain)
+        sepLine2 = QFrame()
+        sepLine2.setFrameShape(QFrame.VLine)
+        sepLine2.setFrameShadow(QFrame.Plain)
         sepLine2.setContentsMargins(0,0,0,0)
         sepLine2.setStyleSheet("QFrame{border: None; background-color: transparent;}")
         self.rbox.addWidget(sepLine2)
         #
         self.hide()
-        self.setGeometry(sx,sy,sw,sh)
         self.show()
         self.updateGeometry()
         #
+        # left
+        if use_menu == 1:
+            if CENTRALIZE_EL == 1:
+                sx = int((NW - menu_width)/2)
+            elif CENTRALIZE_EL == 0:
+                sx = parent_geom.x() + menu_padx
+            elif CENTRALIZE_EL == 2:
+                sx = int((NW - menu_width)/2)
+        # right
+        elif use_menu == 2:
+            sx = NW - menu_width - menu_padx
+        #
         if dock_position == 1:
-            sy = screensize.size().height() - parent_geom.height() - self.geometry().height() - menu_pady
+            sy = NH - parent_geom.height() - self.geometry().height() - menu_pady
         elif dock_position == 0:
             sy = parent_geom.height() + menu_pady
-        self.move(sx,sy)
+        # self.move(sx,sy)
+        self.setGeometry(sx,sy,sw,sh)
         #
         if self.window.cw_is_shown:
             self.window.cw_is_shown.close()
@@ -2536,7 +3092,7 @@ class menuWin(QtWidgets.QWidget):
             ics = "QListWidget:item::hover:!pressed { "+"background-color: {}".format(item_highlight_color)+";}"
             self.listWidget.setStyleSheet(ics)
         #
-        self.listWidget.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.listWidget.setContextMenuPolicy(Qt.CustomContextMenu)
         self.listWidget.customContextMenuRequested.connect(self.itemClicked)
         # the bookmark button has been pressed
         self.itemBookmark = 1
@@ -2545,7 +3101,7 @@ class menuWin(QtWidgets.QWidget):
         if LOST_FOCUS_CLOSE == 1:
             self.installEventFilter(self)
         #
-        # self.setAttribute(QtCore.Qt.WA_X11NetWmWindowTypeDock)
+        # self.setAttribute(Qt.WA_X11NetWmWindowTypeDock)
     
     #
     # def custom_comm(self, comm):
@@ -2563,7 +3119,7 @@ class menuWin(QtWidgets.QWidget):
         if _ret:
             dlg = showDialog(1, "Command not found: {}".format(_ret), self.window)
             result = dlg.exec_()
-            if result == QtWidgets.QDialog.Accepted:
+            if result == QDialog.Accepted:
                 dlg.close()
             else:
                 dlg.close()
@@ -2575,7 +3131,7 @@ class menuWin(QtWidgets.QWidget):
         dlg = showDialog(2, _msg, self.window)
         result = dlg.exec_()
         _ret = 0
-        if result == QtWidgets.QDialog.Accepted:
+        if result == QDialog.Accepted:
             try:
                 subprocess.Popen(["{}".format(_cmd)])
             except Exception as E:
@@ -2586,14 +3142,14 @@ class menuWin(QtWidgets.QWidget):
         if _ret:
             dlg = showDialog(1, "Command not found: {}".format(_ret), self.window)
             result = dlg.exec_()
-            if result == QtWidgets.QDialog.Accepted:
+            if result == QDialog.Accepted:
                 dlg.close()
             else:
                 dlg.close()
 
     
     def eventFilter(self, object, event):
-        if event.type() == QtCore.QEvent.WindowDeactivate:
+        if event.type() == QEvent.WindowDeactivate:
             if self.window.mw_is_shown:
                 self.window.mw_is_shown.close()
                 self.window.mw_is_shown = None
@@ -2621,7 +3177,7 @@ class menuWin(QtWidgets.QWidget):
             self.listItemRightClicked(QPos)
     
     def emulate_clicked(self, button, ms):
-        QtCore.QTimer.singleShot(ms, button.clicked.emit)
+        QTimer.singleShot(ms, button.clicked.emit)
     
     #
     def on_line_edit(self, text):
@@ -2650,35 +3206,35 @@ class menuWin(QtWidgets.QWidget):
                 for el in globals()[ell]:
                     if (text.casefold() in el[1].casefold()) or (text.casefold() in el[3].casefold()):
                         # exe_path = shutil.which(el[1].split(" ")[0])
-                        # file_info = QtCore.QFileInfo(exe_path)
+                        # file_info = QFileInfo(exe_path)
                         # if exe_path:
                         # search for the icon by executable
-                        icon = QtGui.QIcon.fromTheme(el[1])
+                        icon = QIcon.fromTheme(el[1])
                         if icon.isNull() or icon.name() == "":
                             # set the icon by desktop file - not full path
-                            icon = QtGui.QIcon.fromTheme(el[2])
+                            icon = QIcon.fromTheme(el[2])
                             if icon.isNull() or icon.name() == "":
                                 # set the icon by desktop file - full path
                                 if os.path.exists(el[2]):
-                                    icon = QtGui.QIcon(el[2])
+                                    icon = QIcon(el[2])
                                     if icon.isNull():
                                         # set a generic icon
-                                        icon = QtGui.QIcon("icons/none.svg")
-                                        litem = QtWidgets.QListWidgetItem(icon, el[0])
+                                        icon = QIcon("icons/none.svg")
+                                        litem = QListWidgetItem(icon, el[0])
                                         litem.picon = "none"
                                     else:
-                                        litem = QtWidgets.QListWidgetItem(icon, el[0])
+                                        litem = QListWidgetItem(icon, el[0])
                                         litem.picon = el[2]
                                 else:
                                     # set a generic icon
-                                    icon = QtGui.QIcon("icons/none.svg")
-                                    litem = QtWidgets.QListWidgetItem(icon, el[0])
+                                    icon = QIcon("icons/none.svg")
+                                    litem = QListWidgetItem(icon, el[0])
                                     litem.picon = "none"
                             else:
-                                litem = QtWidgets.QListWidgetItem(icon, el[0])
+                                litem = QListWidgetItem(icon, el[0])
                                 litem.picon = icon.name()
                         else:
-                            litem = QtWidgets.QListWidgetItem(icon, el[0])
+                            litem = QListWidgetItem(icon, el[0])
                             litem.picon = el[1]
                         
                         # set the exec name as property
@@ -2705,9 +3261,9 @@ class menuWin(QtWidgets.QWidget):
         for el in app_list:
             if globals()[el] == []:
                 continue
-            btn = QtWidgets.QPushButton(el)
-            btn.setIcon(QtGui.QIcon("icons/{}".format(el+".svg")))
-            btn.setIconSize(QtCore.QSize(menu_icon_size, menu_icon_size))
+            btn = QPushButton(el)
+            btn.setIcon(QIcon("icons/{}".format(el+".svg")))
+            btn.setIconSize(QSize(menu_icon_size, menu_icon_size))
             btn.setFlat(True)
             # btn.setStyleSheet("QPushButton { text-align: left; }")
             btn.setStyleSheet("text-align: left;")
@@ -2753,36 +3309,36 @@ class menuWin(QtWidgets.QWidget):
         for el in cat_list:
             # 0 name - 1 executable - 2 icon - 3 comment - 4 path
             # exe_path = shutil.which(el[1].split(" ")[0])
-            # file_info = QtCore.QFileInfo(exe_path)
+            # file_info = QFileInfo(exe_path)
             #
             # if exe_path:
             # search for the icon by executable
-            icon = QtGui.QIcon.fromTheme(el[1])
+            icon = QIcon.fromTheme(el[1])
             if icon.isNull() or icon.name() == "":
                 # set the icon by desktop file - not full path
-                icon = QtGui.QIcon.fromTheme(el[2])
+                icon = QIcon.fromTheme(el[2])
                 if icon.isNull() or icon.name() == "":
                     # set the icon by desktop file - full path
                     if os.path.exists(el[2]):
-                        icon = QtGui.QIcon(el[2])
+                        icon = QIcon(el[2])
                         if icon.isNull():
                             # set a generic icon
-                            icon = QtGui.QIcon("icons/none.svg")
-                            litem = QtWidgets.QListWidgetItem(icon, el[0])
+                            icon = QIcon("icons/none.svg")
+                            litem = QListWidgetItem(icon, el[0])
                             litem.picon = "none"
                         else:
-                            litem = QtWidgets.QListWidgetItem(icon, el[0])
+                            litem = QListWidgetItem(icon, el[0])
                             litem.picon = el[2]
                     else:
                         # set a generic icon
-                        icon = QtGui.QIcon("icons/none.svg")
-                        litem = QtWidgets.QListWidgetItem(icon, el[0])
+                        icon = QIcon("icons/none.svg")
+                        litem = QListWidgetItem(icon, el[0])
                         litem.picon = "none"
                 else:
-                    litem = QtWidgets.QListWidgetItem(icon, el[0])
+                    litem = QListWidgetItem(icon, el[0])
                     litem.picon = icon.name()
             else:
-                litem = QtWidgets.QListWidgetItem(icon, el[0])
+                litem = QListWidgetItem(icon, el[0])
                 litem.picon = el[1]
             
             # set the exec name as property
@@ -2803,7 +3359,7 @@ class menuWin(QtWidgets.QWidget):
         _item = self.listWidget.itemFromIndex(item_idx)
         pret = self.check_bookmarks(_item)
         #
-        self.listMenu= QtWidgets.QMenu()
+        self.listMenu= QMenu()
         if pret == 1:
             item_b = self.listMenu.addAction("Add to bookmark")
         if SEND_TO_DESKTOP:
@@ -2886,7 +3442,7 @@ class menuWin(QtWidgets.QWidget):
     
     # execute the program from the menu
     def listwidgetclicked(self, item):
-        # self.p = QtCore.QProcess()
+        # self.p = QProcess()
         # self.p.setWorkingDirectory(os.getenv("HOME"))
         # # self.p.start(str(item.exec_n))
         # self.p.startDetached(str(item.exec_n))
@@ -2958,20 +3514,20 @@ class menuWin(QtWidgets.QWidget):
                 # PATH = ""
             #
             # exe_path = shutil.which(EXEC.split(" ")[0])
-            # file_info = QtCore.QFileInfo(exe_path)
+            # file_info = QFileInfo(exe_path)
             # if file_info.exists():
                 # if os.path.exists(ICON):
-                    # icon = QtGui.QIcon(ICON)
+                    # icon = QIcon(ICON)
                 # else:
-                    # icon = QtGui.QIcon.fromTheme(ICON)
+                    # icon = QIcon.fromTheme(ICON)
                     # if icon.name() == "none":
-                        # icon = QtGui.QIcon("icons/none.svg")
-            icon = QtGui.QIcon.fromTheme(ICON)
+                        # icon = QIcon("icons/none.svg")
+            icon = QIcon.fromTheme(ICON)
             if icon.isNull():
-                icon = QtGui.QIcon(icon)
+                icon = QIcon(icon)
             if icon.isNull():
-                icon = QtGui.QIcon("icons/none.svg")
-            litem = QtWidgets.QListWidgetItem(icon, NAME)
+                icon = QIcon("icons/none.svg")
+            litem = QListWidgetItem(icon, NAME)
             litem.lbookmark = bb
             litem.exec_n = EXEC
             litem.ppath = PATH
@@ -2982,7 +3538,7 @@ class menuWin(QtWidgets.QWidget):
                 litem.tterm = False
             self.listWidget.addItem(litem)
             #
-        self.listWidget.sortItems(QtCore.Qt.AscendingOrder)
+        self.listWidget.sortItems(Qt.AscendingOrder)
         self.listWidget.scrollToTop()
         if self.listWidget.count():
             self.listWidget.item(0).setSelected(False)
@@ -2990,7 +3546,7 @@ class menuWin(QtWidgets.QWidget):
         
     #
     def listItemRightClickedToRemove(self, QPos):
-        self.listMenuR= QtWidgets.QMenu()
+        self.listMenuR= QMenu()
         item_b = self.listMenuR.addAction("Remove from bookmark")
         action = self.listMenuR.exec_(self.listWidget.mapToGlobal(QPos))
         if action == item_b:
@@ -3005,49 +3561,49 @@ class menuWin(QtWidgets.QWidget):
                 pass
 
 # popup per calendar
-class calendarWin(QtWidgets.QWidget):
+class calendarWin(QWidget):
     def __init__(self, parent=None):
         super(calendarWin, self).__init__(parent)
         self.window = parent
-        self.setWindowFlags(self.windowFlags() | QtCore.Qt.FramelessWindowHint | QtCore.Qt.Tool)
-        # self.setWindowFlags(self.windowFlags() | QtCore.Qt.FramelessWindowHint | QtCore.Qt.Window | QtCore.Qt.WindowStaysOnTopHint)
+        self.setWindowFlags(self.windowFlags() | Qt.FramelessWindowHint | Qt.Tool)
+        # self.setWindowFlags(self.windowFlags() | Qt.FramelessWindowHint | Qt.Window | Qt.WindowStaysOnTopHint)
         ####### box 
-        mainBox = QtWidgets.QHBoxLayout()
+        mainBox = QHBoxLayout()
         self.setLayout(mainBox)
         ## 
-        self.hbox = QtWidgets.QHBoxLayout()
+        self.hbox = QHBoxLayout()
         mainBox.addLayout(self.hbox)
         self.hbox.setContentsMargins(2,2,2,2)
         mainBox.setContentsMargins(0,0,0,0)
         
         #### 
-        self.vbox_1 = QtWidgets.QVBoxLayout()
+        self.vbox_1 = QVBoxLayout()
         self.vbox_1.setContentsMargins(0,0,0,0)
         self.hbox.addLayout(self.vbox_1)
         #
-        self.scroll = QtWidgets.QScrollArea()
-        self.widget = QtWidgets.QWidget()
-        self.vbox = QtWidgets.QVBoxLayout()
+        self.scroll = QScrollArea()
+        self.widget = QWidget()
+        self.vbox = QVBoxLayout()
         self.widget.setLayout(self.vbox)
         # 
-        self.ldatebox = QtWidgets.QHBoxLayout()
+        self.ldatebox = QHBoxLayout()
         self.ldatebox.setContentsMargins(0,0,0,0)
         self.vbox_1.addLayout(self.ldatebox)
         #
         tomonth = datetime.datetime.now().strftime("%B")
         toyear = str(datetime.datetime.now().year)
         #
-        self.mlabel = QtWidgets.QLabel(tomonth+" "+toyear)
-        self.mlabel.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
-        self.mlabel.setAlignment(QtCore.Qt.AlignCenter)
+        self.mlabel = QLabel(tomonth+" "+toyear)
+        self.mlabel.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.mlabel.setAlignment(Qt.AlignCenter)
         self.mlabel.mousePressEvent = self.go_today 
         #
-        self.pmonth = QtWidgets.QPushButton()
-        self.pmonth.setIcon(QtGui.QIcon("icons/go-prev.png"))
+        self.pmonth = QPushButton()
+        self.pmonth.setIcon(QIcon("icons/go-prev.png"))
         self.pmonth.setFlat(True)
         #
-        self.nmonth = QtWidgets.QPushButton()
-        self.nmonth.setIcon(QtGui.QIcon("icons/go-next.png"))
+        self.nmonth = QPushButton()
+        self.nmonth.setIcon(QIcon("icons/go-next.png"))
         self.nmonth.setFlat(True)
         #
         self.pmonth.clicked.connect(self.on_prev_month)
@@ -3057,8 +3613,8 @@ class calendarWin(QtWidgets.QWidget):
         self.ldatebox.addWidget(self.mlabel)
         self.ldatebox.addWidget(self.nmonth)
         #
-        self.scroll.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
-        self.scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.scroll.setWidgetResizable(True)
         self.scroll.setFixedWidth(appointment_window_size)
         self.scroll.setWidget(self.widget)
@@ -3091,14 +3647,14 @@ class calendarWin(QtWidgets.QWidget):
         self.vbox_1.addWidget(self.scroll)
         
         ################ the calendar
-        thisMonth = QtCore.QDate().currentDate().month()
-        thisYear = QtCore.QDate().currentDate().year()
+        thisMonth = QDate().currentDate().month()
+        thisYear = QDate().currentDate().year()
         l_e = []
         # 
         for ev in list_events_all:
             tdata = ev.DTSTART
             ttime = ("{}:{}".format(tdata[9:11], tdata[11:13]))
-            tdate = QtCore.QDate.fromString(ev.DTSTART[0:8], 'yyyyMMdd')
+            tdate = QDate.fromString(ev.DTSTART[0:8], 'yyyyMMdd')
             l_e.append((tdate, ttime+" "+ev.SUMMARY, ev.DESCRIPTION))
         #
         l_e.sort()
@@ -3106,7 +3662,7 @@ class calendarWin(QtWidgets.QWidget):
         self.calendar = Calendar(self, l_e, self.vbox)
         self.calendar.setContentsMargins(0,0,0,0)
         self.calendar.setNavigationBarVisible(False)
-        self.calendar.setVerticalHeaderFormat(QtWidgets.QCalendarWidget.NoVerticalHeader)
+        self.calendar.setVerticalHeaderFormat(QCalendarWidget.NoVerticalHeader)
         self.calendar.currentPageChanged.connect(self.calendar_month_changed)
         self.hbox.addWidget(self.calendar)
         self.show()
@@ -3128,23 +3684,35 @@ class calendarWin(QtWidgets.QWidget):
         cwY = 0
         screensize = app.primaryScreen()
         #
-        if use_clock == 1:
-            cwX = clock_gapx
-        if use_clock == 2:
-            cwX = screensize.size().width() - self.width() - clock_gapx
-        #
-        if dock_position == 1:
-            cwY = screensize.size().height() - self.height() - self.window.height() - clock_gapy
-        elif dock_position == 0:
-            cwY = self.window.height() + clock_gapy
-        #
-        self.setGeometry(cwX, cwY, -1,-1)
+        if CENTRALIZE_EL != 2:
+            this_geom = self.geometry()
+            if dock_position == 0:
+                sy = dock_height+clock_gapy
+                if use_clock == 2:
+                    sx = NW-this_geom.width()-clock_gapx
+                elif use_clock == 1:
+                    sx = clock_gapx
+            elif dock_position == 1:
+                sy = (NH-dock_height-this_geom.height()-clock_gapy)
+                if use_clock == 2:
+                    sx = NW-this_geom.width()-clock_gapx
+                elif use_clock == 1:
+                    sx = clock_gapx
+            self.setGeometry(sx, sy, -1,-1)
+        elif CENTRALIZE_EL == 2:
+            this_geom = self.geometry()
+            sx = int((NW - this_geom.width())/2)
+            if dock_position == 0:
+                sy = (dock_height+clock_gapy)
+            elif dock_position == 1:
+                sy = (NH-dock_height-this_geom.height()-clock_gapy)
+            self.setGeometry(sx, sy, -1,-1)
         #
         if LOST_FOCUS_CLOSE == 1:
             self.installEventFilter(self)
     
     def eventFilter(self, object, event):
-        if event.type() == QtCore.QEvent.WindowDeactivate:
+        if event.type() == QEvent.WindowDeactivate:
             if self.window.cw_is_shown:
                 self.window.cw_is_shown.close()
                 self.window.cw_is_shown = None
@@ -3158,7 +3726,7 @@ class calendarWin(QtWidgets.QWidget):
     
     #
     def go_today(self, e):
-        to_day = QtCore.QDate().currentDate()
+        to_day = QDate().currentDate()
         self.calendar.setSelectedDate(to_day)
         tomonth = datetime.datetime.now().strftime("%B")
         toyear = str(datetime.datetime.now().year)
@@ -3166,8 +3734,8 @@ class calendarWin(QtWidgets.QWidget):
         
     #
     def on_prev_month(self):
-        thisMonth = QtCore.QDate().currentDate().month()
-        thisYear = QtCore.QDate().currentDate().year()
+        thisMonth = QDate().currentDate().month()
+        thisYear = QDate().currentDate().year()
         selectedDate = self.calendar.selectedDate()
         selectedMonth = selectedDate.month()
         selectedYear = selectedDate.year()
@@ -3176,17 +3744,17 @@ class calendarWin(QtWidgets.QWidget):
             selectedYear -= 1
             selectedMonth = 13
         if (thisMonth == selectedMonth - 1) and (thisYear == selectedYear):
-            thisDay = QtCore.QDate().currentDate().day()
+            thisDay = QDate().currentDate().day()
         #
-        self.calendar.setSelectedDate(QtCore.QDate(selectedYear, selectedMonth-1, thisDay))
+        self.calendar.setSelectedDate(QDate(selectedYear, selectedMonth-1, thisDay))
         #
         nmonth2 = datetime.datetime.strptime(str(selectedMonth-1), '%m')
         nmonth = nmonth2.strftime('%B')
         self.mlabel.setText(str(nmonth)+" "+str(selectedYear))
     # 
     def on_next_month(self):
-        thisMonth = QtCore.QDate().currentDate().month()
-        thisYear = QtCore.QDate().currentDate().year()
+        thisMonth = QDate().currentDate().month()
+        thisYear = QDate().currentDate().year()
         selectedDate = self.calendar.selectedDate()
         selectedMonth = selectedDate.month()
         selectedYear = selectedDate.year()
@@ -3195,17 +3763,17 @@ class calendarWin(QtWidgets.QWidget):
             selectedYear += 1
             selectedMonth = 0
         if (thisMonth == selectedMonth+1) and (thisYear == selectedYear):
-            thisDay = QtCore.QDate().currentDate().day()
+            thisDay = QDate().currentDate().day()
         #
-        self.calendar.setSelectedDate(QtCore.QDate(selectedYear, selectedMonth+1, thisDay))
+        self.calendar.setSelectedDate(QDate(selectedYear, selectedMonth+1, thisDay))
         #
         nmonth2 = datetime.datetime.strptime(str(selectedMonth+1), '%m')
         nmonth = nmonth2.strftime('%B')
         self.mlabel.setText(str(nmonth)+" "+str(selectedYear))
         
 
-class ClickLabel(QtWidgets.QLabel):
-    # clicked = QtCore.pyqtSignal()
+class ClickLabel(QLabel):
+    # clicked = pyqtSignal()
     
     def mouseDoubleClickEvent(self, event):
         if event_command:
@@ -3218,11 +3786,11 @@ class ClickLabel(QtWidgets.QLabel):
             # except Exception as E:
                 # MyDialog("Error", str(E), self)
         # self.clicked.emit()
-        QtWidgets.QLabel.mousePressEvent(self, event)      
+        QLabel.mousePressEvent(self, event)      
 
 
 
-class Calendar(QtWidgets.QCalendarWidget):
+class Calendar(QCalendarWidget):
   
     # constructor
     def __init__(self, parent=None, c_dict=None, vbox=None):
@@ -3230,7 +3798,7 @@ class Calendar(QtWidgets.QCalendarWidget):
         self.parent = parent
         self.events = c_dict
         self.cvbox = vbox
-        self.color3 = QtGui.QColor(calendar_appointment_day_color)
+        self.color3 = QColor(calendar_appointment_day_color)
         if citem_highlight_color:
             ics = "QTableView{selection-background-color: "+"{}".format(citem_highlight_color)+"}"
             self.setStyleSheet(ics)
@@ -3244,7 +3812,7 @@ class Calendar(QtWidgets.QCalendarWidget):
         c_today = self.selectedDate()
         self.popCalEv(c_today)
         #
-        self.vw = self.findChild(QtWidgets.QTableView)
+        self.vw = self.findChild(QTableView)
         self.vw.viewport().installEventFilter(self)
         #
     
@@ -3297,25 +3865,54 @@ class Calendar(QtWidgets.QCalendarWidget):
         super().paintCell(painter, rect, date)
         if date in self.events_date:
             psize = 20
-            startPoint = QtCore.QPoint(rect.x()+rect.width(), rect.y()+rect.height()-psize)
-            controlPoint1 = QtCore.QPoint(rect.x()+rect.width(), rect.y()+rect.height())
-            controlPoint2 = QtCore.QPoint(rect.x()+rect.width()-psize, rect.y()+rect.height())
-            endPoint = QtCore.QPoint(rect.x(), rect.y())
+            startPoint = QPoint(rect.x()+rect.width(), rect.y()+rect.height()-psize)
+            controlPoint1 = QPoint(rect.x()+rect.width(), rect.y()+rect.height())
+            controlPoint2 = QPoint(rect.x()+rect.width()-psize, rect.y()+rect.height())
+            endPoint = QPoint(rect.x(), rect.y())
             #
-            path = QtGui.QPainterPath(startPoint)
+            path = QPainterPath(startPoint)
             path.lineTo(controlPoint1)
             path.lineTo(controlPoint2)
             painter.fillPath(path, self.color3)
 
+# type - message - parent
+class MyDialog(QMessageBox):
+    def __init__(self, *args):
+        super(MyDialog, self).__init__(args[-1])
+        if args[0] == "Info":
+            self.setIcon(QMessageBox.Information)
+            self.setStandardButtons(QMessageBox.Ok)
+        elif args[0] == "Error":
+            self.setIcon(QMessageBox.Critical)
+            self.setStandardButtons(QMessageBox.Ok)
+        elif args[0] == "Question":
+            self.setIcon(QMessageBox.Question)
+            self.setStandardButtons(QMessageBox.Yes|QMessageBox.Cancel)
+        self.setWindowIcon(QIcon("icons/clipman.svg"))
+        self.setWindowTitle(args[0])
+        self.resize(dialWidth,100)
+        self.setText(args[1])
+        self.retval = self.exec_()
+    
+    def event(self, e):
+        result = QMessageBox.event(self, e)
+        #
+        self.setMinimumHeight(0)
+        self.setMaximumHeight(16777215)
+        self.setMinimumWidth(0)
+        self.setMaximumWidth(16777215)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        # 
+        return result
 
 ################
 if __name__ == '__main__':
 
-    app = QtWidgets.QApplication(sys.argv)
+    app = QApplication(sys.argv)
     #
     if tray_already_used:
-        msg = QtWidgets.QMessageBox()
-        msg.setIcon(QtWidgets.QMessageBox.Information)
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Information)
         msg.setText("Tray already in use.")
         msg.setInformativeText("The tray will be disabled.")
         msg.setWindowTitle("Info")
@@ -3323,16 +3920,17 @@ if __name__ == '__main__':
     ########### sec_window
     sec_position = 1
     sec_window = SecondaryWin(sec_position)
-    sec_window.setWindowFlags(sec_window.windowFlags() | QtCore.Qt.WindowDoesNotAcceptFocus)
-    sec_window.setAttribute(QtCore.Qt.WA_AlwaysShowToolTips, True)
-    sec_window.setAttribute(QtCore.Qt.WA_X11NetWmWindowTypeDock)
+    sec_window.setWindowFlags(sec_window.windowFlags() | Qt.WindowDoesNotAcceptFocus)
+    sec_window.setAttribute(Qt.WA_AlwaysShowToolTips, True)
+    sec_window.setAttribute(Qt.WA_X11NetWmWindowTypeDock)
     screen = app.primaryScreen()
     size = screen.size()
-    # if dock_width:
-        # WINW = dock_width
-    # else:
+    NW = size.width()
+    NH = size.height()
+    # this program width and height
     WINW = size.width()
     WINH = dock_height
+    #
     this_windowID = int(sec_window.winId())
     _display = Display()
     this_window = _display.create_resource_object('window', this_windowID)
@@ -3414,9 +4012,16 @@ if __name__ == '__main__':
         sy = 0
     sw = WINW
     sh = WINH
-    sec_window.setGeometry(sx, sy, sw, sh)
+    if CENTRALIZE_EL == 2:
+        sec_window.setGeometry(sx, sy, 1, sh)
+    else:
+        sec_window.setGeometry(sx, sy, sw, sh)
     #
     sec_window.show()
+    #
+    if CENTRALIZE_EL == 2:
+        sec_width = sec_window.geometry().width()
+        sec_window.move(int((WINW-sec_width)/2), sy)
     #
     #############
     # # move and center the window
@@ -3438,11 +4043,11 @@ if __name__ == '__main__':
     ############
     # set new style globally
     if theme_style:
-        s = QtWidgets.QStyleFactory.create(theme_style)
+        s = QStyleFactory.create(theme_style)
         app.setStyle(s)
     # set the icon style globally
     if icon_theme:
-        QtGui.QIcon.setThemeName(icon_theme)
+        QIcon.setThemeName(icon_theme)
     ################
     # some applications has been added or removed
     def directory_changed(edir):
@@ -3452,7 +4057,7 @@ if __name__ == '__main__':
             on_directory_changed()
     # check for changes in the application directories
     fPath = app_dirs_system + app_dirs_user
-    fileSystemWatcher = QtCore.QFileSystemWatcher(fPath)
+    fileSystemWatcher = QFileSystemWatcher(fPath)
     fileSystemWatcher.directoryChanged.connect(directory_changed)
     ################
     # ewmh.setWmState(this_window, 1, '_NET_WM_STATE_STICKY')

@@ -1,11 +1,11 @@
 # the height of the dock
 dock_height=42
 # icon button max size to get from application (even number)
-button_size=32
+button_size=40
 # program launchers button size
 pbutton_size=30
 # padding - space between button and icon (size icon: button_size - button_padding)
-button_padding=6
+button_padding=2
 # show virtual desktops: 0 no - 1 yes
 virtual_desktops=0
 # use the builtin tray: 0 no - 1 yes
@@ -28,17 +28,19 @@ button_background_color="#FFA500"
 # blur_radius=15
 # application to be skipped from the dock (executables between double quotes with comma separator)
 SKIP_APP=[]
-# centralize elements menu, app launchers, tasklist: 0 no - 1 yes
-CENTRALIZE_EL=1
-# add gaps to better centralize elements (L left, R right): 0 or > 0
-CENTRALIZE_GAP_L=0
-CENTRALIZE_GAP_R=0
+# centralize elements menu, app launchers, tasklist: 0 no - 1 yes - 2 resize the dock to the minimum width
+CENTRALIZE_EL=2
+# increase the value to better centralize elements (L left, R right): 1 or > 1
+CENTRALIZE_GAP_L=1
+CENTRALIZE_GAP_R=1
 # close the menu and the clock applet if focus is lost on another window: 0 no - 1 yes
-LOST_FOCUS_CLOSE=0
+LOST_FOCUS_CLOSE=1
 # play sounds as a window opens or closes: 1 yes - 0 no
-PLAY_SOUND=0
+PLAY_SOUND=1
 # audio player: "NAME" or ""
 A_PLAYER="aplay"
+# use internal clipboard
+USE_CLIPBOARD=1
 ######### MENU ##########
 # show the application menu: 0 no - 1 left - 2 right
 use_menu=1
@@ -149,7 +151,7 @@ label1_interval=1
 # use html tags instead of plain text - override the next label1 options
 label1_use_richtext=0
 # label2 color: "" to default or in the form "#XXXXXX" "colour name"
-label1_color="green"
+label1_color="red"
 # font to be used in the label
 label1_font=""
 # font size
@@ -170,7 +172,7 @@ label2_interval=3
 # use html tags instead of plain text - override the next label2 options
 label2_use_richtext=0
 # label2 color: "" to default or in the form "#XXXXXX" or "colour name"
-label2_color="white"
+label2_color="gray"
 # font to be used in the label
 label2_font=""
 # font size
@@ -183,6 +185,27 @@ label2_font_italic=0
 label2_command1=""
 # command to execute - center mouse button
 label2_command2=""
+######### label3 - at left
+# exec label1 script: 0 to disable - 1 yes
+label3_script=0
+# seconds to wait for executing the script again
+label3_interval=1
+# use html tags instead of plain text - override the next label1 options
+label3_use_richtext=0
+# label2 color: "" to default or in the form "#XXXXXX" "colour name"
+label3_color="brown"
+# font to be used in the label
+label3_font=""
+# font size
+label3_font_size=12
+# font weight: Thin 0 - ExtraLight 12 - Light 25 - Normal 50 - Medium 57 - DemiBold 63 - Bold 75 - ExtraBold 81 - Black 87
+label3_font_weight=75
+# font italic: 0 no - 1 yes
+label3_font_italic=0
+# command to execute
+label3_command1=""
+# command to execute - center mouse button
+label3_command2=""
 ########## service commands
 # /usr/bin/systemctl poweroff
 shutdown_command="xterm"
@@ -193,9 +216,9 @@ logout_command="xterm"
 ##### custom commands
 # one word command - with full path eventually
 # command and name mandatory
-COMM1_COMMAND=""
+COMM1_COMMAND="xterm"
 COMM1_ICON=""
-COMM1_NAME=""
+COMM1_NAME="XTERM"
 COMM1_TOOLTIP=""
 #
 COMM2_COMMAND=""
@@ -208,3 +231,5 @@ COMM3_ICON=""
 COMM3_NAME=""
 COMM3_TOOLTIP=""
 #
+
+
