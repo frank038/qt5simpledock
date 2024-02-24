@@ -16,7 +16,8 @@ Features:
 - virtual desktops (if supported by the window manager)
 - application launchers (using the contextual menu, applications can be pinned and unpinned - a valid desktop file is required; the file delete_me in the folder 'applications' needs to be deleted before using this program)
 - task list with icon support and application comment while hovering on it
-- three slots for periodical custom messagges (just modify the files in the script folder; they accept both plain text or rich text; see the sample files); can execute programs double clicking with the left mouse button or the middle mouse button. 
+- four slots for periodical custom messagges (just modify the files in the script folder; they accept both plain text or rich text; see the sample files); can execute programs double clicking with the left mouse button or the middle mouse button. 
+- two slots for custom widgets in the dock, left and right
 - systemtray icons support
 - integrated clipboard (text and images)
 - closing applications by right mouse clicking on its icon
