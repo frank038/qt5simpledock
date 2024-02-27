@@ -20,6 +20,8 @@ tasklist_position=0
 theme_style=""
 # icon theme: "" to use the default theme
 icon_theme=""
+# the colour of the pressed menu and bookmark button: "" for the default or in the form #7F7F7F
+button_menu_selected_color=""
 # the background colour of each button in the tasklist or "" for default #DF5E0B
 button_background_color="#FFA500"
 # # border radius
@@ -41,6 +43,12 @@ PLAY_SOUND=1
 A_PLAYER="aplay"
 # use internal clipboard
 USE_CLIPBOARD=1
+# use internal audio control - experimental
+USE_AUDIO=0
+# volume step: %
+AUDIO_STEP=5
+# show the microphone icon - experimental - USE_AUDIO is required
+USE_MICROPHONE=0
 # custom widgets at left
 USE_CUSTOM_WIDGET_LEFT=0
 # custom widgets at right
@@ -235,5 +243,3 @@ COMM3_ICON=""
 COMM3_NAME=""
 COMM3_TOOLTIP=""
 #
-
-

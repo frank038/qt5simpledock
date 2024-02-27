@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
-# V 0.9.31
+# V 0.9.32
 
 from PyQt5.QtCore import (QThread,pyqtSignal,Qt,QTimer,QTime,QDate,QSize,QRect,QCoreApplication,QEvent,QPoint,QFileSystemWatcher,QProcess)
 # from PyQt5.QtCore import (QFileInfo)
-from PyQt5.QtWidgets import (QWidget,QHBoxLayout,QBoxLayout,QLabel,QPushButton,QSizePolicy,QMenu,QVBoxLayout,QTabWidget,QListWidget,QScrollArea,QListWidgetItem,QDialog,QMessageBox,QMenu,qApp,QAction,QDialogButtonBox,QTreeWidget,QTreeWidgetItem,QDesktopWidget,QLineEdit,QFrame,QCalendarWidget,QTableView,QStyleFactory,QApplication)
+from PyQt5.QtWidgets import (QWidget,QHBoxLayout,QBoxLayout,QLabel,QPushButton,QSizePolicy,QMenu,QVBoxLayout,QTabWidget,QListWidget,QScrollArea,QListWidgetItem,QDialog,QMessageBox,QMenu,qApp,QAction,QDialogButtonBox,QTreeWidget,QTreeWidgetItem,QDesktopWidget,QLineEdit,QFrame,QCalendarWidget,QTableView,QStyleFactory,QApplication,QButtonGroup,QRadioButton)
 from PyQt5.QtGui import (QFont,QIcon,QImage,QPixmap,QPalette,QWindow,QColor,QPainterPath)
 import sys, os, time
 import shutil
@@ -437,6 +437,8 @@ class SecondaryWin(QWidget):
         # super().__init__()
         self.position = position
         self.setWindowTitle("qt5simpledock")
+        # qApp.setStyleSheet("QWidget#mainwin { border:1px solid #7F7F7F;}")
+        # self.setObjectName("mainwin")
         #
         self.display = Display()
         self.root = self.display.screen().root
@@ -482,10 +484,13 @@ class SecondaryWin(QWidget):
             self.abox.setSpacing(0)
             self.setLayout(self.abox)
             #
+            if CENTRALIZE_EL == 1:
+                self.abox.addStretch(1)
+            #
             if label0_script:
                 self.labelw0 = QLabel()
                 # self.labelw0.setAlignment(Qt.AlignRight|Qt.AlignVCenter)
-                self.abox.insertWidget(0, self.labelw0)
+                self.abox.insertWidget(1, self.labelw0)
                 if label1_use_richtext:
                     self.labelw0.setTextFormat(Qt.RichText)
                 else:
@@ -514,6 +519,8 @@ class SecondaryWin(QWidget):
                 self.cbox = QHBoxLayout()
                 self.cbox.setContentsMargins(4,0,4,0)
                 self.tlabel = QLabel("")
+                # self.tlabel.setAlignment(Qt.AlignCenter)
+                # self.tlabel.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
                 tfont = QFont()
                 if calendar_label_font:
                     tfont.setFamily(calendar_label_font)
@@ -562,15 +569,15 @@ class SecondaryWin(QWidget):
                 self.tlabel.mousePressEvent = self.on_tlabel
                 #
                 if use_clock == 1:
-                    self.abox.insertLayout(1, self.cbox)
+                    self.abox.insertLayout(2, self.cbox)
             ##########
-            if CENTRALIZE_EL == 1:
-                self.abox.addStretch(1)
-                if CENTRALIZE_GAP_L > 0:
-                    self.abox.addStretch(CENTRALIZE_GAP_L)
-                    # clabell = QLabel()
-                    # clabell.setText(" "*CENTRALIZE_GAP_L)
-                    # self.abox.insertWidget(2, clabell)
+            # if CENTRALIZE_EL == 1:
+                # self.abox.addStretch(1)
+                # if CENTRALIZE_GAP_L > 0:
+                    # self.abox.addStretch(CENTRALIZE_GAP_L)
+                    # # clabell = QLabel()
+                    # # clabell.setText(" "*CENTRALIZE_GAP_L)
+                    # # self.abox.insertWidget(2, clabell)
             # else:
                 # self.abox.addStretch(0)
             ## menu
@@ -580,7 +587,7 @@ class SecondaryWin(QWidget):
                 self.mbtnbox.setContentsMargins(4,0,4,0)
                 #self.mbtnbox.setSpacing(4)
                 if use_menu == 1:
-                    self.abox.insertLayout(4, self.mbtnbox)
+                    self.abox.insertLayout(3, self.mbtnbox)
                 # the window menu
                 self.mbutton = QPushButton(flat=True)
                 self.mbutton.setStyleSheet("border: none;")
@@ -597,7 +604,7 @@ class SecondaryWin(QWidget):
                 self.virtbox.setContentsMargins(0,0,0,0)
                 self.virtbox.setSpacing(4)
                 self.virtbox.desk = "v"
-                self.abox.insertLayout(5, self.virtbox)
+                self.abox.insertLayout(4, self.virtbox)
                 #
                 vbtn = QPushButton()
                 vbtn.setFlat(True)
@@ -617,7 +624,7 @@ class SecondaryWin(QWidget):
             if label3_script:
                 self.labelw3 = QLabel()
                 # self.labelw3.setAlignment(Qt.AlignRight|Qt.AlignVCenter)
-                self.abox.insertWidget(6, self.labelw3)
+                self.abox.insertWidget(5, self.labelw3)
                 if label3_use_richtext:
                     self.labelw3.setTextFormat(Qt.RichText)
                 else:
@@ -640,14 +647,21 @@ class SecondaryWin(QWidget):
                 self.label3thread.start()
             #
             if USE_CUSTOM_WIDGET_LEFT:
-                self.abox.insertWidget(7, widgets_left())
+                self.abox.insertWidget(6, widgets_left())
             ## program box
             self.prog_box = QHBoxLayout()
             self.prog_box.setContentsMargins(4,0,4,0)
             self.prog_box.setSpacing(4)
             self.prog_box.desk = "p"
             #self.prog_box.setAlignment(Qt.AlignCenter)
-            self.abox.insertLayout(8, self.prog_box)
+            self.abox.insertLayout(7, self.prog_box)
+            #
+            sepLine1 = QFrame()
+            sepLine1.setFrameShape(QFrame.VLine)
+            sepLine1.setFrameShadow(QFrame.Plain)
+            sepLine1.setContentsMargins(0,4,0,4)
+            self.prog_box.addWidget(sepLine1)
+            #
             # self.abox.setAlignment(self.prog_box, Qt.AlignVCenter)
             ## add the applications to prog_box
             progs = os.listdir("applications")
@@ -692,6 +706,13 @@ class SecondaryWin(QWidget):
                     self.pbtn.setContextMenuPolicy(Qt.CustomContextMenu)
                     self.pbtn.customContextMenuRequested.connect(self.pbtnClicked)
             #
+            sepLine2 = QFrame()
+            sepLine2.setFrameShape(QFrame.VLine)
+            sepLine2.setFrameShadow(QFrame.Plain)
+            sepLine2.setContentsMargins(0,4,0,4)
+            self.prog_box.addWidget(sepLine2)
+            #
+            #
             ## tasklist
             self.ibox = QHBoxLayout()
             # (int left, int top, int right, int bottom)
@@ -712,7 +733,7 @@ class SecondaryWin(QWidget):
                 # self.ibox.setDirection(QBoxLayout.RightToLeft)
             # the first virtual desktop
             self.ibox.desk = 0
-            self.abox.insertLayout(10, self.ibox)
+            self.abox.insertLayout(9, self.ibox)
             # # fake button
             # self.fake_btn = QPushButton()
             # self.fake_btn.setAutoExclusive(True)
@@ -821,19 +842,20 @@ class SecondaryWin(QWidget):
         self.mythread.start()
         ########
         #
-        if CENTRALIZE_EL != 2:
-            if CENTRALIZE_GAP_R > 0:
-                # clabelr = QLabel()
-                # clabelr.setText(" "*CENTRALIZE_GAP_R)
-                # self.abox.insertWidget(7, clabelr)
-                self.abox.addStretch(CENTRALIZE_GAP_R)
-            # 
+        # if CENTRALIZE_EL != 2:
+            # if CENTRALIZE_GAP_R > 0:
+                # # clabelr = QLabel()
+                # # clabelr.setText(" "*CENTRALIZE_GAP_R)
+                # # self.abox.insertWidget(7, clabelr)
+                # self.abox.addStretch(CENTRALIZE_GAP_R)
+            #
+        if CENTRALIZE_EL == 2:
             self.abox.addStretch(1)
         #
         if label1_script:
             self.labelw1 = QLabel()
             self.labelw1.setAlignment(Qt.AlignRight|Qt.AlignVCenter)
-            self.abox.insertWidget(13, self.labelw1)
+            self.abox.insertWidget(11, self.labelw1)
             if label1_use_richtext:
                 self.labelw1.setTextFormat(Qt.RichText)
             else:
@@ -864,7 +886,7 @@ class SecondaryWin(QWidget):
         if label2_script:
             self.labelw2 = QLabel()
             # self.labelw2.setAlignment(Qt.AlignRight|Qt.AlignVCenter)
-            self.abox.insertWidget(14, self.labelw2)
+            self.abox.insertWidget(12, self.labelw2)
             if label2_use_richtext:
                 self.labelw2.setTextFormat(Qt.RichText)
             else:
@@ -892,6 +914,101 @@ class SecondaryWin(QWidget):
             self.label2thread.label1sig.connect(self.on_label2)
             self.label2thread.start()
         #
+        if CENTRALIZE_EL == 0:
+            self.abox.addStretch(1)
+        # audio - 14
+        #
+        if USE_AUDIO:
+            self.audiobox = QHBoxLayout()
+            self.audiobox.setContentsMargins(0,0,0,0)
+            self.abox.insertLayout(14, self.audiobox)
+            self.btn_audio = QPushButton()
+            self.btn_audio.setFlat(True)
+            self.btn_audio.setStyleSheet("border: none;")
+            self.audiobox.insertWidget(0, self.btn_audio)
+            #
+            self.btn_audio.setContextMenuPolicy(Qt.CustomContextMenu)
+            self.btn_audio.customContextMenuRequested.connect(self.on_volume2)
+            self.btn_audio.winid = -999
+            self.btn_audio.installEventFilter(self)
+            #
+            self.amenu = QMenu()
+            self.laudiobox = QVBoxLayout()
+            self.laudiobox.setContentsMargins(4,4,4,4)
+            self.amenu.setLayout(self.laudiobox)
+            #
+            import pulsectl as _pulse
+            # index:[data]
+            self.list_sink = {}
+            self._pulse = _pulse
+            self.pulse = _pulse.pulsectl.Pulse('event-audio')
+            self.pulse_sink_list = self.pulse.sink_list()
+            #
+            self.server_info = None
+            self.server_info = self._pulse.Pulse().server_info()
+            # the default output device
+            self.default_sink_info = self.server_info.default_sink_name
+            self.default_source_info = None
+            self.btn_mic = None
+            #
+            for el in self.pulse_sink_list:
+                self.on_list_audio(el, 11)
+            #
+            self._set_volume()
+            #
+            self.athread = audioThread(_pulse)
+            self.athread.sig.connect(self.athreadslot)
+            self.athread.start()
+            #
+            if USE_MICROPHONE:
+                self._source_list = self.pulse.source_list()
+                for eee in self._source_list:
+                    _name = eee.name
+                    _description = eee.description
+                # a guess
+                if not ".monitor" in _name:
+                    # the default input source device
+                    self.default_source_info = self.server_info.default_source_name
+                self.btn_mic = QPushButton()
+                self.btn_mic.setFlat(True)
+                self.btn_mic.setStyleSheet("border: none;")
+                self.audiobox.insertWidget(1, self.btn_mic)
+                self.btn_mic.hide()
+                #
+                _icon = "audio-input-microphone"
+                iicon = None
+                iicon = QIcon.fromTheme(_icon, QIcon("icons/audio-input-microphone.svg"))
+                if iicon and not iicon.isNull():
+                    self.btn_mic.setIcon(iicon)
+                #
+                self.on_microphone(_name, _description)
+        #
+        # clipboard
+        if USE_CLIPBOARD:
+            self.btn_clip = QPushButton(icon=QIcon("icons/qpasteboard.png"))
+            self.btn_clip.setFlat(True)
+            self.btn_clip.setStyleSheet("border: none;")
+            self._is_clipboard_shown = 0
+            self.actual_clip = None
+            self.btn_clip.clicked.connect(self.on_clipboard)
+            self.btn_clip.setContextMenuPolicy(Qt.CustomContextMenu)
+            self.btn_clip.customContextMenuRequested.connect(self.on_clipboard2)
+            #
+            self.abox.insertWidget(15, self.btn_clip)
+            #
+            self.stop_tracking = 0
+            app.clipboard().changed.connect(self.clipboardChanged)
+            #
+            self.menu = QMenu()
+            #
+            self.settingAction = self.menu.addAction("Stop tracking")
+            self.settingAction.triggered.connect(self.stoptracking)
+            #
+            if STORE_IMAGES:
+                self.imageAction = self.menu.addAction("Store images")
+            else:
+                self.imageAction = self.menu.addAction("Store images (stopped)")
+            self.imageAction.triggered.connect(self.storeImages)
         #### tray section
         global use_tray
         # check if another tray is active
@@ -913,7 +1030,7 @@ class SecondaryWin(QWidget):
             self.tray_box = self.frame_box
             #
             # self.abox.insertWidget(10, self.tframe)
-            self.abox.insertLayout(15, self.frame_box)
+            self.abox.insertLayout(16, self.frame_box)
             # frame widget counter
             self.frame_counter = 0
             # widget background color
@@ -922,32 +1039,6 @@ class SecondaryWin(QWidget):
             self.tthread = trayThread(1, bcolor, data_run)
             self.tthread.sig.connect(self.tthreadslot)
             self.tthread.start()
-        # clipboard
-        if USE_CLIPBOARD:
-            self.btn_clip = QPushButton(icon=QIcon("icons/qpasteboard.png"))
-            self.btn_clip.setFlat(True)
-            self.btn_clip.setStyleSheet("border: none;")
-            self._is_clipboard_shown = 0
-            self.actual_clip = None
-            self.btn_clip.clicked.connect(self.on_clipboard)
-            self.btn_clip.setContextMenuPolicy(Qt.CustomContextMenu)
-            self.btn_clip.customContextMenuRequested.connect(self.on_clipboard2)
-            #
-            self.abox.insertWidget(16, self.btn_clip)
-            #
-            self.stop_tracking = 0
-            app.clipboard().changed.connect(self.clipboardChanged)
-            #
-            self.menu = QMenu()
-            #
-            self.settingAction = self.menu.addAction("Stop tracking")
-            self.settingAction.triggered.connect(self.stoptracking)
-            #
-            if STORE_IMAGES:
-                self.imageAction = self.menu.addAction("Store images")
-            else:
-                self.imageAction = self.menu.addAction("Store images (stopped)")
-            self.imageAction.triggered.connect(self.storeImages)
         #
         if USE_CUSTOM_WIDGET_RIGHT:
             self.abox.insertWidget(17, widgets_right())
@@ -964,25 +1055,253 @@ class SecondaryWin(QWidget):
         # if dock_width:
             # self.on_move_win()
         #
-        if CENTRALIZE_EL == 2:
+        #
+        if CENTRALIZE_EL == 1:
+            self.abox.addStretch(1)
+        elif CENTRALIZE_EL == 2:
             # the main window to the center
             self.main_window_center()
     
+
+############### audio ################
+
+    # show or hide the microphone icon
+    def on_microphone(self, _name, _description):
+        if _name == None and _description == None:
+            return
+        if USE_MICROPHONE and self.btn_mic:
+            # just a guess
+            if self.default_source_info and ".monitor" not in _name:
+                self.btn_mic.show()
+                self.btn_mic.setToolTip("Microphone: "+_description)
+                self.main_window_center()
+            else:
+                self.btn_mic.hide()
+                # the main window to the center
+                self.main_window_center()
+                
+    
+    # the audio level of the default output device
+    def _set_volume(self):
+        if self.list_sink == {}:
+            return
+        # [_description, _mute, _name, _volume]
+        for el in self.list_sink:
+            if self.default_sink_info == self.list_sink[el][2]:
+                # .values [left, right] 0-1 float - except bust
+                # .value_flat - average level across channels
+                _volume = self.list_sink[el][3].values 
+                _level = max(_volume)
+                iicon = None
+                if 0 < _level < 31:
+                    _icon = "audio-volume-low"
+                    iicon = QIcon.fromTheme(_icon, QIcon("icons/audio-volume-low.svg"))
+                elif 31 < _level < 61:
+                    _icon = "audio-volume-medium"
+                    iicon = QIcon.fromTheme(_icon, QIcon("icons/audio-volume-medium.svg"))
+                elif 31 < _level < 61:
+                    _icon = "audio-volume-high"
+                    iicon = QIcon.fromTheme(_icon, QIcon("icons/audio-volume-high.svg"))
+                elif _level >= 100:
+                    _icon = "audio-volume-overamplified"
+                    iicon = QIcon.fromTheme(_icon, QIcon("icons/audio-volume-overamplified.svg"))
+                #
+                if _level == 0 or self.list_sink[el][1] == 1:
+                    _icon = "audio-volume-muted"
+                    iicon = QIcon.fromTheme(_icon, QIcon("icons/audio-volume-muted.svg"))
+                #
+                if iicon and not iicon.isNull():
+                    self.btn_audio.setIcon(iicon)
+                    # self.btn_audio.level = str(int(round(_level, 2)*100))
+                    self.btn_audio.setToolTip(str(int(round(_level, 2)*100)))
+                break
+                
+    # the output device menu
+    def on_volume2(self, point):
+        for i in range(self.laudiobox.count()-1,-1,-1):
+            if self.laudiobox.itemAt(i) != None:
+                widget = self.laudiobox.itemAt(i).widget()
+                self.laudiobox.removeWidget(widget)
+                widget.deleteLater()
+        self.laudiobox.activate()
+        #
+        for el in self.list_sink:
+            _description = self.list_sink[el][0]
+            _idx = el
+            self.btn_g = QRadioButton(_description)
+            self.btn_g.idx = _idx
+            self.btn_g.clicked.connect(self.on_radio_btn)
+            self.laudiobox.addWidget(self.btn_g)
+            if self.default_sink_info == self.list_sink[el][2]:
+                self.btn_g.setChecked(True)
+            self.btn_g.setAutoExclusive(True)
+        #
+        self.amenu.adjustSize()
+        self.amenu.updateGeometry()
+        # self.amenu.resize(self.amenu.sizeHint())
+        menu_height = self.amenu.geometry().height()
+        x = self.sender().mapToGlobal(point).x()
+        if dock_position == 1:
+            y = NH-dock_height-menu_height
+        elif dock_position == 0:
+            y = dock_height
+        #
+        self.amenu.exec_(QPoint(x,y))
+    
+    # change the output device
+    def on_radio_btn(self):
+        _new_text = self.sender().text()
+        _new_idx = self.sender().idx
+        # list_sink = self.pulse.sink_list()
+        # for el in list_sink:
+        for el in self.pulse_sink_list:
+            if el.index == _new_idx:
+                # set the new output device
+                self._pulse.Pulse().sink_default_set(el)
+                self._set_volume()
+                break
+        
+    # [type, index]
+    def athreadslot(self, _list):
+        if _list[0] == "added":
+            self.on_list_audio(_list[1], 1)
+        elif _list[0] == "removed":
+            self.on_list_audio(_list[1], 0)
+        elif _list[0] == "changed":
+            self.on_list_audio(_list[1], 2)
+        
+    # _t: 1 add - 0 remove - 2 change
+    def on_list_audio(self, _el, _t):
+        m_name = None
+        m_description = None
+        # added at start
+        if _t == 11:
+            _index = _el.index
+            # if isinstance(_el, self._pulse.PulseEventInfo):
+                # return
+            # may fail
+            try:
+                if _index not in self.list_sink:
+                    _description = _el.description
+                    _mute = _el.mute
+                    _name = _el.name
+                    _volume = _el.volume
+                    self.list_sink[_index] = [_description, _mute, _name, _volume]
+            except:
+                return
+        # added
+        elif _t == 1:
+            _index = _el.index
+            if not isinstance(_el, self._pulse.PulseEventInfo):
+                return
+            # may fail
+            try:
+                if _index not in self.list_sink:
+                    self.pulse_sink_list = self.pulse.sink_list()
+                    for eel in self.pulse_sink_list:
+                        if eel.index == _index:
+                            _description = eel.description
+                            _mute = eel.mute
+                            _name = eel.name
+                            _volume = eel.volume
+                            self.list_sink[_index] = [_description, _mute, _name, _volume]
+                            break
+            except:
+                return
+        
+        # removed
+        elif _t == 0:
+            _idx = _el
+            if _idx in self.list_sink:
+                del self.list_sink[_idx]
+        # changed
+        elif _t == 2:
+            _idx = _el
+            #
+            if _idx in self.list_sink:
+                self.pulse_sink_list = self.pulse.sink_list()
+                for eel in self.pulse_sink_list:
+                    if eel.index == _idx:
+                        _description = eel.description
+                        _mute = eel.mute
+                        _name = eel.name
+                        _volume = eel.volume
+                        self.list_sink[_idx] = [_description, _mute, _name, _volume]
+                        break
+            if USE_MICROPHONE:
+                self.default_sink_info = self.server_info.default_sink_name
+                self.default_source_info = self.server_info.default_source_name
+                self._source_list = self.pulse.source_list()
+                #
+                m_name = None
+                m_description = None
+                if self._source_list:
+                    for eee in self._source_list:
+                        m_name = eee.name
+                        m_description = eee.description
+        #
+        if _t != 11:
+            self._set_volume()
+            if USE_MICROPHONE:
+                self.on_microphone(m_name, m_description)
+    
+    # event.angleDelta() : negative down - positive up
+    def on_volume_change(self, _direction):
+        dsink = self._find_default_sink()
+        if dsink == None:
+            return
+        # for eel in self.list_sink:
+            # if self.list_sink[eel][2] == self.default_sink_info:
+                # for ee in self.pulse_sink_list:
+                    # if self.default_sink_info == ee.name:
+                        # dsink = ee
+                        # break
+                # break
+        # volume -
+        if _direction.y() < 0:
+            if dsink:
+                _vol = round(self.pulse.volume_get_all_chans(dsink),2) - (AUDIO_STEP/100)
+                if _vol >= 0:
+                    self.pulse.volume_set_all_chans(dsink, _vol)
+                    self._set_volume()
+        # volume +
+        elif _direction.y() > 0:
+            if dsink:
+                _vol = round(self.pulse.volume_get_all_chans(dsink),2) + (AUDIO_STEP/100)
+                if _vol > 1:
+                    _vol = 1.0
+                if _vol <= 1:
+                    self.pulse.volume_set_all_chans(dsink, _vol)
+                    self._set_volume()
+    
+    def _find_default_sink(self):
+        for eel in self.list_sink:
+            if self.list_sink[eel][2] == self.default_sink_info:
+                for ee in self.pulse_sink_list:
+                    if self.default_sink_info == ee.name:
+                        return ee
+        return None
+    
+    def _mute_audio(self):
+        dsink = self._find_default_sink()
+        _mute_state = 0
+        for el in self.list_sink:
+            if el == dsink.index:
+                _mute_state = not self.list_sink[el][1]
+                break
+        self.pulse.mute(dsink, mute=_mute_state)
+
+############# audio end ##############
+
 ############# clipboard ##############
     def stoptracking(self, action):
         if self.stop_tracking:
             self.settingAction.setText("Stop tracking")
-            if TRAY_ICON_THEME == 1:
-                icon = QIcon("icons/qpasteboard2.png")
-            else:
-                icon = QIcon("icons/qpasteboard.png")
+            icon = QIcon("icons/qpasteboard.png")
             self.stop_tracking = 0
         else:
             self.settingAction.setText("Start tracking")
-            if TRAY_ICON_THEME == 1:
-                icon = QIcon("icons/qpasteboard-stop2.png")
-            else:
-                icon = QIcon("icons/qpasteboard-stop.png")
+            icon = QIcon("icons/qpasteboard-stop.png")
             self.stop_tracking = 1
         #
         self.btn_clip.setIcon(icon)
@@ -1098,11 +1417,25 @@ class SecondaryWin(QWidget):
         self.cwindow.setAttribute(Qt.WA_DeleteOnClose)
         self.cwindow.setWindowTitle("qt5clipboard-1")
         #
-        self.cwindow.setWindowFlags(Qt.CustomizeWindowHint | Qt.FramelessWindowHint | Qt.Tool)
+        if CLIP_REMOVE_DECO == 1:
+            self.cwindow.setWindowFlags(Qt.CustomizeWindowHint | Qt.FramelessWindowHint | Qt.Tool)
+        #
+        self.cwindow.destroyed.connect(self._cw_destroied)
         #
         self.mainBox = QHBoxLayout()
         self.mainBox.setContentsMargins(2,2,2,2)
         self.cwindow.setLayout(self.mainBox)
+        #
+        hpalette = self.palette().mid().color().name()
+        csaa = ("QPushButton::hover:!pressed { border: none;")
+        csab = ("background-color: {};".format(hpalette))
+        csac = ("border-radius: 3px;")
+        csad = ("text-align: center; }")
+        csae = ("QPushButton { text-align: center;  padding: 5px; border: 1px solid #7F7F7F;}")
+        csaf = ("QPushButton::checked { text-align: center; ")
+        csag = ("background-color: {};".format(self.palette().midlight().color().name()))
+        csah = ("padding: 5px; border-radius: 3px;}")
+        self.csa22 = csaa+csab+csac+csad+csae+csaf+csag+csah
         ####### left
         self.leftBox = QVBoxLayout()
         self.mainBox.addLayout(self.leftBox)
@@ -1117,12 +1450,16 @@ class SecondaryWin(QWidget):
             self.leftBox.addWidget(self.imageLBL)
         #
         self.clearBTN = QPushButton("Empty history")
+        self.clearBTN.setFlat(True)
+        self.clearBTN.setStyleSheet(self.csa22)
         self.clearBTN.clicked.connect(self.on_clear_history)
         self.leftBox.addWidget(self.clearBTN)
         #
         self.leftBox.addStretch()
         #
         self.closeBTN = QPushButton("Close")
+        self.closeBTN.setFlat(True)
+        self.closeBTN.setStyleSheet(self.csa22)
         self.closeBTN.clicked.connect(self.on_cwindow_close)
         self.leftBox.addWidget(self.closeBTN)
         ####### right
@@ -1135,6 +1472,30 @@ class SecondaryWin(QWidget):
         self.textLW.setSelectionMode(1)
         self.textLW.itemClicked.connect(self.on_item_clicked)
         self.ctab.addTab(self.textLW, "Text")
+        cssa = ("QScrollBar:vertical {"
+    "border: 0px solid #999999;"
+    "background:white;"
+    "width:8px;"
+    "margin: 0px 0px 0px 0px;"
+"}"
+"QScrollBar::handle:vertical {")       
+        cssb = ("min-height: 0px;"
+    "border: 0px solid red;"
+    "border-radius: 4px;"
+    "background-color: {};".format(scroll_handle_col))
+        cssc = ("}"
+"QScrollBar::add-line:vertical {"       
+    "height: 0px;"
+    "subcontrol-position: bottom;"
+    "subcontrol-origin: margin;"
+"}"
+"QScrollBar::sub-line:vertical {"
+    "height: 0 px;"
+    "subcontrol-position: top;"
+    "subcontrol-origin: margin;"
+"}")
+        css22 = cssa+cssb+cssc
+        self.textLW.verticalScrollBar().setStyleSheet(css22)
         ####
         # texts
         self.actual_clip = None
@@ -1167,18 +1528,21 @@ class SecondaryWin(QWidget):
                     #
                     apply_btn = QPushButton()
                     apply_btn.setIcon(QIcon("icons/apply.png"))
+                    apply_btn.setFlat(True)
                     apply_btn.setToolTip("Copy this image")
                     apply_btn.clicked.connect(self.on_apply_image)
                     btn_layout.addWidget(apply_btn)
                     #
                     save_btn = QPushButton()
                     save_btn.setIcon(QIcon("icons/save.png"))
+                    save_btn.setFlat(True)
                     save_btn.setToolTip("Save this image")
                     save_btn.clicked.connect(self.on_save_image)
                     btn_layout.addWidget(save_btn)
                     #
                     delete_btn = QPushButton()
                     delete_btn.setIcon(QIcon("icons/remove.png"))
+                    delete_btn.setFlat(True)
                     delete_btn.setToolTip("Delete this image")
                     delete_btn.clicked.connect(self.on_delete_image)
                     btn_layout.addWidget(delete_btn)
@@ -1199,6 +1563,9 @@ class SecondaryWin(QWidget):
         self.cwindow.show()
         self._is_clipboard_shown = 1
     
+    def _cw_destroied(self):
+        self._is_clipboard_shown = 0
+    
     def on_cwindow_close(self):
         self.cwindow.close()
         self._is_clipboard_shown = 0
@@ -1211,11 +1578,13 @@ class SecondaryWin(QWidget):
         #
         previewBTN = QPushButton()
         previewBTN.setIcon(QIcon("icons/preview.png"))
+        previewBTN.setFlat(True)
         previewBTN.clicked.connect(lambda:self.on_preview(idx))
         previewBTN.setToolTip("Preview")
         #
         removeBTN = QPushButton()
         removeBTN.setIcon(QIcon("icons/list-remove.png"))
+        removeBTN.setFlat(True)
         removeBTN.clicked.connect(lambda:self.on_delete_item(idx))
         removeBTN.setToolTip("Delete this item")
         #
@@ -1555,12 +1924,12 @@ class SecondaryWin(QWidget):
                     self.tray_box.update()
                     widget.update()
                     win.change_attributes(background_pixel = bcolor)
-                    Display().sync()
+                    # self.display.sync()
                     widget.update()
                     self.tray_box.update()
                     win.unmap()
                     win.map()
-                    Display().sync()
+                    # self.display.sync()
                     widget.hide()
                     widget.show()
                     widget.update()
@@ -2534,7 +2903,7 @@ class SecondaryWin(QWidget):
         # self.display.flush()
         self.display.sync()
     
-    
+        
     def eventFilter(self, widget, event):
         if isinstance(widget, QPushButton):
             if event.type() == QEvent.HoverEnter:
@@ -2545,6 +2914,12 @@ class SecondaryWin(QWidget):
                         win_name = window.get_full_property(self.display.intern_atom('_NET_WM_NAME'), 0).value
                         widget.setToolTip(str(win_name.decode(encoding='UTF-8')))
                     except: pass
+            elif event.type() == QEvent.Wheel:
+                # event.angleDelta() : negative down - positive up
+                self.on_volume_change(event.angleDelta())
+            elif event.type() == QEvent.MouseButtonPress:
+                if event.button() == Qt.LeftButton:
+                    self._mute_audio()
         else:
             return False
         return super(SecondaryWin, self).eventFilter(widget, event)
@@ -2631,6 +3006,35 @@ class SecondaryWin(QWidget):
         # # ewmh.display.sync()
         # self.on_leave = None
     
+############## audio
+
+class audioThread(QThread):
+    sig = pyqtSignal(list)
+    
+    def __init__(self, _pulse, parent=None):
+        super(audioThread, self).__init__(parent)
+        self.pulse = _pulse
+    
+    def run(self):
+        with self.pulse.pulsectl.Pulse('event-audio') as pulse:
+            #
+            def audio_events(ev):
+                if ev.t == self.pulse.PulseEventTypeEnum.remove:
+                    idx = ev.index
+                    self.sig.emit(["removed", idx])
+                #
+                elif ev.t == self.pulse.PulseEventTypeEnum.new:
+                    self.sig.emit(["added", ev])
+                #
+                elif ev.t == self.pulse.PulseEventTypeEnum.change:
+                    self.sig.emit(["changed", ev.index])
+        
+            #
+            pulse.event_mask_set('all')
+            pulse.event_callback_set(audio_events)
+            # pulse.event_listen(timeout=10)
+            pulse.event_listen()
+
 
 ############## TRAY
 
@@ -2930,10 +3334,14 @@ class menuWin(QWidget):
         csad = ("text-align: left; }")
         csae = ("QPushButton { text-align: left;  padding: 5px;}")
         csaf = ("QPushButton::checked { text-align: left; ")
-        csag = ("background-color: {};".format(self.palette().midlight().color().name()))
+        if button_menu_selected_color == "":
+            csag = ("background-color: {};".format(self.palette().midlight().color().name()))
+        else:
+            csag = ("background-color: {};".format(button_menu_selected_color))
         csah = ("padding: 5px; border-radius: 3px;}")
-        csa = csaa+csab+csac+csad+csae+csaf+csag+csah
-        self.pref.setStyleSheet(csa)
+        self.btn_csa = csaa+csab+csac+csad+csae+csaf+csag+csah
+        # self.pref.setStyleSheet(csa)
+        self.pref.setStyleSheet(self.btn_csa)
         #
         # self.pref.setStyleSheet("QPushButton { text-align: left; }")
         # self.pref.setStyleSheet("text-align: left;")
@@ -3280,17 +3688,18 @@ class menuWin(QWidget):
             # btn.setStyleSheet("QPushButton { text-align: left; }")
             btn.setStyleSheet("text-align: left;")
             ##########
-            hpalette = self.palette().mid().color().name()
-            csaa = ("QPushButton::hover:!pressed { border: none;")
-            csab = ("background-color: {};".format(hpalette))
-            csac = ("border-radius: 3px;")
-            csad = ("text-align: left; }")
-            csae = ("QPushButton { text-align: left;  padding: 5px;}")
-            csaf = ("QPushButton::checked { text-align: left; ")
-            csag = ("background-color: {};".format(self.palette().midlight().color().name()))
-            csah = ("padding: 5px; border-radius: 3px;}")
-            csa = csaa+csab+csac+csad+csae+csaf+csag+csah
-            btn.setStyleSheet(csa)
+            # hpalette = self.palette().mid().color().name()
+            # csaa = ("QPushButton::hover:!pressed { border: none;")
+            # csab = ("background-color: {};".format(hpalette))
+            # csac = ("border-radius: 3px;")
+            # csad = ("text-align: left; }")
+            # csae = ("QPushButton { text-align: left;  padding: 5px;}")
+            # csaf = ("QPushButton::checked { text-align: left; ")
+            # # csag = ("background-color: {};".format(self.palette().midlight().color().name()))
+            # csag = ("background-color: #7F7F7F;")
+            # csah = ("padding: 5px; border-radius: 3px;}")
+            # csa = csaa+csab+csac+csad+csae+csaf+csag+csah
+            btn.setStyleSheet(self.btn_csa)
             ##########
             btn.setCheckable(True)
             btn.setAutoExclusive(True)
@@ -3696,7 +4105,7 @@ class calendarWin(QWidget):
         cwY = 0
         screensize = app.primaryScreen()
         #
-        if CENTRALIZE_EL != 2:
+        if CENTRALIZE_EL == 0:
             this_geom = self.geometry()
             if dock_position == 0:
                 sy = dock_height+clock_gapy
@@ -3711,7 +4120,7 @@ class calendarWin(QWidget):
                 elif use_clock == 1:
                     sx = clock_gapx
             self.setGeometry(sx, sy, -1,-1)
-        elif CENTRALIZE_EL == 2:
+        elif CENTRALIZE_EL == 2 or CENTRALIZE_EL == 1:
             this_geom = self.geometry()
             sx = int((NW - this_geom.width())/2)
             if dock_position == 0:

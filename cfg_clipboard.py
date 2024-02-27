@@ -12,7 +12,5 @@ HISTORY_SIZE=30
 HISTORY_SIZE_IMAGES=10
 # image format in which to save - e.g. "tiff" or "png"
 IMAGE_FORMAT="tiff"
-# tray icon colour: 0 bright - 1 dark
-TRAY_ICON_THEME=0
-# widget theme - leave "" for default
-WIDGET_THEME=""
+# rimove decoration from the clipboard window: 0 no - i yes
+CLIP_REMOVE_DECO=0
