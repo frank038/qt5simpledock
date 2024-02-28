@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
-# V 0.9.32
+# V 0.9.33
 
-from PyQt5.QtCore import (QThread,pyqtSignal,Qt,QTimer,QTime,QDate,QSize,QRect,QCoreApplication,QEvent,QPoint,QFileSystemWatcher,QProcess)
+from PyQt5.QtCore import (QThread,pyqtSignal,Qt,QTimer,QTime,QDate,QSize,QRect,QCoreApplication,QEvent,QPoint,QFileSystemWatcher,QProcess,QFileInfo,QFile)
 # from PyQt5.QtCore import (QFileInfo)
 from PyQt5.QtWidgets import (QWidget,QHBoxLayout,QBoxLayout,QLabel,QPushButton,QSizePolicy,QMenu,QVBoxLayout,QTabWidget,QListWidget,QScrollArea,QListWidgetItem,QDialog,QMessageBox,QMenu,qApp,QAction,QDialogButtonBox,QTreeWidget,QTreeWidgetItem,QDesktopWidget,QLineEdit,QFrame,QCalendarWidget,QTableView,QStyleFactory,QApplication,QButtonGroup,QRadioButton)
 from PyQt5.QtGui import (QFont,QIcon,QImage,QPixmap,QPalette,QWindow,QColor,QPainterPath)
@@ -1894,8 +1894,8 @@ class SecondaryWin(QWidget):
         self.tray_box.update()
         #
         self.tray_box.addWidget(fwidget, 1, Qt.AlignCenter)
-        for i in range(self.tray_box.count()):
-            widget = self.tray_box.itemAt(i).widget()
+        # for i in range(self.tray_box.count()):
+            # widget = self.tray_box.itemAt(i).widget()
         #
         # self.on_move_win()
         # the main window to the center
@@ -1907,8 +1907,11 @@ class SecondaryWin(QWidget):
                 widget = self.tray_box.itemAt(i).widget()
                 if widget and widget.id == wid:
                     self.tray_box.removeWidget(widget)
+                    widget.deleteLater()
+                    break
         # 
         self.tray_box.update()
+        self.tray_box.activate()
         #
         # self.on_move_win()
         # the main window to the center
@@ -2915,11 +2918,13 @@ class SecondaryWin(QWidget):
                         widget.setToolTip(str(win_name.decode(encoding='UTF-8')))
                     except: pass
             elif event.type() == QEvent.Wheel:
-                # event.angleDelta() : negative down - positive up
-                self.on_volume_change(event.angleDelta())
+                if widget.winid == -999:
+                    # event.angleDelta() : negative down - positive up
+                    self.on_volume_change(event.angleDelta())
             elif event.type() == QEvent.MouseButtonPress:
                 if event.button() == Qt.LeftButton:
-                    self._mute_audio()
+                    if widget.winid == -999:
+                        self._mute_audio()
         else:
             return False
         return super(SecondaryWin, self).eventFilter(widget, event)
@@ -3915,7 +3920,7 @@ class menuWin(QWidget):
                 cnt.append(bb)
                 prog_list.append(cnt)
         # populate listWidget
-        # ICON - NAME - EXEC - TOOLTIP - PATH - TERMINAL
+        # ICON - NAME - EXEC - TOOLTIP - PATH - TERMINAL - FILENAME
         for el in prog_list:
             ICON = el[0].strip("\n")
             NAME = el[1].strip("\n")
@@ -3923,7 +3928,7 @@ class menuWin(QWidget):
             TOOLTIP = el[3].strip("\n")
             PATH = el[4].strip("\n")
             TTERM = el[5].strip("\n")
-            # FILENAME = el[6].strip("\n")
+            FILENAME = el[6].strip("\n")
             # # 
             # if len(el) > 5:
                 # PATH_TEMP = el[4].strip("\n")
@@ -3949,7 +3954,7 @@ class menuWin(QWidget):
             if icon.isNull():
                 icon = QIcon("icons/none.svg")
             litem = QListWidgetItem(icon, NAME)
-            litem.lbookmark = bb
+            litem.lbookmark = FILENAME
             litem.exec_n = EXEC
             litem.ppath = PATH
             litem.setToolTip(TOOLTIP)
@@ -3974,10 +3979,11 @@ class menuWin(QWidget):
             item_idx = self.listWidget.indexAt(QPos)
             item_row = item_idx.row()
             _item = self.listWidget.item(item_row)
-            item_removed = self.listWidget.takeItem(item_row)
+            # item_removed = self.listWidget.takeItem(item_row)
             #
             try:
                 os.remove(os.path.join("bookmarks",str(_item.lbookmark)))
+                item_removed = self.listWidget.takeItem(item_row)
             except:
                 pass
 
@@ -4469,7 +4475,10 @@ if __name__ == '__main__':
     # set the icon style globally
     if icon_theme:
         QIcon.setThemeName(icon_theme)
-    ################
+    ################ menu
+    def on_directory_changed():
+        on_pop_menu(app_dirs_user, app_dirs_system)
+    
     # some applications has been added or removed
     def directory_changed(edir):
         global menu_is_changed
@@ -4480,6 +4489,17 @@ if __name__ == '__main__':
     fPath = app_dirs_system + app_dirs_user
     fileSystemWatcher = QFileSystemWatcher(fPath)
     fileSystemWatcher.directoryChanged.connect(directory_changed)
+    ############ calendar
+    def file_changed(efile):
+        global list_events_all
+        list_events_all = []
+        get_events()
+    
+    # check for changes in the calendar file
+    if os.path.exists(fopen):
+        epath = QFileInfo(QFile(fopen)).absoluteFilePath()
+        fileSystemWatcher.addPath(epath)
+        fileSystemWatcher.fileChanged.connect(file_changed)
     ################
     # ewmh.setWmState(this_window, 1, '_NET_WM_STATE_STICKY')
     # ewmh.setWmState(this_window, 1, '_NET_WM_STATE_SKIP_TASKBAR')
