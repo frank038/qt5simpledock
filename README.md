@@ -23,7 +23,7 @@ Features:
 - closing applications by right mouse clicking on its icon
 - closing and restarting this program by right mouse clicking
 - can play sounds when a window opens or closes
-- experimental, initial support for audio: the main volume can be changed; source can be changed; if a microphone is enabled, an icon is shown (its name will be shown in the tooltip); these options must be enabled in the config file; 
+- experimental, initial support for audio: the main volume can be changed; left mouse click to show a popup; central mouse click to toggle mute/unmute; if a microphone is enabled, an icon is shown (its name will be shown in the tooltip); these options must be enabled in the config file; 
 - customizations in the cfg_dock file.
 
 In the image below from the left: the dock with the virtual desktops, one application launcher, the tasklist with two programs in it and two messages.
