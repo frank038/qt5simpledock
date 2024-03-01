@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
-# V 0.9.33
+# V 0.9.34
 
 from PyQt5.QtCore import (QThread,pyqtSignal,Qt,QTimer,QTime,QDate,QSize,QRect,QCoreApplication,QEvent,QPoint,QFileSystemWatcher,QProcess,QFileInfo,QFile)
 # from PyQt5.QtCore import (QFileInfo)
-from PyQt5.QtWidgets import (QWidget,QHBoxLayout,QBoxLayout,QLabel,QPushButton,QSizePolicy,QMenu,QVBoxLayout,QTabWidget,QListWidget,QScrollArea,QListWidgetItem,QDialog,QMessageBox,QMenu,qApp,QAction,QDialogButtonBox,QTreeWidget,QTreeWidgetItem,QDesktopWidget,QLineEdit,QFrame,QCalendarWidget,QTableView,QStyleFactory,QApplication,QButtonGroup,QRadioButton)
+from PyQt5.QtWidgets import (QWidget,QHBoxLayout,QBoxLayout,QLabel,QPushButton,QSizePolicy,QMenu,QVBoxLayout,QTabWidget,QListWidget,QScrollArea,QListWidgetItem,QDialog,QMessageBox,QMenu,qApp,QAction,QDialogButtonBox,QTreeWidget,QTreeWidgetItem,QDesktopWidget,QLineEdit,QFrame,QCalendarWidget,QTableView,QStyleFactory,QApplication,QButtonGroup,QRadioButton,QSlider)
 from PyQt5.QtGui import (QFont,QIcon,QImage,QPixmap,QPalette,QWindow,QColor,QPainterPath)
 import sys, os, time
 import shutil
@@ -925,36 +925,58 @@ class SecondaryWin(QWidget):
             self.btn_audio = QPushButton()
             self.btn_audio.setFlat(True)
             self.btn_audio.setStyleSheet("border: none;")
+            _icon = "audio-volume-muted"
+            iicon = QIcon.fromTheme(_icon, QIcon("icons/audio-volume-muted.svg"))
+            self.btn_audio.setIcon(iicon)
+            self.btn_audio.setToolTip("No audio devices")
             self.audiobox.insertWidget(0, self.btn_audio)
             #
-            self.btn_audio.setContextMenuPolicy(Qt.CustomContextMenu)
-            self.btn_audio.customContextMenuRequested.connect(self.on_volume2)
+            # self.btn_audio.setContextMenuPolicy(Qt.CustomContextMenu)
+            # self.btn_audio.customContextMenuRequested.connect(self.on_volume2)
             self.btn_audio.winid = -999
+            self.btn_audio.value = [-999, -999]
             self.btn_audio.installEventFilter(self)
-            #
+            # right click menu
             self.amenu = QMenu()
             self.laudiobox = QVBoxLayout()
             self.laudiobox.setContentsMargins(4,4,4,4)
             self.amenu.setLayout(self.laudiobox)
+            # left click menu
+            self.mmenu = QMenu()
+            self.maudiobox = QVBoxLayout()
+            self.maudiobox.setContentsMargins(4,4,4,4)
+            self.mmenu.setLayout(self.maudiobox)
+            #
+            self.mslider = QSlider(Qt.Horizontal)
+            self.mslider.setFocusPolicy(Qt.StrongFocus)
+            self.mslider.setTickPosition(QSlider.TicksBothSides)
+            self.mslider.setMinimum(0)
+            self.mslider.setMaximum(100)
+            self.mslider.setTickInterval(10)
+            self.mslider.setSingleStep(AUDIO_STEP)
+            self.mslider.setPageStep(AUDIO_STEP)
+            self.mslider.valueChanged.connect(self.on_vslider_changed)
+            self.maudiobox.addWidget(self.mslider)
+            self.mbtn = QPushButton("Volume control")
+            self.mbtn.clicked.connect(self.on_mbtn_mixer)
+            self.maudiobox.addWidget(self.mbtn)
+            self.mmenu.adjustSize()
+            self.mmenu.updateGeometry()
             #
             import pulsectl as _pulse
-            # index:[data]
-            self.list_sink = {}
             self._pulse = _pulse
             self.pulse = _pulse.pulsectl.Pulse('event-audio')
-            self.pulse_sink_list = self.pulse.sink_list()
             #
             self.server_info = None
-            self.server_info = self._pulse.Pulse().server_info()
-            # the default output device
-            self.default_sink_info = self.server_info.default_sink_name
+            self.server_info = self.pulse.server_info()
+            #
             self.default_source_info = None
+            self.default_sink_info = None
+            self.default_sink_name = None
+            self.card_list = None
             self.btn_mic = None
             #
-            for el in self.pulse_sink_list:
-                self.on_list_audio(el, 11)
-            #
-            self._set_volume()
+            self._on_start()
             #
             self.athread = audioThread(_pulse)
             self.athread.sig.connect(self.athreadslot)
@@ -962,13 +984,12 @@ class SecondaryWin(QWidget):
             #
             if USE_MICROPHONE:
                 self._source_list = self.pulse.source_list()
-                for eee in self._source_list:
-                    _name = eee.name
-                    _description = eee.description
-                # a guess
-                if not ".monitor" in _name:
-                    # the default input source device
-                    self.default_source_info = self.server_info.default_source_name
+                self.default_source_name = None
+                self.default_source_info = None
+                #
+                self.default_source_name = self.server_info.default_source_name
+                self.default_source_info = self.pulse.get_source_by_name(self.default_source_name)
+                #
                 self.btn_mic = QPushButton()
                 self.btn_mic.setFlat(True)
                 self.btn_mic.setStyleSheet("border: none;")
@@ -981,7 +1002,7 @@ class SecondaryWin(QWidget):
                 if iicon and not iicon.isNull():
                     self.btn_mic.setIcon(iicon)
                 #
-                self.on_microphone(_name, _description)
+                self.on_microphone()
         #
         # clipboard
         if USE_CLIPBOARD:
@@ -1064,233 +1085,225 @@ class SecondaryWin(QWidget):
     
 
 ############### audio ################
-
+    
+    # at this program start
+    def _on_start(self):
+        default_sink_name = self.server_info.default_sink_name
+        self.default_sink_name = default_sink_name
+        for el in self.pulse.sink_list():
+            if el.name == default_sink_name:
+                self.default_sink_info = el
+                break
+        #
+        default_source_name = self.server_info.default_source_name
+        for el in self.pulse.source_list():
+            if el.name == default_source_name:
+                self.default_source_info = el
+                break
+        #
+        self.card_list = self.pulse.card_list()
+        # set the icon and tooltip volume
+        self._set_volume()
+    
     # show or hide the microphone icon
-    def on_microphone(self, _name, _description):
-        if _name == None and _description == None:
-            return
-        if USE_MICROPHONE and self.btn_mic:
-            # just a guess
-            if self.default_source_info and ".monitor" not in _name:
+    def on_microphone(self):
+        # just a guess
+        if self.default_source_info:
+            if not self.default_source_info.name.endswith(".monitor"):
                 self.btn_mic.show()
-                self.btn_mic.setToolTip("Microphone: "+_description)
+                _description = self.default_source_info.description
+                self.btn_mic.setToolTip(_description)
                 self.main_window_center()
-            else:
-                self.btn_mic.hide()
-                # the main window to the center
-                self.main_window_center()
-                
+                return
+        # else:
+        self.btn_mic.hide()
+        # the main window to the center
+        self.main_window_center()
     
-    # the audio level of the default output device
-    def _set_volume(self):
-        if self.list_sink == {}:
-            return
-        # [_description, _mute, _name, _volume]
-        for el in self.list_sink:
-            if self.default_sink_info == self.list_sink[el][2]:
-                # .values [left, right] 0-1 float - except bust
-                # .value_flat - average level across channels
-                _volume = self.list_sink[el][3].values 
-                _level = max(_volume)
-                iicon = None
-                if 0 < _level < 31:
-                    _icon = "audio-volume-low"
-                    iicon = QIcon.fromTheme(_icon, QIcon("icons/audio-volume-low.svg"))
-                elif 31 < _level < 61:
-                    _icon = "audio-volume-medium"
-                    iicon = QIcon.fromTheme(_icon, QIcon("icons/audio-volume-medium.svg"))
-                elif 31 < _level < 61:
-                    _icon = "audio-volume-high"
-                    iicon = QIcon.fromTheme(_icon, QIcon("icons/audio-volume-high.svg"))
-                elif _level >= 100:
-                    _icon = "audio-volume-overamplified"
-                    iicon = QIcon.fromTheme(_icon, QIcon("icons/audio-volume-overamplified.svg"))
-                #
-                if _level == 0 or self.list_sink[el][1] == 1:
-                    _icon = "audio-volume-muted"
-                    iicon = QIcon.fromTheme(_icon, QIcon("icons/audio-volume-muted.svg"))
-                #
-                if iicon and not iicon.isNull():
-                    self.btn_audio.setIcon(iicon)
-                    # self.btn_audio.level = str(int(round(_level, 2)*100))
-                    self.btn_audio.setToolTip(str(int(round(_level, 2)*100)))
-                break
-                
-    # the output device menu
-    def on_volume2(self, point):
-        for i in range(self.laudiobox.count()-1,-1,-1):
-            if self.laudiobox.itemAt(i) != None:
-                widget = self.laudiobox.itemAt(i).widget()
-                self.laudiobox.removeWidget(widget)
-                widget.deleteLater()
-        self.laudiobox.activate()
-        #
-        for el in self.list_sink:
-            _description = self.list_sink[el][0]
-            _idx = el
-            self.btn_g = QRadioButton(_description)
-            self.btn_g.idx = _idx
-            self.btn_g.clicked.connect(self.on_radio_btn)
-            self.laudiobox.addWidget(self.btn_g)
-            if self.default_sink_info == self.list_sink[el][2]:
-                self.btn_g.setChecked(True)
-            self.btn_g.setAutoExclusive(True)
-        #
-        self.amenu.adjustSize()
-        self.amenu.updateGeometry()
-        # self.amenu.resize(self.amenu.sizeHint())
-        menu_height = self.amenu.geometry().height()
-        x = self.sender().mapToGlobal(point).x()
-        if dock_position == 1:
-            y = NH-dock_height-menu_height
-        elif dock_position == 0:
-            y = dock_height
-        #
-        self.amenu.exec_(QPoint(x,y))
-    
-    # change the output device
-    def on_radio_btn(self):
-        _new_text = self.sender().text()
-        _new_idx = self.sender().idx
-        # list_sink = self.pulse.sink_list()
-        # for el in list_sink:
-        for el in self.pulse_sink_list:
-            if el.index == _new_idx:
-                # set the new output device
-                self._pulse.Pulse().sink_default_set(el)
-                self._set_volume()
-                break
-        
-    # [type, index]
     def athreadslot(self, _list):
         if _list[0] == "added":
             self.on_list_audio(_list[1], 1)
         elif _list[0] == "removed":
             self.on_list_audio(_list[1], 0)
-        elif _list[0] == "changed":
+        elif _list[0] == "removed-source":
+            self.on_list_audio(_list[1], 4)
+        elif _list[0] == "changed-sink":
             self.on_list_audio(_list[1], 2)
-        
-    # _t: 1 add - 0 remove - 2 change
+        elif _list[0] == "changed-source":
+            self.on_list_audio(_list[1], 3)
+        elif _list[0] == "changed-server":
+            self.on_list_audio(_list[1], 20)
+        elif _list[0] == "changed-card":
+            self.on_list_audio(_list[1], 21)
+    
+    #
     def on_list_audio(self, _el, _t):
-        m_name = None
-        m_description = None
-        # added at start
-        if _t == 11:
-            _index = _el.index
-            # if isinstance(_el, self._pulse.PulseEventInfo):
-                # return
-            # may fail
+        # # changed card
+        # if _t == 21:
+            # pass
+        # changed sink - e.g.: volume - sink change
+        #el
+        if _t == 2:
             try:
-                if _index not in self.list_sink:
-                    _description = _el.description
-                    _mute = _el.mute
-                    _name = _el.name
-                    _volume = _el.volume
-                    self.list_sink[_index] = [_description, _mute, _name, _volume]
+                self.server_info = self.pulse.server_info()
             except:
                 return
-        # added
-        elif _t == 1:
-            _index = _el.index
-            if not isinstance(_el, self._pulse.PulseEventInfo):
-                return
-            # may fail
-            try:
-                if _index not in self.list_sink:
-                    self.pulse_sink_list = self.pulse.sink_list()
-                    for eel in self.pulse_sink_list:
-                        if eel.index == _index:
-                            _description = eel.description
-                            _mute = eel.mute
-                            _name = eel.name
-                            _volume = eel.volume
-                            self.list_sink[_index] = [_description, _mute, _name, _volume]
-                            break
-            except:
-                return
-        
-        # removed
-        elif _t == 0:
-            _idx = _el
-            if _idx in self.list_sink:
-                del self.list_sink[_idx]
-        # changed
-        elif _t == 2:
-            _idx = _el
-            #
-            if _idx in self.list_sink:
-                self.pulse_sink_list = self.pulse.sink_list()
-                for eel in self.pulse_sink_list:
-                    if eel.index == _idx:
-                        _description = eel.description
-                        _mute = eel.mute
-                        _name = eel.name
-                        _volume = eel.volume
-                        self.list_sink[_idx] = [_description, _mute, _name, _volume]
-                        break
-            if USE_MICROPHONE:
-                self.default_sink_info = self.server_info.default_sink_name
-                self.default_source_info = self.server_info.default_source_name
-                self._source_list = self.pulse.source_list()
-                #
-                m_name = None
-                m_description = None
-                if self._source_list:
-                    for eee in self._source_list:
-                        m_name = eee.name
-                        m_description = eee.description
-        #
-        if _t != 11:
+            self.default_sink_name = self.server_info.default_sink_name
+            self.default_sink_info = self.pulse.get_sink_by_name(self.default_sink_name)
             self._set_volume()
-            if USE_MICROPHONE:
-                self.on_microphone(m_name, m_description)
+        # removed source
+        elif _t == 4 and USE_MICROPHONE:
+            try:
+                self.server_info = self.pulse.server_info()
+            except:
+                return
+            self.default_source_name = self.server_info.default_source_name
+            self.default_source_info = self.pulse.get_source_by_name(self.default_source_name)
+            self.on_microphone()
+        # # changed source
+        # elif _t == 3 and USE_MICROPHONE:
+            # pass
+        # changed server
+        elif _t == 20 and _el == -1:
+            old_default_source_name = self.default_source_name
+            try:
+                self.server_info = self.pulse.server_info()
+            except:
+                return
+            self.default_source_name = self.server_info.default_source_name
+            if old_default_source_name == self.default_source_name:
+                return
+            self.default_source_info = self.pulse.get_source_by_name(self.default_source_name)
+            self.on_microphone()
+
+    
+    def _set_volume(self):
+        if self.default_sink_info:
+            #
+            _volume = self.default_sink_info.volume.values
+            _level = int(round(max(_volume), 2)*100)
+            _mute = self.default_sink_info.mute
+            #
+            if self.btn_audio.value == [int(_level), _mute]:
+                return
+            #
+            iicon = None
+            #
+            if 0 < _level < 31:
+                _icon = "audio-volume-low"
+                iicon = QIcon.fromTheme(_icon, QIcon("icons/audio-volume-low.svg"))
+            elif 31 < _level < 61:
+                _icon = "audio-volume-medium"
+                iicon = QIcon.fromTheme(_icon, QIcon("icons/audio-volume-medium.svg"))
+            elif 31 < _level < 61:
+                _icon = "audio-volume-high"
+                iicon = QIcon.fromTheme(_icon, QIcon("icons/audio-volume-high.svg"))
+            elif _level >= 100:
+                _icon = "audio-volume-overamplified"
+                iicon = QIcon.fromTheme(_icon, QIcon("icons/audio-volume-overamplified.svg"))
+            #
+            if _mute == 1:
+                _icon = "audio-volume-muted"
+                iicon = QIcon.fromTheme(_icon, QIcon("icons/audio-volume-muted.svg"))
+            #
+            if iicon and not iicon.isNull():
+                self.btn_audio.setIcon(iicon)
+                self.btn_audio.value = [int(_level), _mute]
+                if self.default_sink_info.description == "Dummy Output":
+                    self.btn_audio.setToolTip("{}:{}".format("Dummy Output", _level))
+                else:
+                    self.btn_audio.setToolTip("{}".format(_level))
+        #
+        else:
+            _icon = "audio-volume-muted"
+            iicon = QIcon.fromTheme(_icon, QIcon("icons/audio-volume-muted.svg"))
+            self.btn_audio.setIcon(iicon)
+            self.btn_audio.value = [-999, -999]
+            self.btn_audio.setToolTip("No audio devices")
+    
+    #
+    def on_mbtn_mixer(self):
+        try:
+            if MIXER_CONTROL:
+                os.system("{} &".format(MIXER_CONTROL))
+            self.mmenu.close()
+        except Exception as E:
+            MyDialog("Error", str(E),self)
+        
+    #
+    def on_vslider_changed(self):
+        self.on_volume_change("slider")
+    
+    #
+    def on_volume1(self, _pos):
+        dsink = self.default_sink_info
+        if dsink == None:
+            self.mslider.setEnabled(False)
+            return
+        elif dsink.name == "auto_null":
+            self.mslider.setEnabled(False)
+        elif self.mslider.isEnabled() == False:
+            self.mslider.setEnabled(True)
+        #
+        if self.mslider.isEnabled() == True:
+            _mute_state = dsink.mute
+            if _mute_state == 1:
+                self.mslider.setEnabled(False)
+            elif self.mslider.isEnabled() == False:
+                self.mslider.setEnabled(True)
+        # decimal
+        _vol = round(self.pulse.volume_get_all_chans(dsink),2)
+        self.mslider.setValue(int(_vol*100))
+        #
+        # menu_width = self.mmenu.geometry().width()
+        menu_height = self.mmenu.geometry().height()
+        #
+        # x = _pos.x()-int(menu_width/2)
+        x = _pos.x()
+        y = _pos.y()
+        if dock_position == 1:
+            y = NH-dock_height-menu_height
+        elif dock_position == 0:
+            y = dock_height
+        #
+        self.mmenu.exec_(QPoint(x,y))
     
     # event.angleDelta() : negative down - positive up
     def on_volume_change(self, _direction):
-        dsink = self._find_default_sink()
+        dsink = self.default_sink_info
         if dsink == None:
             return
-        # for eel in self.list_sink:
-            # if self.list_sink[eel][2] == self.default_sink_info:
-                # for ee in self.pulse_sink_list:
-                    # if self.default_sink_info == ee.name:
-                        # dsink = ee
-                        # break
-                # break
-        # volume -
-        if _direction.y() < 0:
+        #
+        if _direction == "slider":
             if dsink:
-                _vol = round(self.pulse.volume_get_all_chans(dsink),2) - (AUDIO_STEP/100)
-                if _vol >= 0:
-                    self.pulse.volume_set_all_chans(dsink, _vol)
-                    self._set_volume()
-        # volume +
-        elif _direction.y() > 0:
-            if dsink:
-                _vol = round(self.pulse.volume_get_all_chans(dsink),2) + (AUDIO_STEP/100)
-                if _vol > 1:
-                    _vol = 1.0
-                if _vol <= 1:
-                    self.pulse.volume_set_all_chans(dsink, _vol)
-                    self._set_volume()
-    
-    def _find_default_sink(self):
-        for eel in self.list_sink:
-            if self.list_sink[eel][2] == self.default_sink_info:
-                for ee in self.pulse_sink_list:
-                    if self.default_sink_info == ee.name:
-                        return ee
-        return None
+                _vol = round(((self.mslider.value()//AUDIO_STEP)*AUDIO_STEP)/100, 2)
+                self.pulse.volume_set_all_chans(dsink, _vol)
+                self._set_volume()
+        else:
+            # volume : 0.0 - 1.0
+            if _direction.y() < 0:
+                if dsink:
+                    _vol = round(self.pulse.volume_get_all_chans(dsink),2) - (AUDIO_STEP/100)
+                    if _vol >= 0:
+                        self.pulse.volume_set_all_chans(dsink, _vol)
+                        self._set_volume()
+            # volume +
+            elif _direction.y() > 0:
+                if dsink:
+                    _vol = round(self.pulse.volume_get_all_chans(dsink),2) + (AUDIO_STEP/100)
+                    if _vol > 1:
+                        _vol = 1.0
+                    if _vol <= 1:
+                        self.pulse.volume_set_all_chans(dsink, _vol)
+                        self._set_volume()
     
     def _mute_audio(self):
-        dsink = self._find_default_sink()
-        _mute_state = 0
-        for el in self.list_sink:
-            if el == dsink.index:
-                _mute_state = not self.list_sink[el][1]
-                break
+        dsink = self.default_sink_info
+        if dsink == None:
+            return
+        _mute_state = not self.default_sink_info.mute
         self.pulse.mute(dsink, mute=_mute_state)
-
+    
 ############# audio end ##############
 
 ############# clipboard ##############
@@ -2922,9 +2935,11 @@ class SecondaryWin(QWidget):
                     # event.angleDelta() : negative down - positive up
                     self.on_volume_change(event.angleDelta())
             elif event.type() == QEvent.MouseButtonPress:
-                if event.button() == Qt.LeftButton:
-                    if widget.winid == -999:
+                if widget.winid == -999:
+                    if event.button() == Qt.MiddleButton:
                         self._mute_audio()
+                    elif event.button() == Qt.LeftButton:
+                        self.on_volume1(widget.mapToGlobal(event.pos()))
         else:
             return False
         return super(SecondaryWin, self).eventFilter(widget, event)
@@ -3024,18 +3039,28 @@ class audioThread(QThread):
         with self.pulse.pulsectl.Pulse('event-audio') as pulse:
             #
             def audio_events(ev):
-                if ev.t == self.pulse.PulseEventTypeEnum.remove:
-                    idx = ev.index
-                    self.sig.emit(["removed", idx])
-                #
-                elif ev.t == self.pulse.PulseEventTypeEnum.new:
-                    self.sig.emit(["added", ev])
-                #
-                elif ev.t == self.pulse.PulseEventTypeEnum.change:
-                    self.sig.emit(["changed", ev.index])
-        
+                # server
+                if ev.facility == pulse.event_facilities[5]:
+                    if ev.t == self.pulse.PulseEventTypeEnum.change:
+                        self.sig.emit(["changed-server", ev.index])
+                # card
+                if ev.facility == pulse.event_facilities[1]:
+                    if ev.t == self.pulse.PulseEventTypeEnum.change:
+                        self.sig.emit(["changed-card", ev.index])
+                # sink_input
+                if ev.facility == pulse.event_facilities[7]:
+                    if ev.t == self.pulse.PulseEventTypeEnum.change:
+                        self.sig.emit(["changed-sink", ev.index])
+                # source_output
+                if ev.facility == pulse.event_facilities[9]:
+                    if ev.t == self.pulse.PulseEventTypeEnum.change:
+                        self.sig.emit(["changed-source", ev.index])
+                    if ev.t == self.pulse.PulseEventTypeEnum.remove:
+                        idx = ev.index
+                        self.sig.emit(["removed-source", idx])
             #
-            pulse.event_mask_set('all')
+            # pulse.event_mask_set('all')
+            pulse.event_mask_set('server', 'card', 'sink_input', 'source_output')
             pulse.event_callback_set(audio_events)
             # pulse.event_listen(timeout=10)
             pulse.event_listen()
@@ -4476,30 +4501,32 @@ if __name__ == '__main__':
     if icon_theme:
         QIcon.setThemeName(icon_theme)
     ################ menu
-    def on_directory_changed():
-        on_pop_menu(app_dirs_user, app_dirs_system)
-    
-    # some applications has been added or removed
-    def directory_changed(edir):
-        global menu_is_changed
-        menu_is_changed += 1
-        if menu_is_changed == 1:
-            on_directory_changed()
-    # check for changes in the application directories
-    fPath = app_dirs_system + app_dirs_user
-    fileSystemWatcher = QFileSystemWatcher(fPath)
-    fileSystemWatcher.directoryChanged.connect(directory_changed)
+    if use_menu:
+        def on_directory_changed():
+            on_pop_menu(app_dirs_user, app_dirs_system)
+        
+        # some applications has been added or removed
+        def directory_changed(edir):
+            global menu_is_changed
+            menu_is_changed += 1
+            if menu_is_changed == 1:
+                on_directory_changed()
+        # check for changes in the application directories
+        fPath = app_dirs_system + app_dirs_user
+        fileSystemWatcher = QFileSystemWatcher(fPath)
+        fileSystemWatcher.directoryChanged.connect(directory_changed)
     ############ calendar
-    def file_changed(efile):
-        global list_events_all
-        list_events_all = []
-        get_events()
-    
-    # check for changes in the calendar file
-    if os.path.exists(fopen):
-        epath = QFileInfo(QFile(fopen)).absoluteFilePath()
-        fileSystemWatcher.addPath(epath)
-        fileSystemWatcher.fileChanged.connect(file_changed)
+    if use_clock:
+        def file_changed(efile):
+            global list_events_all
+            list_events_all = []
+            get_events()
+        
+        # check for changes in the calendar file
+        if os.path.exists(fopen):
+            epath = QFileInfo(QFile(fopen)).absoluteFilePath()
+            fileSystemWatcher.addPath(epath)
+            fileSystemWatcher.fileChanged.connect(file_changed)
     ################
     # ewmh.setWmState(this_window, 1, '_NET_WM_STATE_STICKY')
     # ewmh.setWmState(this_window, 1, '_NET_WM_STATE_SKIP_TASKBAR')

@@ -49,6 +49,8 @@ USE_AUDIO=0
 AUDIO_STEP=5
 # show the microphone icon - experimental - USE_AUDIO is required
 USE_MICROPHONE=0
+# audio control panel command
+MIXER_CONTROL=""
 # custom widgets at left
 USE_CUSTOM_WIDGET_LEFT=0
 # custom widgets at right
