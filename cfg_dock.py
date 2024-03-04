@@ -37,20 +37,22 @@ CENTRALIZE_GAP_L=1
 CENTRALIZE_GAP_R=1
 # close the menu and the clock applet if focus is lost on another window: 0 no - 1 yes
 LOST_FOCUS_CLOSE=1
-# play sounds as a window opens or closes: 1 yes - 0 no
+# play sounds as a window opens or closes: 0 no - 1 use external player - 2 use internal player
 PLAY_SOUND=1
 # audio player: "NAME" or ""
 A_PLAYER="aplay"
 # use internal clipboard
 USE_CLIPBOARD=1
 # use internal audio control - experimental
-USE_AUDIO=0
+USE_AUDIO=1
 # volume step: %
 AUDIO_STEP=5
+# starting audio level: 0-100
+AUDIO_START_LEVEL=30
 # show the microphone icon - experimental - USE_AUDIO is required
-USE_MICROPHONE=0
+USE_MICROPHONE=1
 # audio control panel command
-MIXER_CONTROL=""
+MIXER_CONTROL="pavucontrol-qt"
 # custom widgets at left
 USE_CUSTOM_WIDGET_LEFT=0
 # custom widgets at right
@@ -245,3 +247,5 @@ COMM3_ICON=""
 COMM3_NAME=""
 COMM3_TOOLTIP=""
 #
+
+

@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 
-# V 0.9.34
+# V 0.9.35
 
 from PyQt5.QtCore import (QThread,pyqtSignal,Qt,QTimer,QTime,QDate,QSize,QRect,QCoreApplication,QEvent,QPoint,QFileSystemWatcher,QProcess,QFileInfo,QFile)
-# from PyQt5.QtCore import (QFileInfo)
 from PyQt5.QtWidgets import (QWidget,QHBoxLayout,QBoxLayout,QLabel,QPushButton,QSizePolicy,QMenu,QVBoxLayout,QTabWidget,QListWidget,QScrollArea,QListWidgetItem,QDialog,QMessageBox,QMenu,qApp,QAction,QDialogButtonBox,QTreeWidget,QTreeWidgetItem,QDesktopWidget,QLineEdit,QFrame,QCalendarWidget,QTableView,QStyleFactory,QApplication,QButtonGroup,QRadioButton,QSlider)
 from PyQt5.QtGui import (QFont,QIcon,QImage,QPixmap,QPalette,QWindow,QColor,QPainterPath)
 import sys, os, time
@@ -19,6 +18,10 @@ from xdg import IconTheme
 from ewmh import EWMH
 ewmh = EWMH()
 from cfg_dock import *
+
+if PLAY_SOUND == 2:
+    from PyQt5.QtMultimedia import QSound
+
 if use_clock:
     import datetime
 
@@ -65,7 +68,7 @@ if USE_CLIPBOARD:
     CWINW = 600
     CWINH = 600
     try:
-        ffile = open(os.path.join(ccdir, "progsize.cfg"), "r")
+        ffile = open(os.path.join(ccdir, "clipprogsize.cfg"), "r")
         CWINW, CWINH = ffile.readline().split(";")
         CWINW = int(CWINW)
         CWINH = int(CWINH)
@@ -275,15 +278,18 @@ stopCD = 0
 data_run = 1
 
 def play_sound(_sound):
-    if not shutil.which(A_PLAYER):
-        return
-    sound_full_path = os.path.join(curr_path, "sounds", _sound)
-    command = [A_PLAYER, sound_full_path]
-    try:
-        subprocess.Popen(command, 
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.STDOUT)
-    except: pass
+    if PLAY_SOUND == 1:
+        if not shutil.which(A_PLAYER):
+            return
+        sound_full_path = os.path.join(curr_path, "sounds", _sound)
+        command = [A_PLAYER, sound_full_path]
+        try:
+            subprocess.Popen(command, 
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.STDOUT)
+        except: pass
+    elif PLAY_SOUND == 2:
+        QSound.play(_sound)
     return
 
 # 
@@ -1102,6 +1108,11 @@ class SecondaryWin(QWidget):
                 break
         #
         self.card_list = self.pulse.card_list()
+        # 
+        dsink = self.default_sink_info
+        if dsink:
+            _vol = round(AUDIO_START_LEVEL/100, 2)
+            self.pulse.volume_set_all_chans(dsink, _vol)
         # set the icon and tooltip volume
         self._set_volume()
     
@@ -1173,7 +1184,10 @@ class SecondaryWin(QWidget):
             self.default_source_name = self.server_info.default_source_name
             if old_default_source_name == self.default_source_name:
                 return
-            self.default_source_info = self.pulse.get_source_by_name(self.default_source_name)
+            try:
+                self.default_source_info = self.pulse.get_source_by_name(self.default_source_name)
+            except:
+                pass
             self.on_microphone()
 
     
@@ -1580,6 +1594,21 @@ class SecondaryWin(QWidget):
         self._is_clipboard_shown = 0
     
     def on_cwindow_close(self):
+        new_w = self.cwindow.size().width()
+        new_h = self.cwindow.size().height()
+        global CWINW
+        global CWINH
+        #
+        if new_w != int(CWINW) or new_h != int(CWINH):
+            try:
+                ifile = open("clipprogsize.cfg", "w")
+                ifile.write("{};{}".format(new_w, new_h))
+                ifile.close()
+                CWINW = new_w
+                CWINH = new_h
+            except:
+                pass
+        #
         self.cwindow.close()
         self._is_clipboard_shown = 0
     
@@ -1644,10 +1673,28 @@ class SecondaryWin(QWidget):
         textW.setTextInteractionFlags(Qt.TextSelectableByMouse)
         #
         closeDBTN = QPushButton("Close")
-        closeDBTN.clicked.connect(self.dialogp.close)
+        # closeDBTN.clicked.connect(self.dialogp.close)
+        closeDBTN.clicked.connect(self.on_close_preview)
         layout.addWidget(closeDBTN)
         #
         self.dialogp.show()
+    
+    
+    def on_close_preview(self):
+        new_w = self.dialogp.size().width()
+        new_h = self.dialogp.size().height()
+        global DWINW
+        global DWINH
+        if new_w != DWINW or new_h != DWINH:
+            try:
+                with open(os.path.join(ccdir, "previewsize.cfg"), "w") as ff:
+                    ff.write("{};{}".format(new_w, new_h))
+                #
+                DWINW = new_w
+                DWINH = new_h
+            except Exception as E:
+                MyDialog("Error", str(E), self.cwindow)
+        self.dialogp.close()
     
     # text
     def on_delete_item(self, idx):
