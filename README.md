@@ -3,6 +3,8 @@ A simple dock.
 
 Free to use and modify.
 
+This application has been integrated into the program qt5desktop2, along with simpledesktop. Both no more will be developed for bug fixing or features.
+
 This program needs:
 - python3
 - pyqt5
