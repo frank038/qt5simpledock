@@ -1,14 +1,45 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 38.4 38.4">
- <path d="m 5.155 4.8 28.09 0 c 0.197 0 0.355 0.158 0.355 0.355 l 0 28.09 c 0 0.197 -0.158 0.355 -0.355 0.355 l -28.09 0 c -0.197 0 -0.355 -0.158 -0.355 -0.355 l 0 -28.09 c 0 -0.197 0.158 -0.355 0.355 -0.355" style="stroke-dasharray:none;fill:none;stroke-miterlimit:4;stroke:#ca9a69;stroke-linecap:round;stroke-width:1.6"/>
- <path d="m 8 6.5 0 35.5 1 0 0 -5 5 0 0 -1 -5 0 0 -5 5 0 0 -1 -5 0 0 -5 7 0 0 -1 -7 0 0 -5 7 0 0 -1 -7 0 0 -5 5 0 0 -1 -5 0 0 -5.5 z" transform="scale(0.8,0.8)" mix-blend-mode="normal" isolation="auto" white-space="normal" solid-opacity="1" solid-color="#000000" style="visibility:visible;shape-rendering:auto;color-interpolation-filters:linearRGB;fill:#ca9a69;opacity:1;image-rendering:auto;fill-opacity:0.6;stroke:none;display:inline;color:#000;fill-rule:nonzero;color-rendering:auto;color-interpolation:sRGB"/>
- <rect width="2.4" height="2.4" x="12" y="8" rx="0.4" style="fill:#ca9a69;opacity:1;fill-opacity:1;stroke:none;fill-rule:nonzero"/>
- <rect width="2.4" height="2.4" x="12" y="27.2" rx="0.4" style="fill:#ca9a69;opacity:1;fill-opacity:1;stroke:none;fill-rule:nonzero"/>
- <rect width="14.4" height="2.4" x="16" y="8" rx="0.4" style="fill:#ca9a69;opacity:1;fill-opacity:1;stroke:none;fill-rule:nonzero"/>
- <rect width="2.4" height="2.4" x="13.6" y="12.8" rx="0.4" style="fill:#ca9a69;opacity:1;fill-opacity:1;stroke:none;fill-rule:nonzero"/>
- <rect width="2.4" height="2.4" x="13.6" y="17.6" rx="0.4" style="fill:#ca9a69;opacity:1;fill-opacity:1;stroke:none;fill-rule:nonzero"/>
- <rect width="2.4" height="2.4" x="12" y="22.4" rx="0.4" style="fill:#ca9a69;opacity:1;fill-opacity:1;stroke:none;fill-rule:nonzero"/>
- <rect width="14.4" height="2.4" x="16.8" y="12.8" rx="0.4" style="fill:#ca9a69;opacity:1;fill-opacity:1;stroke:none;fill-rule:nonzero"/>
- <rect width="14.4" height="2.4" x="16.8" y="17.6" rx="0.4" style="fill:#ca9a69;opacity:1;fill-opacity:1;stroke:none;fill-rule:nonzero"/>
- <rect width="14.4" height="2.4" x="15.2" y="22.4" rx="0.4" style="fill:#ca9a69;opacity:1;fill-opacity:1;stroke:none;fill-rule:nonzero"/>
- <rect width="14.4" height="2.4" x="15.2" y="27.2" rx="0.4" style="fill:#ca9a69;opacity:1;fill-opacity:1;stroke:none;fill-rule:nonzero"/>
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Uploaded to: SVG Repo, www.svgrepo.com, Generator: SVG Repo Mixer Tools -->
+<svg version="1.1" id="Uploaded to svgrepo.com" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+	 width="800px" height="800px" viewBox="0 0 32 32" xml:space="preserve">
+<style type="text/css">
+	.cubies_twee{fill:#67625D;}
+	.cubies_twaalf{fill:#FFF2DF;}
+	.cubies_zesentwintig{fill:#65C3AB;}
+	.cubies_zevenentwintig{fill:#98D3BC;}
+	.cubies_achtentwintig{fill:#CCE2CD;}
+	.st0{fill:#F2C99E;}
+	.st1{fill:#F9E0BD;}
+	.st2{fill:#C9483A;}
+	.st3{fill:#D97360;}
+	.st4{fill:#EDB57E;}
+	.st5{fill:#E3D4C0;}
+	.st6{fill:#4C4842;}
+	.st7{fill:#EDEAE5;}
+	.st8{fill:#C9C6C0;}
+	.st9{fill:#BCD269;}
+	.st10{fill:#A4C83F;}
+	.st11{fill:#837F79;}
+	.st12{fill:#EC9B5A;}
+	.st13{fill:#2EB39A;}
+	.st14{fill:#725A48;}
+	.st15{fill:#8E7866;}
+	.st16{fill:#E69D8A;}
+	.st17{fill:#65C3AB;}
+	.st18{fill:#A5A29C;}
+	.st19{fill:#D1DE8B;}
+	.st20{fill:#E8E8B5;}
+</style>
+<g>
+	<path class="cubies_zesentwintig" d="M32,27H0V3c0-1.657,1.343-3,3-3h26c1.657,0,3,1.343,3,3V27z"/>
+	<path class="cubies_zevenentwintig" d="M29,32H3c-1.657,0-3-1.343-3-3v-2h32v2C32,30.657,30.657,32,29,32z"/>
+	<path class="cubies_zevenentwintig" d="M30,27H0V3c0-1.657,1.343-3,3-3h24c1.657,0,3,1.343,3,3V27z"/>
+	<path class="cubies_achtentwintig" d="M27,32H3c-1.657,0-3-1.343-3-3v-2h30v2C30,30.657,28.657,32,27,32z"/>
+	<path class="cubies_twaalf" d="M25,23H5c-0.552,0-1-0.448-1-1V5c0-0.552,0.448-1,1-1h20c0.552,0,1,0.448,1,1v17
+		C26,22.552,25.552,23,25,23z"/>
+	<path class="cubies_zesentwintig" d="M17,29h-4c-0.552,0-1-0.448-1-1v-1h6v1C18,28.552,17.552,29,17,29z"/>
+	<path class="cubies_twee" d="M9,9c0-0.552,0.448-1,1-1h10c0.552,0,1,0.448,1,1c0,0.552-0.448,1-1,1H10C9.448,10,9,9.552,9,9z
+		 M20,12H10c-0.552,0-1,0.448-1,1c0,0.552,0.448,1,1,1h10c0.552,0,1-0.448,1-1C21,12.448,20.552,12,20,12z M20,16H10
+		c-0.552,0-1,0.448-1,1c0,0.552,0.448,1,1,1h10c0.552,0,1-0.448,1-1C21,16.448,20.552,16,20,16z"/>
+</g>
 </svg>
