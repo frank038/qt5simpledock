@@ -3,18 +3,19 @@ A simple dock.
 
 Free to use and modify.
 
-This application has been integrated into the program qt5desktop2, along with simpledesktop. Both no more will be developed for bug fixing or features.
+This application is a panel with a lot of features.
 
 This program needs:
 - python3
 - pyqt5
 - python3-xlib
-- python3-ewmh.
+- python3-xdg
+- pyqt5-multimedia (optional) or aplay (optional).
 
 
 Features:
-- application menu (can add or modify application entries; bookmarks; search functionality)
-- clock/calendar (can read an ics file; can launch an external program for adding/modifying events by double clicking in a day cell, or even event)
+- application menu (can add or modify application entries; bookmarks; search functionality; custom button with menu; system buttons)
+- clock/calendar (can read an ics file; can launch an external program for adding/modifying events by double clicking in a day cell, or even event; in the form: PROGRAM yyyymmdd)
 - virtual desktops (if supported by the window manager)
 - application launchers (using the contextual menu, applications can be pinned and unpinned - a valid desktop file is required; the file delete_me in the folder 'applications' needs to be deleted before using this program)
 - task list with icon support and application comment while hovering on it
@@ -25,8 +26,9 @@ Features:
 - closing applications by right mouse clicking on its icon
 - closing and restarting this program by right mouse clicking
 - can play sounds when a window opens or closes
-- experimental, initial support for audio: the main volume can be changed; left mouse click to show a popup; central mouse click to toggle mute/unmute; if a microphone is enabled, an icon is shown (its name will be shown in the tooltip); these options must be enabled in the config file; 
-- customizations in the cfg_dock file.
+- experimental, initial support for audio: the main volume can be changed; left mouse click to show a popup; central mouse click to toggle mute/unmute; if a microphone is enabled, an icon is shown (its name will be shown in the tooltip); these options must be enabled in the config file;
+- notification manager for my program qt5notification; notifications can be disabled and re-enabled at any time
+- customizations and options in the cfg_dock file.
 
 In the image below from the left: the dock with the virtual desktops, one application launcher, the tasklist with two programs in it and two messages. (The following picture is a very old image of the dock)
 ![My image](https://github.com/frank038/qt5simpledock/blob/main/screenshot.png)
