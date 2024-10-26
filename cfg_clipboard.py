@@ -3,7 +3,7 @@ SKIP_FILES = 1
 # text size preview 
 CHAR_PREVIEW=50
 # number of characters to be stored - 0 to disable (all text will be stored)
-CLIP_MAX_SIZE=1000
+CLIP_MAX_SIZE=6000
 # store images: 0 no - 1 yes
 STORE_IMAGES=1
 # history size - clipboards: older clipboards will be removed - 0 to keep all
@@ -12,5 +12,5 @@ HISTORY_SIZE=30
 HISTORY_SIZE_IMAGES=10
 # image format in which to save - e.g. "tiff" or "png"
 IMAGE_FORMAT="tiff"
-# rimove decoration from the clipboard window: 0 no - i yes
+# rimove decoration from the clipboard window: 0 no - 1 yes
 CLIP_REMOVE_DECO=0

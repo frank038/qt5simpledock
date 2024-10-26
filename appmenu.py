@@ -43,7 +43,7 @@ class appWin(QtWidgets.QWidget):
         self.mainBox.addWidget(self.le_exec, 3, 1, 1, 5)
         lbl_exec.clicked.connect(lambda:self.f_choose(self.le_exec, "All Files (*.*)"))
         #### try executable
-        lbl_exec_try = QtWidgets.QPushButton("Try Executable")
+        lbl_exec_try = QtWidgets.QPushButton("Try Executable *")
         self.mainBox.addWidget(lbl_exec_try, 4, 0)
         self.le_exec_try = QtWidgets.QLineEdit()
         self.mainBox.addWidget(self.le_exec_try, 4, 1, 1, 5)

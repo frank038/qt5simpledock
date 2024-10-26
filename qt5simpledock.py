@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
 
-# V 0.9.35
+# 0.9.36
 
 from PyQt5.QtCore import (QThread,pyqtSignal,Qt,QTimer,QTime,QDate,QSize,QRect,QCoreApplication,QEvent,QPoint,QFileSystemWatcher,QProcess,QFileInfo,QFile)
-from PyQt5.QtWidgets import (QWidget,QHBoxLayout,QBoxLayout,QLabel,QPushButton,QSizePolicy,QMenu,QVBoxLayout,QTabWidget,QListWidget,QScrollArea,QListWidgetItem,QDialog,QMessageBox,QMenu,qApp,QAction,QDialogButtonBox,QTreeWidget,QTreeWidgetItem,QDesktopWidget,QLineEdit,QFrame,QCalendarWidget,QTableView,QStyleFactory,QApplication,QButtonGroup,QRadioButton,QSlider)
+from PyQt5.QtWidgets import (QWidget,QHBoxLayout,QBoxLayout,QLabel,QPushButton,QSizePolicy,QMenu,QVBoxLayout,QTabWidget,QListWidget,QScrollArea,QListWidgetItem,QDialog,QMessageBox,QMenu,qApp,QAction,QDialogButtonBox,QTreeWidget,QTreeWidgetItem,QDesktopWidget,QLineEdit,QFrame,QCalendarWidget,QTableView,QStyleFactory,QApplication,QButtonGroup,QRadioButton,QSlider,QTextEdit,QTextBrowser)
 from PyQt5.QtGui import (QFont,QIcon,QImage,QPixmap,QPalette,QWindow,QColor,QPainterPath)
 import sys, os, time
 import shutil
 from Xlib.display import Display
 import Xlib
 from Xlib import X, Xatom, Xutil, error
-# from Xlib.ext import damage
 import Xlib.protocol.event as pe
 import subprocess
 from xdg import DesktopEntry
@@ -19,25 +18,35 @@ from ewmh import EWMH
 ewmh = EWMH()
 from cfg_dock import *
 
+QIcon.setFallbackSearchPaths(["/usr/share/pixmaps"])
+
 if PLAY_SOUND == 2:
     from PyQt5.QtMultimedia import QSound
 
-if use_clock:
+if use_clock or USE_NOTIFICATION:
     import datetime
 
-if USE_CUSTOM_WIDGET_LEFT:
-    from widgets1 import widgets_left
-
-if USE_CUSTOM_WIDGET_RIGHT:
-    from widgets2 import widgets_right
+if use_webcam:
+    import pyudev
+    import pyinotify
+    _notifier = None
 
 if button_size > dock_height:
     button_size = dock_height
 
 app = None
 
+WINW = 0
+WINH = 0
+
 curr_path = os.getcwd()
 
+if USE_NOTIFICATION:
+    if not os.path.exists(USE_NOTIFICATION):
+        try:
+            os.makedirs(USE_NOTIFICATION)
+        except:
+            USE_NOTIFICATION = 0
 
 if USE_CLIPBOARD:
     from pathlib import Path
@@ -113,7 +122,6 @@ if USE_CLIPBOARD:
         else:
             CLIPS_DICT[iitem] = [iitem_text]
     #
-
 
 ################## MENU
 sys.path.append("modules")
@@ -254,35 +262,24 @@ def get_events():
 get_events()
 
 #################
-# width and height of the program
-WINW = 0
-WINH = 0
-
-# screen width and height
-NW = 0
-NH = 0
-
-dock_width = 0
-
-this_window = None
 this_windowID = None
 
 ### TRAY
-P_HEIGHT        = dock_height   # Panel height
-TRAY_I_HEIGHT   = min(tbutton_size, button_size)   # System tray icon height (usually 16 or 24)
-TRAY_I_WIDTH    = min(tbutton_size, button_size)   # System tray icon width  (usually 16 or 24)
-TRAY            = 1             # System tray section
+# P_HEIGHT        = dock_height   # Panel height
+# TRAY_I_HEIGHT   = min(tbutton_size, button_size)   # System tray icon height (usually 16 or 24)
+# TRAY_I_WIDTH    = min(tbutton_size, button_size)   # System tray icon width  (usually 16 or 24)
+TRAY = 1
 tray_already_used = 0
 #############
 stopCD = 0
 data_run = 1
 
 def play_sound(_sound):
+    _sound = os.path.join(curr_path,"sounds",_sound)
     if PLAY_SOUND == 1:
         if not shutil.which(A_PLAYER):
             return
-        sound_full_path = os.path.join(curr_path, "sounds", _sound)
-        command = [A_PLAYER, sound_full_path]
+        command = [A_PLAYER, _sound]
         try:
             subprocess.Popen(command, 
                 stdout=subprocess.DEVNULL,
@@ -384,11 +381,6 @@ class winThread(QThread):
                 except:
                     pass
                 self.sig.emit(["UNMAPMAP", event.window, 1])
-            # elif event.type == self.display.extension_event.DamageNotify:
-                # print("damage event from main::", event.window.id)
-            #
-            # elif event.type == X.Expose:
-                # # self.sig.emit(["EXPOSE"])
             #
             if stopCD:
                 break
@@ -416,42 +408,31 @@ class label1Thread(QThread):
                 break
 
 
-# # screen resolution changed
-# class winThread2(QThread):
-    
-    # sig = pyqtSignal(list)
-    
-    # def __init__(self, display, parent=None):
-        # super(winThread2, self).__init__(parent)
-        # self.display = display
-        # self.root = self.display.screen().root
-        # #
-        # self.win_l = []
-        # self.root.change_attributes(event_mask=X.PropertyChangeMask)
-        
-    # #
-    # def run(self):
-        # while True:
-            # event = self.display.next_event()
-            # if event.type == X.ConfigureNotify:
-                # self.sig.emit([root.get_geometry().width, root.get_geometry().height])
-    
-
 class SecondaryWin(QWidget):
-    def __init__(self, position):
+    
+    webcam_signal = pyqtSignal(list)
+    
+    def __init__(self, position, _app, _close_signal, _parent):
         super(SecondaryWin, self).__init__()
         # super().__init__()
+        global app
+        app = _app
         self.position = position
-        self.setWindowTitle("qt5simpledock")
-        # qApp.setStyleSheet("QWidget#mainwin { border:1px solid #7F7F7F;}")
-        # self.setObjectName("mainwin")
+        self._close_signal = _close_signal
+        self._parent = _parent
+        #
+        # if self._parent.DOCK_AS_SEPARATE_WIN == 1:
+        self.setWindowFlags(self.windowFlags() | Qt.WindowDoesNotAcceptFocus | Qt.FramelessWindowHint)
+        self.setAttribute(Qt.WA_X11NetWmWindowTypeDock)
+        self.setAttribute(Qt.WA_AlwaysShowToolTips, True)
+        self.setWindowTitle("qt5dock-1")
+        #
+        self._initializations()
         #
         self.display = Display()
         self.root = self.display.screen().root
         #
         self.is_started = 1
-        # # the pointer entered the panel
-        # self.is_entered = 0
         # demand attention: window:type - 1 add - 0 remove - 2 toggle
         self.attention_windows = {}
         # list of windows demanding attention
@@ -479,54 +460,28 @@ class SecondaryWin(QWidget):
             self.active_virtual_desktop = 0
             self.actual_virtual_desktop = 0
         #######
-        screen = app.primaryScreen()
-        self.screen_size = screen.size()
-        #
         # 0 top - 1 bottom
         if self.position in [0,1]:
             self.abox = QHBoxLayout()
             self.abox.setContentsMargins(0,0,0,0)
-            self.abox.setDirection(QBoxLayout.LeftToRight)
+            # self.abox.setDirection(QBoxLayout.LeftToRight)
             self.abox.setSpacing(0)
             self.setLayout(self.abox)
             #
-            if CENTRALIZE_EL == 1:
-                self.abox.addStretch(1)
-            #
-            if label0_script:
-                self.labelw0 = QLabel()
-                # self.labelw0.setAlignment(Qt.AlignRight|Qt.AlignVCenter)
-                self.abox.insertWidget(1, self.labelw0)
-                if label1_use_richtext:
-                    self.labelw0.setTextFormat(Qt.RichText)
-                else:
-                    if label0_color:
-                        self.labelw0.setStyleSheet("color: {}".format(label0_color))
-                    tfont = QFont()
-                    if label0_font:
-                        tfont.setFamily(label0_font)
-                    if label0_font_size:
-                        tfont.setPointSize(label0_font_size)
-                    if label0_font_weight:
-                        tfont.setWeight(label0_font_weight)
-                    if label0_font_italic:
-                        tfont.setItalic(label0_font_italic)
-                    self.labelw0.setFont(tfont)
-                # 
-                self.labelw0.mouseDoubleClickEvent = self.on_labelw0
-                self.label0thread = label1Thread(["scripts/./label0.sh", label0_interval])
-                self.label0thread.label1sig.connect(self.on_label0)
-                self.label0thread.start()
+            self.labelw0_state = 0
+            self.labelw0 = QLabel()
+            self.labelw0.setAlignment(Qt.AlignRight|Qt.AlignVCenter)
+            self.abox.insertWidget(0, self.labelw0)
+            self.labelw0.hide()
+            self._on_label_0(label0_script,label0_interval,label0_use_richtext,label0_color,label0_font,label0_font_size,label0_font_weight,label0_font_italic,label0_command1,label0_command2)
             #
             ##### clock
             self.cw_is_shown = None
-            self.cwin_is_shown = None
+            # self.cwin_is_shown = None
             if use_clock:
                 self.cbox = QHBoxLayout()
                 self.cbox.setContentsMargins(4,0,4,0)
                 self.tlabel = QLabel("")
-                # self.tlabel.setAlignment(Qt.AlignCenter)
-                # self.tlabel.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
                 tfont = QFont()
                 if calendar_label_font:
                     tfont.setFamily(calendar_label_font)
@@ -536,10 +491,7 @@ class SecondaryWin(QWidget):
                 self.tlabel.setFont(tfont)
                 if calendar_label_font_color:
                     self.tlabel.setStyleSheet("QLabel {0} color: {1};{2}".format("{", calendar_label_font_color, "}"))
-                    # self.tlabel.setStyleSheet("QLabel {0} color: {1}; {2} QLabel::hover {0} background-color: lightgrey; border: 2px lightgrey; border-radius: 15px;{2}".format("{", calendar_label_font_color, "}"))
-                # else:
-                    # self.tlabel.setStyleSheet("QLabel::hover { background-color: lightgrey; border: 2px lightgrey; border-radius: 15px;}")
-                #self.tlabel.setAlignment(Qt.AlignCenter)
+                #
                 self.cbox.addWidget(self.tlabel)
                 #
                 if USE_AP:
@@ -551,8 +503,7 @@ class SecondaryWin(QWidget):
                     self.tlabel.setText(" "+curr_date+"  "+cur_time+" ")
                 else:
                     self.tlabel.setText(" "+cur_time+" ")
-                    curr_date = QDate.currentDate().toString("ddd d")
-                    self.tlabel.setToolTip(" "+curr_date+" ")
+                    self.tlabel.installEventFilter(self)
                 #
                 tfont = QFont()
                 if clock_font:
@@ -574,18 +525,9 @@ class SecondaryWin(QWidget):
                 self.tlabel.setContentsMargins(0,0,0,0)
                 self.tlabel.mousePressEvent = self.on_tlabel
                 #
-                if use_clock == 1:
-                    self.abox.insertLayout(2, self.cbox)
             ##########
-            # if CENTRALIZE_EL == 1:
-                # self.abox.addStretch(1)
-                # if CENTRALIZE_GAP_L > 0:
-                    # self.abox.addStretch(CENTRALIZE_GAP_L)
-                    # # clabell = QLabel()
-                    # # clabell.setText(" "*CENTRALIZE_GAP_L)
-                    # # self.abox.insertWidget(2, clabell)
-            # else:
-                # self.abox.addStretch(0)
+            if CENTRALIZE_EL == 1 or CENTRALIZE_EL == 2:
+                self.abox.addStretch(1)
             ## menu
             self.mw_is_shown = None
             if use_menu:
@@ -602,15 +544,25 @@ class SecondaryWin(QWidget):
                 self.mbutton.setIcon(QIcon("icons/menu.png"))
                 self.mbutton.setIconSize(QSize(button_size, button_size))
                 self.mbtnbox.addWidget(self.mbutton)
-                # self.btn_style_sheet(self.mbutton)
                 self.mbutton.clicked.connect(self.on_click)
+            #
+            self.labelw3_state = 0
+            self.labelw3 = QLabel()
+            self.labelw3.setAlignment(Qt.AlignRight|Qt.AlignVCenter)
+            self.abox.insertWidget(4, self.labelw3)
+            self.labelw3.hide()
+            self._on_label_3(label3_script,label3_interval,label3_use_richtext,label3_color,label3_font,label3_font_size,label3_font_weight,label3_font_italic,label3_command1,label3_command2)
+            #
+            if USE_CUSTOM_WIDGET_LEFT:
+                from widgets1 import widgets_left 
+                self.abox.insertWidget(5, widgets_left())
             ## virtual desktop box
             if virtual_desktops:
                 self.virtbox = QHBoxLayout()
                 self.virtbox.setContentsMargins(0,0,0,0)
                 self.virtbox.setSpacing(4)
                 self.virtbox.desk = "v"
-                self.abox.insertLayout(4, self.virtbox)
+                self.abox.insertLayout(6, self.virtbox)
                 #
                 vbtn = QPushButton()
                 vbtn.setFlat(True)
@@ -618,58 +570,25 @@ class SecondaryWin(QWidget):
                 vbtn.setCheckable(True)
                 vbtn.setFixedSize(QSize(int(dock_height*1.3), dock_height))
                 #
-                # if virtual_desktops:
                 self.virtbox.addWidget(vbtn)
-                # else:
-                    # self.abox.addSpacing(8)
-                    # self.abox.insertSpacing(100, 8)
                 vbtn.desk = 0
                 vbtn.clicked.connect(self.on_vbtn_clicked)
                 self.on_virt_desk(self.num_virtual_desktops)
             #
-            if label3_script:
-                self.labelw3 = QLabel()
-                # self.labelw3.setAlignment(Qt.AlignRight|Qt.AlignVCenter)
-                self.abox.insertWidget(5, self.labelw3)
-                if label3_use_richtext:
-                    self.labelw3.setTextFormat(Qt.RichText)
-                else:
-                    if label3_color:
-                        self.labelw3.setStyleSheet("color: {}".format(label3_color))
-                    tfont = QFont()
-                    if label3_font:
-                        tfont.setFamily(label3_font)
-                    if label3_font_size:
-                        tfont.setPointSize(label3_font_size)
-                    if label3_font_weight:
-                        tfont.setWeight(label3_font_weight)
-                    if label3_font_italic:
-                        tfont.setItalic(label3_font_italic)
-                    self.labelw3.setFont(tfont)
-                # 
-                self.labelw3.mouseDoubleClickEvent = self.on_labelw3
-                self.label3thread = label1Thread(["scripts/./label3.sh", label3_interval])
-                self.label3thread.label1sig.connect(self.on_label3)
-                self.label3thread.start()
-            #
-            if USE_CUSTOM_WIDGET_LEFT:
-                self.abox.insertWidget(6, widgets_left())
             ## program box
             self.prog_box = QHBoxLayout()
             self.prog_box.setContentsMargins(4,0,4,0)
             self.prog_box.setSpacing(4)
             self.prog_box.desk = "p"
-            #self.prog_box.setAlignment(Qt.AlignCenter)
             self.abox.insertLayout(7, self.prog_box)
             #
-            sepLine1 = QFrame()
-            sepLine1.setFrameShape(QFrame.VLine)
-            sepLine1.setFrameShadow(QFrame.Plain)
-            sepLine1.setContentsMargins(0,4,0,4)
-            self.prog_box.addWidget(sepLine1)
+            if tasklist_position == 0:
+                sepLine1 = QFrame()
+                sepLine1.setFrameShape(QFrame.VLine)
+                sepLine1.setFrameShadow(QFrame.Plain)
+                sepLine1.setContentsMargins(0,4,0,4)
+                self.prog_box.addWidget(sepLine1)
             #
-            # self.abox.setAlignment(self.prog_box, Qt.AlignVCenter)
-            ## add the applications to prog_box
             progs = os.listdir("applications")
             # args to remove from the exec entry
             execArgs = [" %f", " %F", " %u", " %U", " %d", " %D", " %n", " %N", " %k", " %v"]
@@ -691,7 +610,11 @@ class SecondaryWin(QWidget):
                     fpath = ""
                     fpath = entry.getPath()
                     #
+                    tterm = ""
+                    tterm = entry.getTerminal()
+                    #
                     self.pbtn = QPushButton()
+                    self.pbtn.setStyleSheet("border: none;")
                     self.pbtn.setFlat(True)
                     picon = QIcon.fromTheme(icon)
                     if picon.isNull():
@@ -700,58 +623,42 @@ class SecondaryWin(QWidget):
                             image = QImage("icons/unknown.svg")
                         pixmap = QPixmap(image)
                         picon = QIcon(pixmap)
-                    self.pbtn.setFixedSize(QSize(pbutton_size, pbutton_size))
+                    # self.pbtn.setFixedSize(QSize(pbutton_size, pbutton_size))
+                    self.pbtn.setIconSize(QSize(pbutton_size, pbutton_size))
                     self.pbtn.setIcon(picon)
                     self.pbtn.setToolTip(fname or pexec)
-                    self.pbtn.setIconSize(QSize(pbutton_size, pbutton_size))
                     self.pbtn.pexec = pexec_temp
                     self.pbtn.pdesktop = ffile
                     self.pbtn.ppath = fpath
+                    self.pbtn.tterm = tterm
                     self.prog_box.addWidget(self.pbtn, alignment=Qt.AlignCenter)
                     self.pbtn.clicked.connect(self.on_pbtn)
                     self.pbtn.setContextMenuPolicy(Qt.CustomContextMenu)
                     self.pbtn.customContextMenuRequested.connect(self.pbtnClicked)
             #
-            sepLine2 = QFrame()
-            sepLine2.setFrameShape(QFrame.VLine)
-            sepLine2.setFrameShadow(QFrame.Plain)
-            sepLine2.setContentsMargins(0,4,0,4)
-            self.prog_box.addWidget(sepLine2)
-            #
+            self.sepLine2 = QFrame()
+            self.sepLine2.setFrameShape(QFrame.VLine)
+            self.sepLine2.setFrameShadow(QFrame.Plain)
+            self.sepLine2.setContentsMargins(0,4,0,4)
+            self.prog_box.addWidget(self.sepLine2)
+            if len(progs) == 0:
+                self.sepLine2.hide()
             #
             ## tasklist
             self.ibox = QHBoxLayout()
             # (int left, int top, int right, int bottom)
-            self.ibox.setContentsMargins(4,0,4,0)
+            _ipad = 0
+            self.ibox.setContentsMargins(4,_ipad,4,_ipad)
             self.ibox.setSpacing(4)
             if tasklist_position == 0:
                 self.ibox.setAlignment(Qt.AlignLeft)
-                # #
-                # pframe = QFrame()
-                # pframe.setFrameShape(QFrame.VLine)
-                # self.ibox.addWidget(pframe)
             elif tasklist_position == 1:
                 self.ibox.setAlignment(Qt.AlignCenter)
                 if CENTRALIZE_EL == 0:
                     self.abox.addStretch(1)
-            # elif tasklist_position == 2:
-                # self.ibox.setAlignment(Qt.AlignRight)
-                # self.ibox.setDirection(QBoxLayout.RightToLeft)
             # the first virtual desktop
             self.ibox.desk = 0
             self.abox.insertLayout(9, self.ibox)
-            # # fake button
-            # self.fake_btn = QPushButton()
-            # self.fake_btn.setAutoExclusive(True)
-            # self.fake_btn.setCheckable(True)
-            # self.fake_btn.setFixedSize(QSize(1,1))
-            # self.fake_btn.setFlat(True)
-            # self.fake_btn.winid = 1
-            # self.fake_btn.desktop = 0
-            # self.fake_btn.setVisible(False)
-            # self.ibox.addWidget(self.fake_btn)
-            # # if dock_width == 0:
-            # #self.abox.setStretchFactor(self.ibox,1)
         #
         ################################
         # winid - desktop
@@ -824,9 +731,7 @@ class SecondaryWin(QWidget):
                     self.list_prog.append([winid, on_desktop, win_exec])
                 except:
                     pass
-        #
-        # # current window active - window id
-        # self.curr_win_active = None
+        # windows in dock
         self.wid_l = []
         # the right mouse button is pressed for menu
         self.right_button_pressed = 0
@@ -848,82 +753,25 @@ class SecondaryWin(QWidget):
         self.mythread.start()
         ########
         #
-        # if CENTRALIZE_EL != 2:
-            # if CENTRALIZE_GAP_R > 0:
-                # # clabelr = QLabel()
-                # # clabelr.setText(" "*CENTRALIZE_GAP_R)
-                # # self.abox.insertWidget(7, clabelr)
-                # self.abox.addStretch(CENTRALIZE_GAP_R)
-            #
-        if CENTRALIZE_EL == 2:
+        if CENTRALIZE_EL == 2 or CENTRALIZE_EL == 0:
             self.abox.addStretch(1)
         #
-        if label1_script:
-            self.labelw1 = QLabel()
-            self.labelw1.setAlignment(Qt.AlignRight|Qt.AlignVCenter)
-            self.abox.insertWidget(11, self.labelw1)
-            if label1_use_richtext:
-                self.labelw1.setTextFormat(Qt.RichText)
-            else:
-                if label1_color:
-                    self.labelw1.setStyleSheet("color: {}".format(label1_color))
-                tfont = QFont()
-                if label1_font:
-                    tfont.setFamily(label1_font)
-                if label1_font_size:
-                    tfont.setPointSize(label1_font_size)
-                if label1_font_weight:
-                    tfont.setWeight(label1_font_weight)
-                if label1_font_italic:
-                    tfont.setItalic(label1_font_italic)
-                self.labelw1.setFont(tfont)
-            # 
-            self.labelw1.mouseDoubleClickEvent = self.on_labelw1
-            # self.l1p = QProcess()
-            # self.l1p.readyReadStandardOutput.connect(self.p1ready)
-            # self.l1p.finished.connect(self.p1finished)
-            # self.l1p.start("scripts/./label1.sh")
-            #
-            self.label1thread = label1Thread(["scripts/./label1.sh", label1_interval])
-            self.label1thread.label1sig.connect(self.on_label1)
-            self.label1thread.start()
+        self.labelw1_state = 0
+        self.labelw1 = QLabel()
+        self.labelw1.setAlignment(Qt.AlignRight|Qt.AlignVCenter)
+        self.abox.insertWidget(11, self.labelw1)
+        self.labelw1.hide()
+        self._on_label_1(label1_script,label1_interval,label1_use_richtext,label1_color,label1_font,label1_font_size,label1_font_weight,label1_font_italic,label1_command1,label1_command2)
         #
         # label 2
-        if label2_script:
-            self.labelw2 = QLabel()
-            # self.labelw2.setAlignment(Qt.AlignRight|Qt.AlignVCenter)
-            self.abox.insertWidget(12, self.labelw2)
-            if label2_use_richtext:
-                self.labelw2.setTextFormat(Qt.RichText)
-            else:
-                if label2_color:
-                    self.labelw2.setStyleSheet("color: {}".format(label2_color))
-                tfont = QFont()
-                if label2_font:
-                    tfont.setFamily(label2_font)
-                if label2_font_size:
-                    tfont.setPointSize(label2_font_size)
-                if label2_font_weight:
-                    tfont.setWeight(label2_font_weight)
-                if label2_font_italic:
-                    tfont.setItalic(label2_font_italic)
-                self.labelw2.setFont(tfont)
-            ###
-            self.labelw2.mouseDoubleClickEvent = self.on_labelw2
-            ###
-            # self.l2p = QProcess()
-            # self.l2p.readyReadStandardOutput.connect(self.p2ready)
-            # self.l2p.finished.connect(self.p2finished)
-            # self.l2p.start("scripts/./label2.sh")
-            #
-            self.label2thread = label1Thread(["scripts/./label2.sh", label2_interval])
-            self.label2thread.label1sig.connect(self.on_label2)
-            self.label2thread.start()
+        self.labelw2_state = 0
+        self.labelw2 = QLabel()
+        self.labelw2.setAlignment(Qt.AlignRight|Qt.AlignVCenter)
+        self.abox.insertWidget(12, self.labelw2)
+        self.labelw2.hide()
+        self._on_label_2(label2_script,label2_interval,label2_use_richtext,label2_color,label2_font,label2_font_size,label2_font_weight,label2_font_italic,label2_command1,label2_command2)
         #
-        if CENTRALIZE_EL == 0:
-            self.abox.addStretch(1)
         # audio - 14
-        #
         if USE_AUDIO:
             self.audiobox = QHBoxLayout()
             self.audiobox.setContentsMargins(0,0,0,0)
@@ -931,14 +779,13 @@ class SecondaryWin(QWidget):
             self.btn_audio = QPushButton()
             self.btn_audio.setFlat(True)
             self.btn_audio.setStyleSheet("border: none;")
+            self.btn_audio.setIconSize(QSize(button_size, button_size))
             _icon = "audio-volume-muted"
             iicon = QIcon.fromTheme(_icon, QIcon("icons/audio-volume-muted.svg"))
             self.btn_audio.setIcon(iicon)
             self.btn_audio.setToolTip("No audio devices")
             self.audiobox.insertWidget(0, self.btn_audio)
             #
-            # self.btn_audio.setContextMenuPolicy(Qt.CustomContextMenu)
-            # self.btn_audio.customContextMenuRequested.connect(self.on_volume2)
             self.btn_audio.winid = -999
             self.btn_audio.value = [-999, -999]
             self.btn_audio.installEventFilter(self)
@@ -998,6 +845,7 @@ class SecondaryWin(QWidget):
                 #
                 self.btn_mic = QPushButton()
                 self.btn_mic.setFlat(True)
+                self.btn_mic.setIconSize(QSize(button_size, button_size))
                 self.btn_mic.setStyleSheet("border: none;")
                 self.audiobox.insertWidget(1, self.btn_mic)
                 self.btn_mic.hide()
@@ -1014,6 +862,7 @@ class SecondaryWin(QWidget):
         if USE_CLIPBOARD:
             self.btn_clip = QPushButton(icon=QIcon("icons/qpasteboard.png"))
             self.btn_clip.setFlat(True)
+            self.btn_clip.setIconSize(QSize(button_size-button_padding, button_size-button_padding))
             self.btn_clip.setStyleSheet("border: none;")
             self._is_clipboard_shown = 0
             self.actual_clip = None
@@ -1036,7 +885,32 @@ class SecondaryWin(QWidget):
             else:
                 self.imageAction = self.menu.addAction("Store images (stopped)")
             self.imageAction.triggered.connect(self.storeImages)
-        #### tray section
+        ############# webcam
+        if use_webcam:
+            self.wbox = QHBoxLayout()
+            self.wbox.setContentsMargins(0,0,0,0)
+            self.wbox.setSpacing(0)
+            self.abox.insertLayout(16, self.wbox)
+            self.list_camera_start = []
+            self.list_camera = []
+            self.context = pyudev.Context()
+            self.on_use_webcam_start()
+        ############### battery
+        if use_battery_info and use_clock:
+            self.btn_batt = QPushButton()
+            self.btn_batt.type = "bat"
+            self.btn_batt.installEventFilter(self)
+            self.btn_batt.setFlat(True)
+            self.btn_batt.setStyleSheet("border: none;")
+            self.btn_batt.setIconSize(QSize(button_size-button_padding, button_size-button_padding))
+            batt_icon = QIcon("icons/battery-missing.png")
+            self.btn_batt.setIcon(batt_icon)
+            self.btn_batt.setToolTip("No battery")
+            self.abox.insertWidget(17, self.btn_batt)
+            self.last_battery_value = 0
+            # self.last_battery_status = ""
+            self.on_battery()
+        ############### tray section
         global use_tray
         # check if another tray is active
         selection = self.display.intern_atom("_NET_SYSTEM_TRAY_S%d" % self.display.get_default_screen())
@@ -1046,18 +920,13 @@ class SecondaryWin(QWidget):
             use_tray = 0
         #
         if use_tray:
-            # self.tframe = QFrame()
-            # self.tframe.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
-            # # self.tframe.setStyleSheet("background: palette(window); border-top-left-radius:{0}px; border-top-right-radius:{0}px".format(border_radius))
-            #
             self.frame_box = QHBoxLayout()
-            self.frame_box.setContentsMargins(0,0,0,0)
+            self.frame_box.setContentsMargins(0,int((dock_height-button_size)/2),0,0)
             self.frame_box.setSpacing(0)
-            # self.tframe.setLayout(self.frame_box)
             self.tray_box = self.frame_box
-            #
-            # self.abox.insertWidget(10, self.tframe)
-            self.abox.insertLayout(16, self.frame_box)
+            self.frame_box.setAlignment(Qt.AlignCenter)
+            # alignment
+            self.abox.insertLayout(18, self.frame_box)
             # frame widget counter
             self.frame_counter = 0
             # widget background color
@@ -1068,27 +937,653 @@ class SecondaryWin(QWidget):
             self.tthread.start()
         #
         if USE_CUSTOM_WIDGET_RIGHT:
-            self.abox.insertWidget(17, widgets_right())
+            from widgets2 import widgets_right
+            self.abox.insertWidget(20, widgets_right())
         # clock at right
         if use_clock == 2:
-            self.abox.insertLayout(18, self.cbox)
+            self.abox.insertLayout(21, self.cbox)
         # menu at right
         if use_menu == 2:
-            self.abox.insertLayout(19, self.mbtnbox)
-        #
-        # if not fixed_position:
-            # QTimer.singleShot(1500, self.on_leave_event)
-        # #
-        # if dock_width:
-            # self.on_move_win()
-        #
+            self.abox.insertLayout(22, self.mbtnbox)
         #
         if CENTRALIZE_EL == 1:
             self.abox.addStretch(1)
         elif CENTRALIZE_EL == 2:
             # the main window to the center
             self.main_window_center()
+        ###### notification manager
+        self.mn_is_shown = None
+        if USE_NOTIFICATION != 0:
+            self.btn_not = QPushButton()
+            self.btn_not.setFlat(True)
+            self.btn_not.setIconSize(QSize(button_size-button_padding, button_size-button_padding))
+            self.btn_not.setStyleSheet("border: none;")
+            self.btn_not.clicked.connect(self.on_notification)
+            if use_menu == 2:
+                if virtual_desktops == 1:
+                    self.abox.insertWidget(3, self.btn_not)
+                else:
+                    self.abox.insertWidget(2, self.btn_not)
+            else:
+                self.abox.insertWidget(17, self.btn_not)
+            # set the icon
+            self.btn_not_icon()
+        #######
+        # file and directory watchers
+        if use_menu:
+            def on_directory_changed():
+                on_pop_menu(app_dirs_user, app_dirs_system)
+            # some applications has been added or removed
+            def directory_changed(edir):
+                if USE_NOTIFICATION != 0 and edir == USE_NOTIFICATION:
+                    self.btn_not_icon()
+                    return
+                global menu_is_changed
+                menu_is_changed += 1
+                if menu_is_changed == 1:
+                    on_directory_changed()
+            
+            # check for changes in the application directories
+            fPath = app_dirs_system + app_dirs_user
+            self.fileSystemWatcher = QFileSystemWatcher(fPath)
+            self.fileSystemWatcher.directoryChanged.connect(directory_changed)
+        #
+        if use_clock:
+            def file_changed(efile):
+                global list_events_all
+                list_events_all = []
+                get_events()
+            
+            # check for changes in the calendar file
+            if os.path.exists(fopen):
+                epath = QFileInfo(QFile(fopen)).absoluteFilePath()
+                self.fileSystemWatcher.addPath(epath)
+                self.fileSystemWatcher.fileChanged.connect(file_changed)
+        #
+        if USE_NOTIFICATION != 0:
+            if os.path.exists(USE_NOTIFICATION):
+                self.fileSystemWatcher.addPath(USE_NOTIFICATION)
     
+    #
+    def _on_label_0(self,label0_script,label0_interval,label0_use_richtext,label0_color,label0_font,label0_font_size,label0_font_weight,label0_font_italic,label0_command1,label0_command2):
+        #
+        if label0_script:
+            if label0_use_richtext:
+                self.labelw0.setTextFormat(Qt.RichText)
+            else:
+                if label0_color:
+                    self.labelw0.setStyleSheet("color: {}".format(label0_color))
+                tfont = QFont()
+                if label0_font:
+                    tfont.setFamily(label0_font)
+                if label0_font_size:
+                    tfont.setPointSize(label0_font_size)
+                if label0_font_weight:
+                    tfont.setWeight(label0_font_weight)
+                if label0_font_italic:
+                    tfont.setItalic(label0_font_italic)
+                self.labelw0.setFont(tfont)
+            # 
+            self.labelw0.mouseDoubleClickEvent = self.on_labelw0
+            #
+            self.label0thread = label1Thread(["scripts/./label0.sh", label0_interval])
+            self.label0thread.label1sig.connect(self.on_label0)
+            self.label0thread.start()
+            #
+            self.labelw0_state = 1
+            self.labelw0.show()
+    
+    #
+    def _on_label_1(self,label1_script,label1_interval,label1_use_richtext,label1_color,label1_font,label1_font_size,label1_font_weight,label1_font_italic,label1_command1,label1_command2):
+        #
+        if label1_script:
+            if label1_use_richtext:
+                self.labelw1.setTextFormat(Qt.RichText)
+            else:
+                if label1_color:
+                    self.labelw1.setStyleSheet("color: {}".format(label1_color))
+                tfont = QFont()
+                if label1_font:
+                    tfont.setFamily(label1_font)
+                if label1_font_size:
+                    tfont.setPointSize(label1_font_size)
+                if label1_font_weight:
+                    tfont.setWeight(label1_font_weight)
+                if label1_font_italic:
+                    tfont.setItalic(label1_font_italic)
+                self.labelw1.setFont(tfont)
+            # 
+            self.labelw1.mouseDoubleClickEvent = self.on_labelw1
+            #
+            self.label1thread = label1Thread(["scripts/./label1.sh", label1_interval])
+            self.label1thread.label1sig.connect(self.on_label1)
+            self.label1thread.start()
+            #
+            self.labelw1_state = 1
+            self.labelw1.show()
+    
+    #
+    def _on_label_2(self,label2_script,label2_interval,label2_use_richtext,label2_color,label2_font,label2_font_size,label2_font_weight,label2_font_italic,label2_command1,label2_command2):
+        #
+        if label2_script:
+            if label2_use_richtext:
+                self.labelw2.setTextFormat(Qt.RichText)
+            else:
+                if label2_color:
+                    self.labelw2.setStyleSheet("color: {}".format(label2_color))
+                tfont = QFont()
+                if label2_font:
+                    tfont.setFamily(label2_font)
+                if label2_font_size:
+                    tfont.setPointSize(label2_font_size)
+                if label2_font_weight:
+                    tfont.setWeight(label2_font_weight)
+                if label2_font_italic:
+                    tfont.setItalic(label2_font_italic)
+                self.labelw2.setFont(tfont)
+            # 
+            self.labelw2.mouseDoubleClickEvent = self.on_labelw2
+            #
+            self.label2thread = label1Thread(["scripts/./label2.sh", label2_interval])
+            self.label2thread.label1sig.connect(self.on_label2)
+            self.label2thread.start()
+            #
+            self.labelw2_state = 1
+            self.labelw2.show()
+    
+    #
+    def _on_label_3(self,label3_script,label3_interval,label3_use_richtext,label3_color,label3_font,label3_font_size,label3_font_weight,label3_font_italic,label3_command1,label3_command2):
+        #
+        if label3_script:
+            if label3_use_richtext:
+                self.labelw3.setTextFormat(Qt.RichText)
+            else:
+                if label3_color:
+                    self.labelw3.setStyleSheet("color: {}".format(label3_color))
+                tfont = QFont()
+                if label3_font:
+                    tfont.setFamily(label3_font)
+                if label3_font_size:
+                    tfont.setPointSize(label3_font_size)
+                if label3_font_weight:
+                    tfont.setWeight(label3_font_weight)
+                if label3_font_italic:
+                    tfont.setItalic(label3_font_italic)
+                self.labelw3.setFont(tfont)
+            # 
+            self.labelw3.mouseDoubleClickEvent = self.on_labelw3
+            #
+            self.label3thread = label1Thread(["scripts/./label3.sh", label3_interval])
+            self.label3thread.label1sig.connect(self.on_label3)
+            self.label3thread.start()
+            #
+            self.labelw3_state = 1
+            self.labelw3.show()
+    
+    
+    def _initializations(self):
+        # set new style globally
+        if theme_style:
+            s = QStyleFactory.create(theme_style)
+            app.setStyle(s)
+        # set the icon style globally
+        if icon_theme:
+            QIcon.setThemeName(icon_theme)
+        ################
+        self.setMinimumHeight(dock_height)
+        self.setMaximumHeight(dock_height)
+        #
+        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self._on_menu)
+        
+    def _on_menu(self, QPos):
+        pbtn = self.sender()
+        # create context menu
+        selfMenu = QMenu(self)
+        # scripts
+        self._reload_scripts = QAction("Reload scripts")
+        selfMenu.addAction(self._reload_scripts)
+        self._reload_scripts.triggered.connect(self.on_reload_scripts)
+        # mute notifications
+        self._disable_notifications = QAction("Notifications off/on")
+        selfMenu.addAction(self._disable_notifications)
+        self._disable_notifications.triggered.connect(self.on_disable_notifications)
+        # exit
+        selfMenu.addSeparator()
+        reloadAction = QAction("Reload", self)
+        reloadAction.triggered.connect(self.restart)
+        selfMenu.addAction(reloadAction)
+        exitAction = QAction("Exit", self)
+        exitAction.triggered.connect(self.winClose)
+        selfMenu.addAction(exitAction)
+        # # widgets
+        # self._reload_widgets = QAction("Reload widgets")
+        # selfMenu.addAction(self._reload_widgets)
+        # self._reload_widgets.triggered.connect(self.on_reload_widgets)
+        # show the context menu
+        selfMenu.exec_(self.sender().mapToGlobal(QPos)) 
+        
+    
+    def on_reload_scripts(self):
+        del sys.modules["cfg_dock"]
+        import cfg_dock
+        #
+        if cfg_dock.label1_script == 0 and self.labelw1_state == 1:
+            self.label1thread.terminate()
+            self.label1thread.quit()
+            self.label1thread.exit()
+            aa = 1
+            while aa:
+                time.sleep(1)
+                if not self.label1thread.isRunning():
+                    aa = 0
+            # self.abox.removeWidget(self.labelw1)
+            # self.labelw1.deleteLater()
+            self.labelw1.hide()
+            self.labelw1_state = 0
+        elif cfg_dock.label1_script == 1 and self.labelw1_state == 0:
+            self._on_label_1(cfg_dock.label1_script,cfg_dock.label1_interval,cfg_dock.label1_use_richtext,cfg_dock.label1_color,cfg_dock.label1_font,cfg_dock.label1_font_size,cfg_dock.label1_font_weight,cfg_dock.label1_font_italic,cfg_dock.label1_command1,cfg_dock.label1_command2)
+        #
+        if cfg_dock.label2_script == 0 and self.labelw2_state == 1:
+            self.label2thread.terminate()
+            self.label2thread.quit()
+            self.label2thread.exit()
+            aa = 1
+            while aa:
+                time.sleep(1)
+                if not self.label2thread.isRunning():
+                    aa = 0
+            # self.abox.removeWidget(self.labelw2)
+            # self.labelw2.deleteLater()
+            self.labelw2.hide()
+            self.labelw2_state = 0
+        elif cfg_dock.label2_script == 1 and self.labelw2_state == 0:
+            self._on_label_2(cfg_dock.label2_script,cfg_dock.label2_interval,cfg_dock.label2_use_richtext,cfg_dock.label2_color,cfg_dock.label2_font,cfg_dock.label2_font_size,cfg_dock.label2_font_weight,cfg_dock.label2_font_italic,cfg_dock.label2_command1,cfg_dock.label2_command2)
+        #
+        if cfg_dock.label3_script == 0 and self.labelw3_state == 1:
+            self.label3thread.terminate()
+            self.label3thread.quit()
+            self.label3thread.exit()
+            aa = 1
+            while aa:
+                time.sleep(1)
+                if not self.label3thread.isRunning():
+                    aa = 0
+            # self.abox.removeWidget(self.labelw3)
+            # self.labelw3.deleteLater()
+            self.labelw3.hide()
+            self.labelw3_state = 0
+        elif cfg_dock.label3_script == 1 and self.labelw3_state == 0:
+            self._on_label_3(cfg_dock.label3_script,cfg_dock.label3_interval,cfg_dock.label3_use_richtext,cfg_dock.label3_color,cfg_dock.label3_font,cfg_dock.label3_font_size,cfg_dock.label3_font_weight,cfg_dock.label3_font_italic,cfg_dock.label3_command1,cfg_dock.label3_command2)
+        #
+        if cfg_dock.label0_script == 0 and self.labelw0_state == 1:
+            self.label0thread.terminate()
+            self.label0thread.quit()
+            self.label0thread.exit()
+            aa = 1
+            while aa:
+                time.sleep(1)
+                if not self.label0thread.isRunning():
+                    aa = 0
+            # self.abox.removeWidget(self.labelw0)
+            # self.labelw0.deleteLater()
+            self.labelw0.hide()
+            self.labelw0_state = 0
+        elif cfg_dock.label0_script == 1 and self.labelw0_state == 0:
+            self._on_label_0(cfg_dock.label0_script,cfg_dock.label0_interval,cfg_dock.label0_use_richtext,cfg_dock.label0_color,cfg_dock.label0_font,cfg_dock.label0_font_size,cfg_dock.label0_font_weight,cfg_dock.label0_font_italic,cfg_dock.label0_command1,cfg_dock.label0_command2)
+
+
+############### battery ################
+    
+    # tooltip data
+    def _get_battery_data(self):
+        _data = None
+        _status = None
+        try:
+            _comm = ["cat", "/sys/class/power_supply/BAT0/capacity"]
+            _data = subprocess.check_output(_comm, shell=False, encoding='utf-8').strip("\n")
+            _comm = ["cat", "/sys/class/power_supply/BAT0/status"]
+            _status = subprocess.check_output(_comm, shell=False, encoding='utf-8').strip("\n")
+        except:
+            pass
+        #
+        return (_data, _status)
+    
+    # tray data
+    def _get_battery_data_tray(self):
+        _data = None
+        #_status = None
+        try:
+            _comm = ["cat", "/sys/class/power_supply/BAT0/capacity"]
+            _data = subprocess.check_output(_comm, shell=False, encoding='utf-8').strip("\n")
+            # _comm = ["cat", "/sys/class/power_supply/BAT0/status"]
+            # _status = subprocess.check_output(_comm, shell=False, encoding='utf-8').strip("\n")
+        except:
+            pass
+        #
+        return _data
+    
+    # main
+    def on_battery(self):
+        if not os.path.exists("/sys/class/power_supply/BAT0"):
+            return
+        _data = None
+        # _status = None
+        # try:
+            # _comm = ["cat", "/sys/class/power_supply/BAT0/capacity"]
+            # _data = subprocess.check_output(_comm, shell=False, encoding='utf-8').strip("\n")
+            # _comm = ["cat", "/sys/class/power_supply/BAT0/status"]
+            # _status = subprocess.check_output(_comm, shell=False, encoding='utf-8').strip("\n")
+        # except:
+            # pass
+        #
+        # _data, _status = self._get_battery_data_tray()
+        _data = self._get_battery_data_tray()
+        #
+        if not _data:
+            return
+        try:
+            if not isinstance(int(_data), int):
+                return
+        except:
+            return
+        if _data < 0 or _data > 100:
+            return
+        #
+        # Discharging - Charging
+        _data = int(_data)
+        # _status = str(_status)
+        #
+        _temp_value = self.last_battery_value
+        self.last_battery_value = _data
+        # self.last_battery_status = _status
+        if 100 > _data >= 95:
+            if 100 > _temp_value >= 95:
+                return
+            # if _status == "Charging":
+                # _ic = "icons/battery-full-charged.png"
+            # else:
+            _ic = "icons/battery-full.png"
+            _icon = QIcon(_ic)
+        elif 95 > _data >= 50:
+            if 95 > _temp_value >= 50:
+                return
+            # if _status == "Charging":
+                # _ic = "icons/battery-good-charging.png"
+            # else:
+            _ic = "icons/battery-good.png"
+            _icon = QIcon(_ic)
+        elif 50 > _data >= 25:
+            if 50 > _temp_value >= 25:
+                return
+            # if _status == "Charging":
+                # _ic = "icons/battery-low-charging.png"
+            # else:
+            _ic = "icons/battery-low.png"
+            _icon = QIcon(_ic)
+        elif 25 > _data >= 10:
+            if 25 > _temp_value >= 10:
+                return
+            # if _status == "Charging":
+                # _ic = "icons/battery-caution-charging.png"
+            # else:
+            _ic = "icons/battery-caution.png"
+            _icon = QIcon(_ic)
+        elif 10 > _data >= 1:
+            if 10 > _temp_value >= 1:
+                return
+            # if _status == "Charging":
+                # _ic = "icons/battery-caution-charging.png"
+            # else:
+            _ic = "icons/battery-caution.png"
+            _icon = QIcon(_ic)
+        elif 1 > _data >= 0:
+            if 1 > _temp_value >= 0:
+                return
+            # if _status == "Charging":
+                # _ic = "icons/battery-caution-charging.png"
+            # else:
+            _ic = "icons/battery-empty.png"
+            _icon = QIcon(_ic)
+        # 
+        # _tooltip = " {} \n {} ".format(_data, _status)
+        # self.btn_batt.setToolTip(_tooltip)
+        self.btn_batt.setIcon(_icon)
+
+############### webcam #################
+    
+    # 4 - device: open or close
+    def on_use_webcam(self, _list):
+        if _list[0] == "change_state":
+            _dev,_action = _list[1]
+        else:
+            return
+        #
+        if _action == "open":
+            _num_items = self.wbox.count()
+            for i in range(_num_items):
+                item = self.wbox.itemAt(i).widget()
+                if isinstance(item, QPushButton):
+                    wbtn_icon = QIcon("icons/camera-web.png")
+                    _tooltp = item.toolTip()
+                    item.setToolTip(_tooltp+"\n (In use) ")
+                    # item.setIconSize(QSize(button_size-button_padding, button_size-button_padding))
+                    item.setIcon(wbtn_icon)
+                    item.show()
+                break
+        #
+        elif _action == "close":
+            _num_items = self.wbox.count()
+            for i in range(_num_items):
+                item = self.wbox.itemAt(i).widget()
+                if isinstance(item, QPushButton):
+                    for el in self.list_camera:
+                        if el[0] == _dev:
+                            dd = el
+                    venprod = "{}:{}".format(dd[2],dd[3])
+                    # do not show icon for webcam attached but not in use
+                    if venprod in show_webcam_skip:
+                        wbtn_icon = QIcon()
+                        item.setIcon(wbtn_icon)
+                        item.hide()
+                    # show the icon
+                    else:
+                        wbtn_icon = QIcon("icons/camera-web-1.png")
+                        _tooltp_tmp = item.toolTip()
+                        _tooltp = _tooltp_tmp.split("\n")[0]
+                        item.setToolTip(_tooltp)
+                        # item.setIconSize(QSize(button_size-button_padding, button_size-button_padding))
+                        item.setIcon(wbtn_icon)
+                break
+    
+    # 3 - device: open or close
+    def on_dev_change(self, _dev, _action):
+        for dd in self.list_camera:
+            if dd[0] == _dev:
+                self.webcam_signal.emit(["change_state",[_dev,_action]])
+            break
+    
+    # 0 - when this program starts
+    def on_use_webcam_start(self):
+        for device in self.context.list_devices(subsystem='video4linux'):
+            if 'DEVNAME' in device.properties:
+                if device.get('ID_V4L_CAPABILITIES') == ":capture:":
+                    _model_name = device.get('ID_V4L_PRODUCT')
+                    if not _model_name:
+                        _model_name = device.get('ID_MODEL')
+                    self.list_camera_start.append([device.get('DEVNAME'), _model_name, device.get('ID_MODEL_ID'), device.get('ID_VENDOR_ID')])
+                    # self.list_camera_start.append([device.get('DEVNAME'), device.get('ID_MODEL'), device.get('ID_MODEL_ID'), device.get('ID_VENDOR_ID')])
+        #
+        monitor = pyudev.Monitor.from_netlink(self.context)
+        monitor.filter_by(subsystem='video4linux')
+        self.observer = pyudev.MonitorObserver(monitor, self.mediaEvent)
+        self.observer.daemon
+        self.observer.start()
+        #
+        # device open or closed
+        class EventHandler(pyinotify.ProcessEvent):
+            def my_init(self, _obj):
+                self._obj = _obj
+            def process_IN_OPEN(self, event):
+                self._obj(event.pathname, "open")
+            def process_IN_CLOSE_WRITE(self, event):
+                self._obj(event.pathname, "close")
+        #
+        # webcam open or close
+        self.wm = pyinotify.WatchManager()
+        self.mask = pyinotify.IN_OPEN | pyinotify.IN_CLOSE_WRITE
+        notifier = pyinotify.ThreadedNotifier(self.wm, EventHandler(_obj=self.on_dev_change))
+        global _notifier
+        _notifier = notifier
+        # to qt5desktop2.py
+        self._close_signal.emit(notifier)
+        ########
+        for dd in self.list_camera_start:
+            self.on_add_webcam(dd)
+        #
+        notifier.start()
+        ########
+        # _success = 0
+        if self.list_camera_start:
+            for vv in self.list_camera_start:
+                wdd = self.wm.add_watch(vv[0], self.mask, rec=False)
+                # (>0) 1 success - negative not success
+                if wdd[vv[0]]:
+                    # _success = 1
+                    self.list_camera.append(vv)
+        #############
+        self.webcam_signal.connect(self.signal_webcam)
+       
+    # signal - webcam added or its state changed
+    def signal_webcam(self, _list):
+        if _list[0] == "new":
+            self.on_add_webcam(_list[1])
+            self.list_camera.append(_list[1])
+        elif _list[0] == "change_state":
+            self.on_use_webcam(_list)
+    
+    # 2 - at start or after adding a new webcam - icon in the bar
+    def on_add_webcam(self, dd):
+        venprod = "{}:{}".format(dd[2],dd[3])
+        # skip unwanted webcam
+        if venprod in show_only_active_skip:
+            return
+        # # skip unwanted not connected only webcam
+        # if venprod in show_webcam_skip:
+            # return
+        #
+        wbtn = QPushButton()
+        wbtn.setFlat(True)
+        wbtn.setStyleSheet("border: none;")
+        # wbtn.setToolTip(dd[1])
+        wbtn.dev = dd[0]
+        #
+        _ddd = dd[0].split("/")[2]
+        _comm_path = os.path.join(os.getcwd(), "check_webcam.sh")
+        _comm = [_comm_path, _ddd]
+        # a webcam is working
+        _is_found = 0
+        try:
+            _data = subprocess.check_output(_comm, shell=False, encoding='utf-8', cwd=os.getcwd()).strip("\n")
+            if _data:
+                _is_found = 1
+        except:
+            _is_found = 0
+        #
+        if _is_found == 1:
+            wbtn_icon = QIcon("icons/camera-web.png")
+            wbtn.setToolTip(dd[1]+"\n (In use) ")
+        else:
+            if venprod in show_webcam_skip:
+                wbtn_icon = QIcon()
+            else:
+                wbtn_icon = QIcon("icons/camera-web-1.png")
+                wbtn.setToolTip(dd[1])
+        wbtn.setIconSize(QSize(button_size-button_padding, button_size-button_padding))
+        wbtn.setIcon(wbtn_icon)
+        self.wbox.addWidget(wbtn)
+        if venprod in show_webcam_skip and _is_found == 0:
+            wbtn.hide()
+        
+    # detect adding or removing of webcam
+    def mediaEvent(self, action, device):
+        if action == "add":
+            if 'DEVNAME' in device.properties:
+                if device.get('ID_V4L_CAPABILITIES') == ":capture:":
+                    _model_name = device.get('ID_V4L_PRODUCT')
+                    if not _model_name:
+                        _model_name = device.get('ID_MODEL')
+                    self.on_camera(device.get('DEVNAME'), _model_name, device.get('ID_MODEL_ID'), device.get('ID_VENDOR_ID'))
+                    # self.on_camera(device.get('DEVNAME'), device.get('ID_MODEL'), device.get('ID_MODEL_ID'), device.get('ID_VENDOR_ID'))
+        elif action == "remove":
+            self.on_camera2(device.get('DEVNAME'))
+           
+    # 1 - new webcam added
+    def on_camera(self, _dev, _name, _model, _vendor):
+        dd = [_dev, _name, _model, _vendor]
+        wdd = self.wm.add_watch(_dev, self.mask, rec=False)
+        # (>0) 1 success - negative not success
+        if wdd[_dev]:
+            # dd.append(self.wm.get_wd(_dev))
+            self.webcam_signal.emit(["new",dd])
+            
+        
+    # webcam removed
+    def on_camera2(self, _dev):
+        for dd in self.list_camera:
+            if dd[0] == _dev:
+                _num_items = self.wbox.count()
+                for i in range(_num_items):
+                    item = self.wbox.itemAt(i).widget()
+                    if isinstance(item, QPushButton):
+                        self.wbox.removeWidget(item)
+                        item.deleteLater()
+                        #
+                        self.list_camera.remove(dd)
+                        # remove the watch
+                        # wdd = dd[-1]
+                        # self.wm.del_watch(wdd)
+        return
+        
+########################################
+
+############### notifications ##########
+    
+    def btn_not_icon(self):
+        if DO_NOT_DISTURB:
+            if os.path.exists(DO_NOT_DISTURB):
+                _nfile = "notificationdonotuse_"+str(DO_NOT_DISTURB_TYPE)
+                if os.path.exists(os.path.join(DO_NOT_DISTURB, _nfile)):
+                    self.btn_not.setIcon(QIcon("icons/notifications_disabled.svg"))
+                    return
+        #
+        if len(os.listdir(USE_NOTIFICATION)) > 0:
+           self.btn_not.setIcon(QIcon("icons/notifications_on.svg"))
+        else:
+            self.btn_not.setIcon(QIcon("icons/notifications_off.svg"))
+    
+    def on_disable_notifications(self):
+        try:
+            _nfile_name = "notificationdonotuse_"+str(DO_NOT_DISTURB_TYPE)
+            _nfile = os.path.join(DO_NOT_DISTURB, _nfile_name)
+            if os.path.exists(_nfile):
+                os.remove(_nfile)
+            else:
+                os.mknod(_nfile)
+            self.btn_not_icon()
+        except Exception as E:
+            MyDialog("Error", str(E), None)
+    
+    def on_notification(self):
+        sender_button = self.sender()
+        #
+        if self.mn_is_shown is not None:
+            self.mn_is_shown.close()
+            self.mn_is_shown = None
+            return
+        mn = menuNotification(self)
+        self.mn_is_shown = mn
+
 
 ############### audio ################
     
@@ -1234,6 +1729,16 @@ class SecondaryWin(QWidget):
             self.btn_audio.setIcon(iicon)
             self.btn_audio.value = [-999, -999]
             self.btn_audio.setToolTip("No audio devices")
+        #
+        # QApplication.processEvents()
+        # #self.adjustSize()
+        # # self.updateGeometry()
+        # self.btn_audio.update()
+        # self.audiobox.update()
+        # self.btn_audio.repaint()
+        # self.btn_audio.adjustSize()
+        # # self.btn_audio.hide()
+        # # self.btn_audio.show()
     
     #
     def on_mbtn_mixer(self):
@@ -1269,17 +1774,25 @@ class SecondaryWin(QWidget):
         _vol = round(self.pulse.volume_get_all_chans(dsink),2)
         self.mslider.setValue(int(_vol*100))
         #
-        # menu_width = self.mmenu.geometry().width()
+        menu_width = self.mmenu.geometry().width()
         menu_height = self.mmenu.geometry().height()
         #
         # x = _pos.x()-int(menu_width/2)
         x = _pos.x()
         y = _pos.y()
-        if dock_position == 1:
-            y = NH-dock_height-menu_height
-        elif dock_position == 0:
-            y = dock_height
+        if dock_position == 0:
+            y = dock_height + menu_padx
+        elif dock_position == 1:
+            y = WINH-dock_height-menu_height-menu_padx
         #
+        x1 = int(menu_width/2)
+        if (x>int(WINW/2)):
+            if x+x1+menu_padx>WINW:
+                x = WINW-menu_width-menu_padx
+            else:
+                x = x-int(menu_width/2)
+        elif (x<int(WINW/2)) and x < x1:
+            x = x1
         self.mmenu.exec_(QPoint(x,y))
     
     # event.angleDelta() : negative down - positive up
@@ -1317,6 +1830,7 @@ class SecondaryWin(QWidget):
             return
         _mute_state = not self.default_sink_info.mute
         self.pulse.mute(dsink, mute=_mute_state)
+        self._set_volume()
     
 ############# audio end ##############
 
@@ -1652,7 +2166,8 @@ class SecondaryWin(QWidget):
         self.dialogp.setContentsMargins(0,0,0,0)
         self.dialogp.setWindowTitle("Preview")
         self.dialogp.setWindowIcon(QIcon("icons/clipman.svg"))
-        self.dialogp.setModal(True)
+        # self.dialogp.setModal(True)
+        self.dialogp.setWindowModality(1)
         self.dialogp.setAttribute(Qt.WA_DeleteOnClose)
         #
         layout = QVBoxLayout()
@@ -1698,6 +2213,7 @@ class SecondaryWin(QWidget):
     
     # text
     def on_delete_item(self, idx):
+        time.sleep(0.1)
         num_items = self.textLW.count()
         itemW = None
         _item_num = None
@@ -1793,6 +2309,7 @@ class SecondaryWin(QWidget):
             MyDialog("Error", str(E), self.cwindow)
     
     def on_delete_image(self):
+        time.sleep(0.1)
         try:
             curr_idx = self.ctab.currentIndex()
             twidget = self.ctab.widget(curr_idx)
@@ -1915,6 +2432,9 @@ class SecondaryWin(QWidget):
             self.tlabel.setText(" "+curr_date+"  "+cur_time+" ")
         else:
             self.tlabel.setText(" "+cur_time+" ")
+        # battery
+        if use_battery_info:
+            self.on_battery()
     
     # click on menu button
     def on_click(self):
@@ -1945,19 +2465,19 @@ class SecondaryWin(QWidget):
         fwidget = QWidget.createWindowContainer(fwin)
         fwidget.setAutoFillBackground(True)
         #fwidget.setAttribute(Qt.WA_NoSystemBackground)
-        fwidget.setContentsMargins(0,0,0,0)
-        fwidget.setMinimumSize(QSize(tbutton_size, tbutton_size))
-        fwidget.setMaximumSize(QSize(tbutton_size, tbutton_size))
-        #fwidget.resize(fwidget.sizeHint())
-        #fwidget.resize(tbutton_size, tbutton_size)
+        tbutton_size2 = min(tbutton_size, button_size)
+        if tbutton_size2 < button_size:
+            tbutton_padding = ((button_size-tbutton_size2))
+        else:
+            tbutton_padding = button_padding
+        #
+        fwidget.setContentsMargins(0,int(tbutton_padding/2),0,int(tbutton_padding/2))
+        fwidget.setFixedSize(QSize(tbutton_size2-int(tbutton_padding/2),tbutton_size2-int(tbutton_padding/2)))
+        fwidget.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
         fwidget.id = wid
         self.tray_box.update()
         #
         self.tray_box.addWidget(fwidget, 1, Qt.AlignCenter)
-        # for i in range(self.tray_box.count()):
-            # widget = self.tray_box.itemAt(i).widget()
-        #
-        # self.on_move_win()
         # the main window to the center
         self.main_window_center()
     
@@ -1972,8 +2492,6 @@ class SecondaryWin(QWidget):
         # 
         self.tray_box.update()
         self.tray_box.activate()
-        #
-        # self.on_move_win()
         # the main window to the center
         self.main_window_center()
     
@@ -2011,25 +2529,9 @@ class SecondaryWin(QWidget):
         if data:
             self.labelw1.setText(data[0])
     
-    # def p1ready(self):
-        # result = self.l1p.readAllStandardOutput().data().decode().strip("\n")
-        # self.labelw1.setText(result)
-    
-    # def p1finished(self):
-        # self.l1p.close()
-        # del self.l1p
-    
     def on_label2(self, data):
         if data:
             self.labelw2.setText(data[0])
-    
-    # def p2ready(self):
-        # result = self.l2p.readAllStandardOutput().data().decode().strip("\n")
-        # self.labelw2.setText(result)
-    
-    # def p2finished(self):
-        # self.l2p.close()
-        # del self.l2p
     
     def on_label3(self, data):
         if data:
@@ -2039,15 +2541,44 @@ class SecondaryWin(QWidget):
     def on_pbtn(self):
         prog = self.sender().pexec
         path = self.sender().ppath
-        # pp = QProcess()
-        # pp.setWorkingDirectory(os.getenv("HOME"))
-        # pp.startDetached(prog)
-        # subprocess.Popen(prog, cwd=os.getenv("HOME"))
-        # subprocess.run(prog, cwd=os.getenv("HOME"))
+        term = self.sender().tterm
+        #
+        tterminal = USER_TERMINAL
+        if not tterminal:
+            try:
+                tterminal = os.environ['TERMINAL']
+            except KeyError:
+                tterminal = None
+        #
         if path:
-            os.system("cd {} && {} & cd {} &".format(path, prog, os.getenv("HOME")))
+            if term:
+                if not tterminal:
+                    MyDialog("Info", "Terminal not setted in the config file.", self.cwindow)
+                    return
+                #
+                try:
+                    os.system("cd {} && {} -e {} & cd {}".format(path, tterminal, prog, os.getenv("HOME")))
+                except Exception as E:
+                    MyDialog("Error", str(E), self)
+            else:
+                try:
+                    os.system("cd {} && {} & cd {} &".format(path, prog, os.getenv("HOME")))
+                except Exception as E:
+                    MyDialog("Error", str(E), self)
         else:
-            os.system("cd {} && {} &".format(os.getenv("HOME"), prog))
+            if term:
+                if not tterminal:
+                    MyDialog("Info", "Terminal not setted in the config file.", self.cwindow)
+                    return
+                try:
+                    os.system("cd {} && {} -e {} & cd {}".format(path, tterminal, prog, os.getenv("HOME")))
+                except Exception as E:
+                    MyDialog("Error", str(E), self)
+            else:
+                try:
+                    os.system("cd {} && {} &".format(os.getenv("HOME"), prog))
+                except Exception as E:
+                    MyDialog("Error", str(E), self)
     
     # to get a window property
     def getProp(self, disp, win, prop):
@@ -2056,16 +2587,6 @@ class SecondaryWin(QWidget):
             return [None] if (p is None) else p.value
         except:
             return [None]
-    
-    def contextMenuEvent(self, event):
-        contextMenu = QMenu(self)
-        reloadAct = contextMenu.addAction("Reload")
-        quitAct = contextMenu.addAction("Exit")
-        action = contextMenu.exec_(self.mapToGlobal(event.pos()))
-        if action == quitAct:
-            self.winClose()
-        elif action == reloadAct:
-            self.restart()
     
     def winClose(self):
         global stopCD
@@ -2101,17 +2622,11 @@ class SecondaryWin(QWidget):
             elif data[0] == "URGENCY":
                 self._urgency(data[1], data[2])
             #
-            elif data[0] == "SCREEN_CHANGED":
-                self._screen_changed()
+            # elif data[0] == "SCREEN_CHANGED":
+                # self._screen_changed()
             #
             elif data[0] == "UNMAPMAP":
                 self._unmapmap(data[1], data[2])
-            # #
-            # elif data[0] == "EXPOSE":
-                # self.adjustSize()
-                # self.updateGeometry()
-                # # # self.resize(self.sizeHint())
-                # # self.resize(self.sizeHint().width(), dock_height)
     
     # hide the button from the taskbar when unmapped or unhide it
     def _unmapmap(self, win, _type):
@@ -2126,32 +2641,6 @@ class SecondaryWin(QWidget):
                     elif _type == 1:
                         item.setVisible(True)
                     break
-    
-    def _screen_changed(self):
-        global WINW
-        global WINH
-        global NW
-        global NH
-        _size = screen.size()
-        if _size.width() != NW or _size.height() != NH:
-            #
-            NW = _size.width()
-            NH = _size.height()
-            WINW = NW
-            #
-            if dock_position == 1:
-                sy = NH - dock_height
-            elif dock_position == 0:
-                sy = 0
-            #
-            if CENTRALIZE_EL != 2:
-                self.setGeometry(0, sy, WINW, dock_height)
-                self.updateGeometry()
-            elif CENTRALIZE_EL == 2:
-                self.setGeometry(0, sy, self.geometry().width(), dock_height)
-                self.updateGeometry()
-                self.main_window_center()
-    
     
     def on_urgency(self, _n, item):
         if _n == 1:
@@ -2330,15 +2819,16 @@ class SecondaryWin(QWidget):
     
     # a window has been destroyed
     def delete_window_destroyed(self, window_list):
-        is_changed = 0
+        #is_changed = 0
         for w in self.wid_l:
             if w not in window_list:
                 self.wid_l.remove(w)
                 self.on_remove_win(w)
                 #
-                if PLAY_SOUND:
-                    play_sound("window-close.wav")
-                is_changed = 1
+                # if PLAY_SOUND:
+                    # play_sound("window-close.wav")
+                #is_changed = 1
+                break
     
     # 1
     # add or remove virtual desktops
@@ -2378,7 +2868,7 @@ class SecondaryWin(QWidget):
     #
     def _icon_name_from_desktop(self, _prog):
         execArgs = [" %f", " %F", " %u", " %U", " %d", " %D", " %n", " %N", " %k", " %v"]
-        _app_dirs = app_dirs_system+app_dirs_user
+        _app_dirs = app_dirs_user+app_dirs_system
         #
         for ddir in _app_dirs:
             if not os.path.exists(ddir):
@@ -2404,7 +2894,7 @@ class SecondaryWin(QWidget):
                                     _exec_tmp = _exec_tmp.strip(aargs)
                             _exec = _exec_tmp.split()[0]
                     #
-                    if _exec == _prog:
+                    if os.path.basename(_exec) == _prog:
                         ficon = entry.getIcon()
                         if ficon:
                             return ficon
@@ -2427,106 +2917,122 @@ class SecondaryWin(QWidget):
         if ret:
             if QIcon.hasThemeIcon(ret):
                 licon = QIcon.fromTheme(ret)
+            else:
+                try:
+                    licon = QIcon(ret)
+                except:
+                    pass
         #
-        if not licon:
+        if not licon or licon.isNull():
             window = self.display.create_resource_object('window', winid)
-            icon_name_tmp = window.get_full_property(self.display.intern_atom('WM_ICON_NAME'), 0)
+            # icon_name_tmp = window.get_full_property(self.display.intern_atom('WM_ICON_NAME'), 0)
+            icon_name_tmp = window.get_full_property(self.display.intern_atom('_NET_WM_ICON_NAME'), 0)
             #
             if icon_name_tmp:
                 if hasattr(icon_name_tmp, "value"):
-                    wicon = icon_name_tmp.value.decode()
+                    try:
+                        wicon = icon_name_tmp.value.decode()
+                    except:
+                        try:
+                            icon_name_tmp = window.get_full_property(self.display.intern_atom('WM_ICON_NAME'), 0)
+                            wicon = icon_name_tmp.value.decode()
+                        except:
+                            pass
+                    #
                     if QIcon.hasThemeIcon(wicon):
                         licon = QIcon.fromTheme(wicon)
                     else:
-                        icon_name_tmp = window.get_full_property(self.display.intern_atom('_NET_WM_ICON_NAME'), 0)
-                        #
-                        if icon_name_tmp:
-                            if hasattr(icon_name_tmp, "value"):
-                                wicon = icon_name_tmp.value.decode()
-                                if QIcon.hasThemeIcon(wicon):
-                                    licon = QIcon.fromTheme(wicon)
-                                else:
-                                    licon = None
+                        licon = None
+                        # icon_name_tmp = window.get_full_property(self.display.intern_atom('_NET_WM_ICON_NAME'), 0)
+                        # #
+                        # if icon_name_tmp:
+                            # if hasattr(icon_name_tmp, "value"):
+                                # wicon = icon_name_tmp.value.decode()
+                                # if QIcon.hasThemeIcon(wicon):
+                                    # licon = QIcon.fromTheme(wicon)
+                                # else:
+                                    # licon = None
+        #
+        if not licon or licon.isNull():
+            window = self.display.create_resource_object('window', winid)
             #
-            if not licon:
-                # window = self.display.create_resource_object('window', winid)
+            win_name_class_tmp = window.get_wm_class()
+            if not win_name_class_tmp:
+                win_name_class = ""
+            else:
+                win_name_class = win_name_class_tmp[0]
+            #
+            if win_name_class and QIcon.hasThemeIcon(win_name_class):
+                licon = QIcon.fromTheme(win_name_class)
+        #
+        if not licon or licon.isNull():
+            icon_icon = window.get_full_property(self.display.intern_atom('_NET_WM_ICON'), 0)
+            #
+            icon_data = None
+            target = button_size
+            icon_lista = []
+            if icon_icon is not None:
+            # if not licon:
+                data = icon_icon.value[:]
+                icon_width  = data[0]
+                icon_height = data[1]
+                icon_image  = data[2:data[0]*data[1]+2].tobytes()  
+                icon_data = [icon_width,icon_height,icon_image]
                 #
-                win_name_class_tmp = window.get_wm_class()
-                if not win_name_class_tmp:
-                    win_name_class = ""
-                else:
-                    win_name_class = win_name_class_tmp[0]
+                w = 0
+                h = 0
+                len_data = len(data)
+                datat = data
+                ii = 1
+                while ii:
+                    len_data = len(datat)
+                    w = datat[0]
+                    h = datat[1]
+                    icon_lista.append([w, h])
+                    if (w*h+2) < len_data: 
+                        if datat[w*h+2] > 0:
+                            datat = datat[w*h+2:]
+                    else:
+                        ii = 0
                 #
-                if win_name_class and QIcon.hasThemeIcon(win_name_class):
-                    licon = QIcon.fromTheme(win_name_class)
-                #
-                if not licon:
-                    icon_icon = window.get_full_property(self.display.intern_atom('_NET_WM_ICON'), 0)
+                if icon_lista:
+                    item_idx = -1
+                    if target > max(icon_lista)[0]:
+                        target = max(icon_lista)[0]
+                    for item in icon_lista:
+                        if item[0] > (target - 1):
+                            item_idx = icon_lista.index(item)
+                            break
+                    if item_idx > -1:
+                        start_idx = 0
+                        for i in range(item_idx):
+                            ww = icon_lista[i][0]
+                            hh = icon_lista[i][1]
+                            i_size = (ww*hh+2)
+                            start_idx += i_size
                     #
-                    icon_data = None
-                    target = button_size
-                    icon_lista = []
-                    if icon_icon is not None:
-                    # if not licon:
-                        data = icon_icon.value[:]
-                        icon_width  = data[0]
-                        icon_height = data[1]
-                        icon_image  = data[2:data[0]*data[1]+2].tobytes()  
-                        icon_data = [icon_width,icon_height,icon_image]
-                        #
-                        w = 0
-                        h = 0
-                        len_data = len(data)
-                        datat = data
-                        ii = 1
-                        while ii:
-                            len_data = len(datat)
-                            w = datat[0]
-                            h = datat[1]
-                            icon_lista.append([w, h])
-                            if (w*h+2) < len_data: 
-                                if datat[w*h+2] > 0:
-                                    datat = datat[w*h+2:]
-                            else:
-                                ii = 0
-                        #
-                        if icon_lista:
-                            item_idx = -1
-                            if target > max(icon_lista)[0]:
-                                target = max(icon_lista)[0]
-                            for item in icon_lista:
-                                if item[0] > (target - 1):
-                                    item_idx = icon_lista.index(item)
-                                    break
-                            if item_idx > -1:
-                                start_idx = 0
-                                for i in range(item_idx):
-                                    ww = icon_lista[i][0]
-                                    hh = icon_lista[i][1]
-                                    i_size = (ww*hh+2)
-                                    start_idx += i_size
-                            #
-                            dataa = data[start_idx:]
-                            wa = dataa[0]
-                            ha = dataa[1]
-                            icon_image = dataa[2:dataa[0]*dataa[1]+2].tobytes()
-                            icon_data = [wa, ha, icon_image]
+                    dataa = data[start_idx:]
+                    wa = dataa[0]
+                    ha = dataa[1]
+                    icon_image = dataa[2:dataa[0]*dataa[1]+2].tobytes()
+                    icon_data = [wa, ha, icon_image]
 
-                            #### pbtn.setIcon(picon)
-                            if icon_data:
-                                w = icon_data[0]
-                                h = icon_data[1]
-                                img = icon_data[2]
-                                image = QImage(img, w, h, QImage.Format_ARGB32)
-                            else:
-                                image = QImage("icons/unknown.svg")
-                        else:
-                            image = QImage("icons/unknown.svg")
-                        #
-                        pixmap = QPixmap(image)
-                        licon = QIcon(pixmap)
+                    #### pbtn.setIcon(picon)
+                    if icon_data:
+                        w = icon_data[0]
+                        h = icon_data[1]
+                        img = icon_data[2]
+                        image = QImage(img, w, h, QImage.Format_ARGB32)
+                    else:
+                        image = QImage("icons/unknown.svg")
+                else:
+                    image = QImage("icons/unknown.svg")
+                #
+                pixmap = QPixmap(image)
+                licon = QIcon(pixmap)
         #
         btn = QPushButton()
+        btn.setContentsMargins(0,0,0,0)
         btn.setCheckable(True)
         btn.setFlat(True)
         ############
@@ -2555,11 +3061,12 @@ class SecondaryWin(QWidget):
         ###########
         # btn.setAutoExclusive(True)
         btn.clicked.connect(self.on_btn_clicked)
-        # btn.setFixedSize(QSize(dock_height, dock_height))
-        btn.setFixedSize(QSize(button_size, button_size))
+        _ipad = 0#(dock_height-button_size)
+        # # btn.setFixedSize(QSize(dock_height, dock_height))
+        btn.setFixedSize(QSize(button_size-_ipad, button_size-_ipad))
         btn.setIcon(licon)
         # btn.setIconSize(QSize(dock_height-8, dock_height-8))
-        btn.setIconSize(QSize(button_size-button_padding, button_size-button_padding))
+        btn.setIconSize(QSize(button_size-button_padding-_ipad, button_size-button_padding-_ipad))
         # btn.setMinimumSize(QSize(button_size, button_size))
         btn.winid = pitem[0]
         btn.desktop = pitem[1]
@@ -2569,7 +3076,7 @@ class SecondaryWin(QWidget):
         if pitem[1] == 0 or pitem[1] == None:
             self.ibox.addWidget(btn)
         elif pitem[1] > 0:
-            self.ibox.insertWidget(pitem[1] * 100, btn)
+            self.ibox.insertWidget(pitem[1] * 100, btn, alignment=Qt.AlignCenter)
         #
         if PLAY_SOUND:
             play_sound("window-new.wav")
@@ -2650,19 +3157,6 @@ class SecondaryWin(QWidget):
             self.root.send_event(event=sevent, event_mask=mask)
             self.display.flush()
             self.display.sync()
-            # return
-        # # different virtual desktop
-        # else:
-            # # change the virtual desktop
-            # if btn.desktop:
-                # if btn.desktop >= 0:
-                    # ewmh.setCurrentDesktop(btn.desktop)
-                    # ewmh.display.flush()
-            # # needed
-            # ewmh.display.sync()
-            # # self.get_active_window()
-            
-            #############
     
     # 5    
     # get the active window
@@ -2707,10 +3201,6 @@ class SecondaryWin(QWidget):
                             btn.setChecked(True)
                             self.taskb_btn = btn
                             is_found = 1
-                            # # remove urgency
-                            # if btn in self.list_uitem:
-                                # self.list_uitem.remove(btn)
-                                # btn.setStyleSheet("border-color: {}; border=none".format(self.palette().color(QPalette.Background).name()))
                             #
                             break
                 if not is_found:
@@ -2731,6 +3221,9 @@ class SecondaryWin(QWidget):
                 if pitem == winid:
                     self.ibox.removeWidget(item)
                     item.deleteLater()
+                    #
+                    if PLAY_SOUND:
+                        play_sound("window-close.wav")
                     break
         # the main window to the center
         self.main_window_center()
@@ -2762,120 +3255,6 @@ class SecondaryWin(QWidget):
         else:
             return 1
         
-    # add the application in the launcher
-    def on_pin_add_pin(self, pexec):
-        app_dirs = app_dirs_system+app_dirs_user
-        # full desktop file path - exec - name - icon
-        app_found = []
-        # args to remove from the exec entry
-        execArgs = [" %f", " %F", " %u", " %U", " %d", " %D", " %n", " %N", " %k", " %v"]
-        for ddir in app_dirs:
-            if os.path.exists(ddir):
-                ffiles = os.listdir(ddir)
-                for ffile in ffiles:
-                    if ffile.split(".")[-1] != "desktop":
-                        continue
-                    #
-                    try:
-                        pgexec = None
-                        entry = DesktopEntry.DesktopEntry(os.path.join(ddir, ffile))
-                        pgexec = entry.getTryExec()
-                        #
-                        if not pgexec:
-                            pgexeca = entry.getExec()
-                            if pgexeca:
-                                for aargs in execArgs:
-                                    if aargs in pgexeca:
-                                        pgexeca = pgexeca.strip(aargs)
-                                pgexec = pgexeca.split()[0]
-                        # 
-                        if pgexec:
-                            if os.path.basename(pgexec) == pexec:
-                                fname = entry.getName()
-                                ficon = entry.getIcon()
-                                fpath = entry.getPath()
-                                # desktop file - exec - name - icon - program path
-                                app_found.append([os.path.join(ddir, ffile), pexec, fname, ficon or "unknown", fpath or ""])
-                                break
-                        else:
-                            continue
-                            # dlg = showDialog(1, "File desktop not found.", self)
-                            # result = dlg.exec_()
-                            # dlg.close()
-                            # return
-                    except Exception as E:
-                        dlg = showDialog(1, str(E), self)
-                        result = dlg.exec_()
-                        dlg.close()
-                        return
-        #
-        if len(app_found) == 1:
-            # copy the application in the folder applications
-            shutil.copy(app_found[0][0], "applications"+"/"+os.path.basename(app_found[0][0]))
-            # add the button
-            pbtn = QPushButton()
-            pbtn.setFlat(True)
-            icon = app_found[0][3]
-            fname = app_found[0][2]
-            fpath = app_found[0][4]
-            picon = QIcon.fromTheme(icon)
-            if picon.isNull():
-                picon = QIcon(icon)
-            if picon.isNull():
-                picon = QIcon("icons/unknown.svg")
-            pbtn.setFixedSize(QSize(button_size, button_size))
-            pbtn.setIcon(picon)
-            pbtn.setIconSize(pbtn.size())
-            pbtn.setToolTip(fname or pexec)
-            pbtn.setIcon(picon)
-            pbtn.pexec = app_found[0][1]
-            pbtn.pdesktop = os.path.basename(app_found[0][0])
-            pbtn.ppath = fpath
-            self.prog_box.addWidget(pbtn)
-            pbtn.clicked.connect(self.on_pbtn)
-            pbtn.setContextMenuPolicy(Qt.CustomContextMenu)
-            pbtn.customContextMenuRequested.connect(self.pbtnClicked)
-        elif len(app_found) > 1:
-            idx = None
-            dlg = chooseDialog(app_found, self)
-            result = dlg.exec_()
-            if result == QDialog.Accepted:
-                # index - string
-                idx = int(dlg.getItem())
-                dlg.close()
-            else:
-                dlg.close()
-            if idx:
-                shutil.copy(app_found[idx][0], "applications"+"/"+os.path.basename(app_found[idx][0]))
-                # add the button
-                pbtn = QPushButton()
-                pbtn.setFlat(True)
-                icon = app_found[idx][3]
-                fname = app_found[idx][2]
-                if picon.isNull():
-                    picon = QIcon(icon)
-                if picon.isNull():
-                    picon = QIcon("icons/unknown.svg")
-                pbtn.setFixedSize(QSize(button_size, button_size))
-                pbtn.setIcon(picon)
-                pbtn.setIconSize(pbtn.size())
-                pbtn.setToolTip(fname or pexec)
-                pbtn.setIcon(picon)
-                pbtn.pexec = app_found[0][1]
-                pbtn.pdesktop = os.path.basename(app_found[idx][0])
-                pbtn.ppath = fpath
-                self.prog_box.addWidget(pbtn)
-                pbtn.clicked.connect(self.on_pbtn)
-                pbtn.setContextMenuPolicy(Qt.CustomContextMenu)
-                pbtn.customContextMenuRequested.connect(self.pbtnClicked)
-        elif len(app_found) == 0:
-            # message
-            dlg = showDialog(1, "File desktop not found.", self)
-            result = dlg.exec_()
-            dlg.close()
-        # the main window to the center
-        self.main_window_center()
-    
     # right menu of each launcher program button
     def pbtnClicked(self, QPos):
         pbtn = self.sender()
@@ -2903,6 +3282,9 @@ class SecondaryWin(QWidget):
             dlg = showDialog(1, str(E), self)
             result = dlg.exec_()
             dlg.close()
+        #
+        if len(os.listdir("applications")) == 0:
+            self.sepLine2.hide()
         # the main window to the center
         self.main_window_center()
     
@@ -2916,18 +3298,6 @@ class SecondaryWin(QWidget):
         self.btnMenu.addAction(self.close_prog)
         self.close_prog.triggered.connect(lambda:self.on_close_prog(btn))
         # 
-        ret = self.on_pin(btn.pexec)
-        if ret:
-            self.pin_ac = QAction("Pin")
-            self.btnMenu.addAction(self.pin_ac)
-            self.pin_ac.triggered.connect(lambda:self.on_pin_add_pin(btn.pexec))
-        self.btnMenu.addSeparator()
-        self.restart_app_action = QAction("Reload")
-        self.btnMenu.addAction(self.restart_app_action)
-        self.restart_app_action.triggered.connect(self.restart)
-        self.close_app_action = QAction("Exit")
-        self.btnMenu.addAction(self.close_app_action)
-        self.close_app_action.triggered.connect(self.winClose)
         # show context menu
         self.btnMenu.exec_(btn.mapToGlobal(QPos)) 
         
@@ -2970,6 +3340,13 @@ class SecondaryWin(QWidget):
     def eventFilter(self, widget, event):
         if isinstance(widget, QPushButton):
             if event.type() == QEvent.HoverEnter:
+                if hasattr(widget, "type"):
+                    if widget.type == "bat":
+                        _data, _status = self._get_battery_data()
+                        # _tooltip = " {} \n {} ".format(self.last_battery_value, self.last_battery_status)
+                        _tooltip = " {} \n {} ".format(_data, _status)
+                        widget.setToolTip(_tooltip)
+                        return True
                 if not self.right_button_pressed:
                     winid = widget.winid
                     window = self.display.create_resource_object('window', winid)
@@ -2985,8 +3362,15 @@ class SecondaryWin(QWidget):
                 if widget.winid == -999:
                     if event.button() == Qt.MiddleButton:
                         self._mute_audio()
+                        return True
                     elif event.button() == Qt.LeftButton:
                         self.on_volume1(widget.mapToGlobal(event.pos()))
+                        return True
+        elif isinstance(widget, QLabel):
+            if event.type() == QEvent.Enter:
+                curr_date = QDate.currentDate().toString("ddd d")
+                widget.setToolTip(" "+curr_date+" ")
+                return True
         else:
             return False
         return super(SecondaryWin, self).eventFilter(widget, event)
@@ -3009,69 +3393,7 @@ class SecondaryWin(QWidget):
         
     # the main window to the center
     def main_window_center(self):
-        if CENTRALIZE_EL == 2:
-            QApplication.processEvents()
-            self.adjustSize()
-            self.updateGeometry()
-            self.resize(self.sizeHint().width(), dock_height)
-            #
-            sec_geometry = self.geometry()
-            sy = sec_geometry.y()
-            sx = int((WINW-sec_geometry.width())/2)
-            self.move(sx, sy)
-    
-    
-    # # raise the dock
-    # def enterEvent(self, event):
-        # if not fixed_position:
-            # if self.on_leave:
-                # self.on_leave.stop()
-                # self.on_leave.deleteLater()
-                # self.on_leave = None
-            # #
-            # # if dock_width:
-                # # sx = int((self.screen_size.width() - self.size().width())/2)
-            # # else:
-            # sx = int((self.screen_size.width() - WINW)/2)
-            # if sec_position == 2:
-                # sy = 0
-            # elif sec_position == 3:
-                # sy = self.screen_size.height() - WINH
-            # # 
-            # self.move(sx, sy)
-            # # ewmh.setWmState(this_window, 0, '_NET_WM_STATE_BELOW')
-            # # ewmh.setWmState(this_window, 1, '_NET_WM_STATE_ABOVE')
-            # # ewmh.display.flush()
-            # # ewmh.display.sync()
-        # return super(SecondaryWin, self).enterEvent(event)
-
-    # def leaveEvent(self, event):
-        # if not fixed_position:
-            # self.on_leave = QTimer()
-            # self.on_leave.timeout.connect(self.on_leave_event)
-            # self.on_leave.start(2000)
-        # return super(SecondaryWin, self).leaveEvent(event)
-    
-    # # lower the dock
-    # def on_leave_event(self):
-        # # ewmh.setWmState(this_window, 0, '_NET_WM_STATE_ABOVE')
-        # # ewmh.setWmState(this_window, 1, '_NET_WM_STATE_BELOW')
-        # #
-        # # if dock_width:
-            # # sx = int((self.screen_size.width() - self.size().width())/2)
-        # # else:
-        # sx = int((self.screen_size.width() - WINW)/2)
-        # #
-        # if sec_position == 2:
-            # sy = 0
-        # elif sec_position == 3:
-            # sy = self.screen_size.height()
-        # # 
-        # self.move(sx, sy - reserved_space)
-        # #
-        # # ewmh.display.flush()
-        # # ewmh.display.sync()
-        # self.on_leave = None
+        return
     
 ############## audio
 
@@ -3161,7 +3483,7 @@ class trayThread(QThread):
             e = self.display.next_event()
             #
             if e.type == X.ConfigureNotify:
-                e.window.configure(onerror=self.error, width=tbutton_size, height=tbutton_size)
+                e.window.configure(onerror=self.error, width=tbutton_size-4, height=tbutton_size-4)
             elif e.type == X.ClientMessage:
                 if e.window == self.selowin:
                     data = e.data[1][1] # opcode
@@ -3199,8 +3521,6 @@ class trayThread(QThread):
                         continue
                 #
                 self.sig.emit(["c", e.window, self.background])
-            # elif e.type == self.display.extension_event.DamageNotify:
-                # print("damage for applet::", e)
             # properties
             elif (e.type == X.PropertyNotify):
                 if e.atom == self.display.intern_atom("WM_ICON_NAME") or e.atom == self.display.intern_atom("_NET_WM_ICON_NAME") or e.atom == self.display.intern_atom("_NET_WM_USER_TIME"):
@@ -3220,7 +3540,6 @@ class trayThread(QThread):
             try:
                 self.loop(self.display, self.root, self.selowin)
             except Exception as E:
-                # print("Some problems with the systray:", str(E))
                 pass
             #
             if self.data_run == 0:
@@ -3246,7 +3565,7 @@ class chooseDialog(QDialog):
         self.layout.addWidget(message)
         #
         self.TWD = QTreeWidget()
-        self.TWD.setHeaderLabels(["Applications"])
+        self.TWD.setHeaderLabels(["Applications", "Name"])
         self.TWD.setAlternatingRowColors(False)
         self.TWD.itemClicked.connect(self.fitem)
         self.layout.addWidget(self.TWD)
@@ -3254,7 +3573,7 @@ class chooseDialog(QDialog):
         self.item_accepted = None
         for iitem in self.progs:
             idx = self.progs.index(iitem)
-            tl = QTreeWidgetItem([" ".join(iitem[1]), str(idx)])
+            tl = QTreeWidgetItem([" ".join(iitem[1]), str(iitem[2]), str(idx)])
             self.TWD.addTopLevelItem(tl)
         #
         self.layout.addWidget(self.buttonBox)
@@ -3269,7 +3588,7 @@ class chooseDialog(QDialog):
         self.move(qr.topLeft())
     
     def fitem(self, item, col):
-        self.item_accepted = item.text(1)
+        self.item_accepted = item.text(2)
     
     def getItem(self):
         return self.item_accepted
@@ -3309,6 +3628,302 @@ class showDialog(QDialog):
         qr.moveCenter(cp)
         self.move(qr.topLeft())
 
+# notifications
+class menuNotification(QWidget):
+    def __init__(self, parent=None):
+        super(menuNotification, self).__init__(parent)
+        self.window = parent
+        # self.setWindowFlags(self.windowFlags() | Qt.FramelessWindowHint | Qt.Tool)
+        self.setWindowFlags(self.windowFlags() | Qt.FramelessWindowHint | Qt.Tool | Qt.WindowStaysOnTopHint)
+        # self.setWindowFlags(self.windowFlags() | Qt.FramelessWindowHint | Qt.Window | Qt.WindowStaysOnTopHint)
+        ####### 
+        self.mainBox = QHBoxLayout()
+        self.mainBox.setContentsMargins(2,2,2,2)
+        self.setLayout(self.mainBox)
+        #
+        parent_geom = self.window.geometry()
+        win_height = parent_geom.height()
+        # screensize = app.primaryScreen()
+        #
+        self.hbox = QHBoxLayout()
+        self.mainBox.addLayout(self.hbox)
+        #
+        #### single notification box
+        self.item_box = QVBoxLayout()
+        self.item_box.setContentsMargins(0,0,0,0)
+        self.hbox.addLayout(self.item_box)
+        ## 
+        if HYPER_CLICK == 0:
+            self.item_textedit = QTextEdit()
+            self.item_textedit.setReadOnly(True)
+            self.item_textedit.setAcceptRichText(True)
+            self.item_textedit.setTextInteractionFlags(Qt.TextBrowserInteraction)
+        else:
+            self.item_textedit = QTextBrowser()
+            self.item_textedit.setOpenExternalLinks(True)
+            self.item_textedit.highlighted.connect(self.on_link)
+        #
+        self.item_textedit.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.item_box.addWidget(self.item_textedit)
+        ##### list notification box
+        self.lbox = QVBoxLayout()
+        self.lbox.setContentsMargins(0,0,0,0)
+        self.hbox.addLayout(self.lbox)
+        #
+        self.listWidget = QListWidget(self)
+        self.listWidget.itemClicked.connect(self.listwidgetclicked)
+        self.listWidget.setFixedSize(QSize(not_width,not_height))
+        self.listWidget.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+        self.lbox.addWidget(self.listWidget)
+        hpalette = self.palette().highlight().color().name()
+        csaa = ("QListWidget::item:hover {")
+        csab = ("background-color: {};".format(hpalette))
+        csac = ("}")
+        csa = csaa+csab+csac
+        self.listWidget.setStyleSheet(csa)
+        ###########
+        cssa = ("QScrollBar:vertical {"
+    "border: 0px solid #999999;"
+    "background:white;"
+    "width:8px;"
+    "margin: 0px 0px 0px 0px;"
+"}"
+"QScrollBar::handle:vertical {")       
+        cssb = ("min-height: 0px;"
+    "border: 0px solid red;"
+    "border-radius: 4px;"
+    "background-color: {};".format(scroll_handle_col))
+        cssc = ("}"
+"QScrollBar::add-line:vertical {"       
+    "height: 0px;"
+    "subcontrol-position: bottom;"
+    "subcontrol-origin: margin;"
+"}"
+"QScrollBar::sub-line:vertical {"
+    "height: 0 px;"
+    "subcontrol-position: top;"
+    "subcontrol-origin: margin;"
+"}")
+        css = cssa+cssb+cssc
+        self.listWidget.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.listWidget.verticalScrollBar().setStyleSheet(css)
+        self.listWidget.setFocus(False)
+        self.listWidget.setIconSize(QSize(not_icon_size, not_icon_size))
+        #
+        self.item_textedit.verticalScrollBar().setStyleSheet(css)
+        #
+        if LOST_FOCUS_CLOSE == 1:
+            self.installEventFilter(self)
+        #
+        hpalette = self.palette().mid().color().name()
+        csaa = ("QPushButton::hover:!pressed { border: none;")
+        csab = ("background-color: {};".format(hpalette))
+        csac = ("border-radius: 3px;")
+        csad = ("text-align: center; }")
+        csae = ("QPushButton { text-align: center;  padding: 5px; border: 1px solid #7F7F7F;}")
+        csaf = ("QPushButton::checked { text-align: center; ")
+        if button_menu_selected_color == "":
+            csag = ("background-color: {};".format(self.palette().midlight().color().name()))
+        else:
+            csag = ("background-color: {};".format(button_menu_selected_color))
+        csah = ("padding: 5px; border-radius: 3px;}")
+        self.btn_csa = csaa+csab+csac+csad+csae+csaf+csag+csah
+        #
+        self.listDelete = QPushButton("Remove all")
+        # self.listDelete.setContentsMargins(0,0,0,0)
+        self.listDelete.clicked.connect(self.on_listdelete)
+        self.lbox.addWidget(self.listDelete)
+        #
+        self.listDelete.setFlat(True)
+        self.listDelete.setStyleSheet(self.btn_csa)
+        #
+        if DO_NOT_DISTURB:
+            if os.path.exists(DO_NOT_DISTURB):
+                _btn_text = "Disable"
+                self.btn_donotdisturb = QPushButton(_btn_text)
+                # self.btn_donotdisturb.setContentsMargins(0,0,0,0)
+                self.btn_donotdisturb.setCheckable(True)
+                self.btn_donotdisturb.setFlat(True)
+                # self.btn_donotdisturb.setStyleSheet("border: 2px; border-color: black")
+                self.lbox.addWidget(self.btn_donotdisturb)
+                #
+                self.btn_donotdisturb.setStyleSheet(self.btn_csa)
+                #
+                _nfile = "notificationdonotuse_"+str(DO_NOT_DISTURB_TYPE)
+                if os.path.exists(os.path.join(DO_NOT_DISTURB, _nfile)):
+                    self.btn_donotdisturb.setText("Disabled")
+                    self.btn_donotdisturb.setChecked(True)
+                #
+                self.btn_donotdisturb.clicked.connect(self.on_not_disturb)
+        ###########
+        #
+        self.populate_menu()
+        #
+        self.updateGeometry()
+        # center
+        NW = self.width()
+        NH = self.height()
+        if CENTRALIZE_EL == 1:
+            sx = int((WINW - not_width)/2)
+        # right
+        elif CENTRALIZE_EL == 0 or CENTRALIZE_EL == 2:
+            if use_menu == 2:
+                sx = not_padx
+            else:
+                sx = WINW - not_width - not_win_content - not_padx
+        #
+        if dock_position == 0:
+            sy = dock_height + not_pady
+        elif dock_position == 1:
+            sy = WINH - dock_height - not_height - not_pady
+        #
+        self.setGeometry(sx,sy,not_width+not_win_content,not_height)
+        #
+        self.hide()
+        self.show()
+        #
+        _this_size = self.size()
+        if dock_position == 0:
+            sx = WINW - _this_size.width() - not_padx
+            sy = dock_height + not_pady
+        elif dock_position == 1:
+            sx = WINW - _this_size.width() - not_padx
+            sy = WINH - dock_height - _this_size.height() - not_pady
+        if use_menu == 2:
+            sx = not_padx
+        self.move(sx,sy)
+        
+    def on_link(self, _url):
+        self.item_textedit.setToolTip(_url.toString())
+        self.item_textedit.setToolTipDuration(2000)
+        
+    def on_not_disturb(self):
+        btn = self.sender()
+        _nfile = "notificationdonotuse_"+str(DO_NOT_DISTURB_TYPE)
+        if btn.isChecked():
+            try:
+                ff = open(os.path.join(DO_NOT_DISTURB, _nfile), "w")
+                ff.write("")
+                ff.close()
+                btn.setText("Disabled")
+                #
+                self.window.btn_not.setIcon(QIcon("icons/notifications_disabled.svg"))
+            except Exception as E:
+                MyDialog("Error", "{}.".format(str(E)), self)
+        else:
+            try:
+                os.remove(os.path.join(DO_NOT_DISTURB, _nfile))
+                btn.setText("Disable")
+                #
+                if len(os.listdir(USE_NOTIFICATION)) > 0:
+                   self.window.btn_not.setIcon(QIcon("icons/notifications_on.svg"))
+                else:
+                    self.window.btn_not.setIcon(QIcon("icons/notifications_off.svg"))
+            except Exception as E:
+                MyDialog("Error", "{}.".format(str(E)), self)
+                
+    
+    def populate_menu(self):
+        not_list = os.listdir(USE_NOTIFICATION)
+        not_list.sort(reverse=True)
+        for el in not_list:
+            icon_name = os.path.join(USE_NOTIFICATION,el,"icon")
+            text_name = os.path.join(USE_NOTIFICATION,el,"notification")
+            #
+            not_text = ""
+            try:
+                with open(text_name, "r") as ff:
+                    not_text = ff.read()
+            except:
+                continue
+            #
+            _sep = "\n\n\n@\n\n\n"
+            appname,summary,body = not_text.split(_sep)
+            #
+            icon = QPixmap(icon_name)
+            icon = icon.scaled(QSize(not_icon_size,not_icon_size), aspectRatioMode=Qt.KeepAspectRatio)
+            ilabel = QLabel()
+            ilabel.setPixmap(icon)
+            nitem = QListWidgetItem()
+            # folder name - unix time
+            nitem.el = el
+            #
+            _user_time = datetime.datetime.fromtimestamp(int(el)).strftime('%Y-%b-%d %H:%M')
+            # keeps the aspect ration
+            _i_w = icon.size().width()
+            _i_h = icon.size().height()
+            if _i_h > _i_w:
+                nitem_text = "<html><body>{}<br><br><img src='{}' width={} ><br><br><b>{}</b><br><br>{}</body></html>".format(_user_time,icon_name, NOTIFICATION_ICON_SIZE, summary,body)
+            else:
+                nitem_text = "<html><body>{}<br><br><img src='{}' height={} ><br><br><b>{}</b><br><br>{}</body></html>".format(_user_time,icon_name, NOTIFICATION_ICON_SIZE, summary,body)
+            #
+            nitem.setToolTip(nitem_text)
+            #
+            self.item_widget = QWidget()
+            item_layout = QHBoxLayout()
+            item_layout.setContentsMargins(4,4,4,4)
+            #
+            item_lbl = QLabel(_user_time+"\n"+appname)
+            item_btn = QPushButton()
+            item_btn.nitem = nitem
+            item_btn.el = el
+            item_btn.clicked.connect(self.on_item_btn)
+            #
+            btn_icon = QIcon("icons/list-remove.png")
+            item_btn.setIcon(btn_icon)
+            item_btn.setFixedSize(QSize(not_icon_size-4, not_icon_size-4))
+            #
+            item_btn.setSizePolicy(QSizePolicy.Maximum,QSizePolicy.Minimum)
+            item_layout.addWidget(item_btn, Qt.AlignLeft)
+            ilabel.setSizePolicy(QSizePolicy.Minimum,QSizePolicy.Minimum)
+            item_layout.addWidget(ilabel, Qt.AlignLeft)
+            ilabel.setSizePolicy(QSizePolicy.Maximum,QSizePolicy.Minimum)
+            item_layout.addWidget(item_lbl, Qt.AlignLeft)
+            # item_layout.addStretch(10)
+            #
+            self.item_widget.setLayout(item_layout)
+            self.listWidget.addItem(nitem)
+            nitem.setSizeHint(self.item_widget.sizeHint())
+            self.listWidget.setItemWidget(nitem, self.item_widget)
+    
+    def _on_remove_item(self, nitem, el):
+        not_path = os.path.join(USE_NOTIFICATION, el)
+        try:
+            shutil.rmtree(not_path)
+        except Exception as E:
+            MyDialog("Error", "{}.".format(str(E)), self)
+    
+    def on_item_btn(self):
+        nitem = self.sender().nitem
+        el = self.sender().el
+        self._on_remove_item(nitem, el)
+        self.listWidget.takeItem(self.listWidget.row(nitem))
+        self.item_textedit.clear()
+    
+    
+    def listwidgetclicked(self, item):
+        self.item_textedit.clear()
+        self.item_textedit.setText(item.toolTip())
+    
+    
+    def on_listdelete(self):
+        num_items = self.listWidget.count()
+        if num_items:
+            for i in range(num_items):
+                nitem = self.listWidget.item(i)
+                el = nitem.el
+                self._on_remove_item(nitem, el)
+        #
+        self.listWidget.clear()
+        self.item_textedit.clear()
+    
+    def eventFilter(self, object, event):
+        if event.type() == QEvent.WindowDeactivate:
+            if self.window.mn_is_shown:
+                self.window.mn_is_shown.close()
+                self.window.mn_is_shown = None
+                return True
+        return False
 
 
 # menu
@@ -3316,7 +3931,8 @@ class menuWin(QWidget):
     def __init__(self, parent=None):
         super(menuWin, self).__init__(parent)
         self.window = parent
-        self.setWindowFlags(self.windowFlags() | Qt.FramelessWindowHint | Qt.Tool)
+        # self.setWindowFlags(self.windowFlags() | Qt.FramelessWindowHint | Qt.Tool)
+        self.setWindowFlags(self.windowFlags() | Qt.FramelessWindowHint | Qt.Tool | Qt.WindowStaysOnTopHint)
         # self.setWindowFlags(self.windowFlags() | Qt.FramelessWindowHint | Qt.Window | Qt.WindowStaysOnTopHint)
         ####### 
         self.mainBox = QHBoxLayout()
@@ -3329,7 +3945,7 @@ class menuWin(QWidget):
         #
         parent_geom = self.window.geometry()
         win_height = parent_geom.height()
-        screensize = app.primaryScreen()
+        # screensize = app.primaryScreen()
         #
         self.hbox = QHBoxLayout()
         # 
@@ -3420,8 +4036,6 @@ class menuWin(QWidget):
         # self.pref.setStyleSheet(csa)
         self.pref.setStyleSheet(self.btn_csa)
         #
-        # self.pref.setStyleSheet("QPushButton { text-align: left; }")
-        # self.pref.setStyleSheet("text-align: left;")
         self.pref.setCheckable(True)
         self.pref.setAutoExclusive(True)
         self.pref.clicked.connect(self.on_pref_clicked)
@@ -3459,7 +4073,6 @@ class menuWin(QWidget):
         self.commBtn.setMenu(self.commMenu)
         #
         if COMM1_COMMAND or COMM2_COMMAND or COMM3_COMMAND:
-            # self.btn_box.addWidget(self.commBtn)
             #
             if COMM1_COMMAND:
                 if COMM1_ICON:
@@ -3491,7 +4104,6 @@ class menuWin(QWidget):
                 baction = self.commMenu.addAction(icon, COMM3_NAME, lambda:self._on_change(COMM3_COMMAND))
                 if COMM3_TOOLTIP:
                     baction.setToolTip(COMM3_TOOLTIP)
-        # self.combobtn.currentIndexChanged[str].connect(self._on_change) 
         #
         ## add custom applications
         if app_prog:
@@ -3558,29 +4170,20 @@ class menuWin(QWidget):
         #
         # left
         if use_menu == 1:
-            if CENTRALIZE_EL == 1:
-                sx = int((NW - menu_width)/2)
+            if CENTRALIZE_EL == 1 or CENTRALIZE_EL == 2:
+                sx = int((WINW - menu_width)/2)
             elif CENTRALIZE_EL == 0:
                 sx = parent_geom.x() + menu_padx
-            elif CENTRALIZE_EL == 2:
-                sx = int((NW - menu_width)/2)
         # right
         elif use_menu == 2:
-            sx = NW - menu_width - menu_padx
+            sx = WINW - menu_width - menu_padx
         #
         if dock_position == 1:
-            sy = NH - parent_geom.height() - self.geometry().height() - menu_pady
+            sy = WINH - dock_height - self.geometry().height() - menu_pady
         elif dock_position == 0:
-            sy = parent_geom.height() + menu_pady
+            sy = dock_height + menu_pady
         # self.move(sx,sy)
         self.setGeometry(sx,sy,sw,sh)
-        #
-        if self.window.cw_is_shown:
-            self.window.cw_is_shown.close()
-            self.window.cw_is_shown = None
-        if self.window.cwin_is_shown:
-            self.window.cwin_is_shown.close()
-            self.window.cwin_is_shown = None
         #
         self.emulate_clicked(self.pref, 100)
         self.pref.setChecked(True)
@@ -3598,10 +4201,7 @@ class menuWin(QWidget):
         if LOST_FOCUS_CLOSE == 1:
             self.installEventFilter(self)
         #
-        # self.setAttribute(Qt.WA_X11NetWmWindowTypeDock)
     
-    #
-    # def custom_comm(self, comm):
     def _on_change(self, comm):
         self.close()
         self.window.mw_is_shown = None
@@ -3689,8 +4289,6 @@ class menuWin(QWidget):
         self.itemSearching = 1
         if len(text) == 0:
             self.listWidget.clear()
-            # self.emulate_clicked(self.pref, 100)
-            # self.pref.setChecked(True)
         elif len(text) > 2:
             self.listWidget.clear()
             app_list = ["Development", "Education","Game",
@@ -3702,9 +4300,6 @@ class menuWin(QWidget):
                     continue
                 for el in globals()[ell]:
                     if (text.casefold() in el[1].casefold()) or (text.casefold() in el[3].casefold()):
-                        # exe_path = shutil.which(el[1].split(" ")[0])
-                        # file_info = QFileInfo(exe_path)
-                        # if exe_path:
                         # search for the icon by executable
                         icon = QIcon.fromTheme(el[1])
                         if icon.isNull() or icon.name() == "":
@@ -3765,17 +4360,6 @@ class menuWin(QWidget):
             # btn.setStyleSheet("QPushButton { text-align: left; }")
             btn.setStyleSheet("text-align: left;")
             ##########
-            # hpalette = self.palette().mid().color().name()
-            # csaa = ("QPushButton::hover:!pressed { border: none;")
-            # csab = ("background-color: {};".format(hpalette))
-            # csac = ("border-radius: 3px;")
-            # csad = ("text-align: left; }")
-            # csae = ("QPushButton { text-align: left;  padding: 5px;}")
-            # csaf = ("QPushButton::checked { text-align: left; ")
-            # # csag = ("background-color: {};".format(self.palette().midlight().color().name()))
-            # csag = ("background-color: #7F7F7F;")
-            # csah = ("padding: 5px; border-radius: 3px;}")
-            # csa = csaa+csab+csac+csad+csae+csaf+csag+csah
             btn.setStyleSheet(self.btn_csa)
             ##########
             btn.setCheckable(True)
@@ -3806,10 +4390,6 @@ class menuWin(QWidget):
         # 
         for el in cat_list:
             # 0 name - 1 executable - 2 icon - 3 comment - 4 path
-            # exe_path = shutil.which(el[1].split(" ")[0])
-            # file_info = QFileInfo(exe_path)
-            #
-            # if exe_path:
             # search for the icon by executable
             icon = QIcon.fromTheme(el[1])
             if icon.isNull() or icon.name() == "":
@@ -3838,12 +4418,16 @@ class menuWin(QWidget):
             else:
                 litem = QListWidgetItem(icon, el[0])
                 litem.picon = el[1]
-            
-            # set the exec name as property
+            #
+            # executable
             litem.exec_n = el[1]
+            # working directory
             litem.ppath = el[4]
+            # comment
             litem.setToolTip(el[3])
+            # use terminal
             litem.tterm = el[5]
+            # file desktop full path
             litem.fpath = el[6]
             self.listWidget.addItem(litem)
                 #
@@ -3868,9 +4452,20 @@ class menuWin(QWidget):
             item_m = self.listMenu.addAction("Modify")
         else:
             item_m = "None"
+        # PIN
+        item_idx = self.listWidget.indexAt(QPos)
+        _item = self.listWidget.itemFromIndex(item_idx)
+        item_fpath = _item.fpath
+        fret = self.on_check_pin(item_fpath)
+        if fret:
+            item_p = self.listMenu.addAction("Pin")
         #
         action = self.listMenu.exec_(self.listWidget.mapToGlobal(QPos))
-        if pret == 1 and action == item_b:
+        #
+        if fret == 1 and action == item_p:
+            self.on_add_item_pin(_item)
+        #
+        elif pret == 1 and action == item_b:
             item_idx = self.listWidget.indexAt(QPos)
             _item = self.listWidget.itemFromIndex(item_idx)
             if _item == None:
@@ -3915,6 +4510,70 @@ class menuWin(QWidget):
         self.listWidget.clearSelection()
         self.listWidget.clearFocus()
         self.listWidget.setFocus(True)
+    
+    
+    def on_check_pin(self, _fpath):
+        list_apps = os.listdir("applications")
+        if os.path.basename(_fpath) in list_apps:
+            return 0
+        else:
+            return 1
+    
+    # pin the application
+    def on_add_item_pin(self, _item):
+        # file desktop full path
+        item_fpath = _item.fpath
+        # application name
+        item_name = _item.text()
+        # icon name
+        item_icon = _item.picon
+        # executable
+        item_exec = _item.exec_n
+        # use terminal
+        item_term = _item.tterm
+        # working directory
+        item_ppath = _item.ppath
+        #
+        try:
+            shutil.copy(item_fpath, "applications"+"/"+os.path.basename(item_fpath))
+        except Exception as E:
+            dlg = showDialog(1, str(E), self)
+            result = dlg.exec_()
+            dlg.close()
+            return
+        # add the button
+        pbtn = QPushButton()
+        pbtn.setFlat(True)
+        #
+        picon = None
+        if os.path.exists(item_icon):
+            picon = QIcon(item_icon)
+        # picon = QIcon.fromTheme(os.path.basename(icon).split(".")[0])
+        if picon is None or picon.isNull():
+            picon = QIcon.fromTheme(os.path.basename(item_icon).split(".")[0])
+            # if os.path.exists(icon):
+                # picon = QIcon(icon)
+        if picon is None or picon.isNull():
+            picon = QIcon("icons/unknown.svg")
+        pbtn.setFixedSize(QSize(pbutton_size, pbutton_size))
+        pbtn.setIcon(picon)
+        pbtn.setIconSize(pbtn.size())
+        pbtn.setToolTip(item_name or item_exec)
+        #
+        pbtn.pexec = item_exec
+        pbtn.tterm = item_term
+        pbtn.pdesktop = os.path.basename(item_fpath)
+        #
+        pbtn.ppath = item_ppath
+        #
+        self.window.prog_box.insertWidget(len(os.listdir("applications")), pbtn)
+        if len(os.listdir("applications")) == 1:
+            self.window.sepLine2.show()
+        pbtn.clicked.connect(self.window.on_pbtn)
+        pbtn.setContextMenuPolicy(Qt.CustomContextMenu)
+        # unpin action
+        pbtn.customContextMenuRequested.connect(self.window.pbtnClicked)
+    
     
     # check whether the bookmark already exists
     def check_bookmarks(self, _item):
@@ -4001,25 +4660,7 @@ class menuWin(QWidget):
             PATH = el[4].strip("\n")
             TTERM = el[5].strip("\n")
             FILENAME = el[6].strip("\n")
-            # # 
-            # if len(el) > 5:
-                # PATH_TEMP = el[4].strip("\n")
-                # FILENAME = el[5].strip("\n")
-                # if PATH_TEMP:
-                    # PATH = PATH_TEMP
-            # else:
-                # FILENAME = el[4].strip("\n")
-                # PATH = ""
             #
-            # exe_path = shutil.which(EXEC.split(" ")[0])
-            # file_info = QFileInfo(exe_path)
-            # if file_info.exists():
-                # if os.path.exists(ICON):
-                    # icon = QIcon(ICON)
-                # else:
-                    # icon = QIcon.fromTheme(ICON)
-                    # if icon.name() == "none":
-                        # icon = QIcon("icons/none.svg")
             icon = QIcon.fromTheme(ICON)
             if icon.isNull():
                 icon = QIcon(icon)
@@ -4034,6 +4675,7 @@ class menuWin(QWidget):
                 litem.tterm = True
             else:
                 litem.tterm = False
+            #
             self.listWidget.addItem(litem)
             #
         self.listWidget.sortItems(Qt.AscendingOrder)
@@ -4064,27 +4706,27 @@ class calendarWin(QWidget):
     def __init__(self, parent=None):
         super(calendarWin, self).__init__(parent)
         self.window = parent
-        self.setWindowFlags(self.windowFlags() | Qt.FramelessWindowHint | Qt.Tool)
+        # self.setWindowFlags(self.windowFlags() | Qt.FramelessWindowHint | Qt.Tool)
+        self.setWindowFlags(self.windowFlags() | Qt.FramelessWindowHint | Qt.Tool | Qt.WindowStaysOnTopHint)
         # self.setWindowFlags(self.windowFlags() | Qt.FramelessWindowHint | Qt.Window | Qt.WindowStaysOnTopHint)
-        ####### box 
+        ####### main box 
         mainBox = QHBoxLayout()
-        self.setLayout(mainBox)
-        ## 
-        self.hbox = QHBoxLayout()
-        mainBox.addLayout(self.hbox)
-        self.hbox.setContentsMargins(2,2,2,2)
         mainBox.setContentsMargins(0,0,0,0)
-        
+        self.setLayout(mainBox)
+        ## basic box
+        self.hbox = QHBoxLayout()
+        self.hbox.setContentsMargins(2,2,2,2)
+        mainBox.addLayout(self.hbox)
         #### 
         self.vbox_1 = QVBoxLayout()
         self.vbox_1.setContentsMargins(0,0,0,0)
         self.hbox.addLayout(self.vbox_1)
-        #
+        # calendar event box
         self.scroll = QScrollArea()
         self.widget = QWidget()
         self.vbox = QVBoxLayout()
         self.widget.setLayout(self.vbox)
-        # 
+        # calendar event box navigator buttons
         self.ldatebox = QHBoxLayout()
         self.ldatebox.setContentsMargins(0,0,0,0)
         self.vbox_1.addLayout(self.ldatebox)
@@ -4116,6 +4758,7 @@ class calendarWin(QWidget):
         self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.scroll.setWidgetResizable(True)
         self.scroll.setFixedWidth(appointment_window_size)
+        self.widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.scroll.setWidget(self.widget)
         #
         cssa = ("QScrollBar:vertical {"
@@ -4144,7 +4787,7 @@ class calendarWin(QWidget):
         self.scroll.setStyleSheet(css)
         #
         self.vbox_1.addWidget(self.scroll)
-        
+        #
         ################ the calendar
         thisMonth = QDate().currentDate().month()
         thisYear = QDate().currentDate().year()
@@ -4163,42 +4806,34 @@ class calendarWin(QWidget):
         self.calendar.setNavigationBarVisible(False)
         self.calendar.setVerticalHeaderFormat(QCalendarWidget.NoVerticalHeader)
         self.calendar.currentPageChanged.connect(self.calendar_month_changed)
+        self.calendar.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
         self.hbox.addWidget(self.calendar)
         self.show()
         #
         if self.window.mw_is_shown:
             self.window.mw_is_shown.close()
             self.window.mw_is_shown = None
-        if self.window.cwin_is_shown:
-            self.window.cwin_is_shown.close()
-            self.window.cwin_is_shown = None
-        #
-        # cwWidth = self.width()
-        # cwHeight = self.height()
-        # cwX = int((WINW-cwWidth)/2)
-        # win_height = self.window.size().height()
-        # cwY = win_height
         #
         cwX = 0
         cwY = 0
-        screensize = app.primaryScreen()
-        #
-        if CENTRALIZE_EL == 0:
+        NW = self.width()
+        NH = self.height()
+        if CENTRALIZE_EL == 0 or CENTRALIZE_EL == 2:
             this_geom = self.geometry()
             if dock_position == 0:
                 sy = dock_height+clock_gapy
                 if use_clock == 2:
-                    sx = NW-this_geom.width()-clock_gapx
+                    sx = WINW-this_geom.width()-clock_gapx
                 elif use_clock == 1:
                     sx = clock_gapx
             elif dock_position == 1:
-                sy = (NH-dock_height-this_geom.height()-clock_gapy)
+                sy = WINH - dock_height - self.geometry().height() - clock_gapy
                 if use_clock == 2:
-                    sx = NW-this_geom.width()-clock_gapx
+                    sx = WINW-this_geom.width()-clock_gapx
                 elif use_clock == 1:
                     sx = clock_gapx
             self.setGeometry(sx, sy, -1,-1)
-        elif CENTRALIZE_EL == 2 or CENTRALIZE_EL == 1:
+        elif CENTRALIZE_EL == 1:
             this_geom = self.geometry()
             sx = int((NW - this_geom.width())/2)
             if dock_position == 0:
@@ -4282,9 +4917,7 @@ class ClickLabel(QLabel):
                 subprocess.Popen([event_command, cdate])
             except:
                 pass
-            # except Exception as E:
-                # MyDialog("Error", str(E), self)
-        # self.clicked.emit()
+        #
         QLabel.mousePressEvent(self, event)      
 
 
@@ -4294,6 +4927,17 @@ class Calendar(QCalendarWidget):
     # constructor
     def __init__(self, parent=None, c_dict=None, vbox=None):
         super(Calendar, self).__init__(parent)
+        #self.setGeometry(-1, -1, 400, 250)
+        # font = QFont(QFont.defaultFamily(), 6)
+        font = QFont()
+        if calendar_cal_font:
+            font.setFamily(calendar_cal_font)
+        else:
+            font.setFamily(font.defaultFamily())
+        if calendar_cal_font_size:
+            font.setPointSize(calendar_cal_font_size)
+        if calendar_cal_font or calendar_cal_font_size:
+            self.setFont(font)
         self.parent = parent
         self.events = c_dict
         self.cvbox = vbox
@@ -4404,186 +5048,20 @@ class MyDialog(QMessageBox):
         # 
         return result
 
-################
-if __name__ == '__main__':
 
+###################
+
+if __name__ == '__main__':
     app = QApplication(sys.argv)
-    #
-    if tray_already_used:
-        msg = QMessageBox()
-        msg.setIcon(QMessageBox.Information)
-        msg.setText("Tray already in use.")
-        msg.setInformativeText("The tray will be disabled.")
-        msg.setWindowTitle("Info")
-        msg.exec_()
-    ########### sec_window
-    sec_position = 1
-    sec_window = SecondaryWin(sec_position)
-    sec_window.setWindowFlags(sec_window.windowFlags() | Qt.WindowDoesNotAcceptFocus)
-    sec_window.setAttribute(Qt.WA_AlwaysShowToolTips, True)
-    sec_window.setAttribute(Qt.WA_X11NetWmWindowTypeDock)
     screen = app.primaryScreen()
     size = screen.size()
-    NW = size.width()
-    NH = size.height()
-    # this program width and height
     WINW = size.width()
-    WINH = dock_height
+    WINH = size.height()
+    _dock = SecondaryWin(1, app, None, None)
+    if dock_position == 0:
+        _dock.setGeometry(0,0,WINW,dock_height)
+    elif dock_position == 1:
+        _dock.setGeometry(-1,WINH-dock_height,WINW,dock_height)
     #
-    this_windowID = int(sec_window.winId())
-    _display = Display()
-    this_window = _display.create_resource_object('window', this_windowID)
-    # always above
-    ewmh.setWmState(this_window, 1, '_NET_WM_STATE_ABOVE')
-    ewmh.display.flush()
-    #
-    # # _NET_WM_DESKTOP 0xFFFFFFFF indicates that the window SHOULD appear on all desktops.
-    # wm_state = _display.intern_atom('_NET_WM_DESKTOP')
-    # _data = [0xFFFFFFFF,0,0,0,0]
-    # #
-    # sevent = pe.ClientMessage(
-            # window = this_window,
-            # client_type = wm_state,
-            # data=(32, (_data))
-            # )
-    # mask = (X.SubstructureRedirectMask | X.SubstructureNotifyMask)
-    # _display.screen().root.send_event(event=sevent, event_mask=mask)
-    # _display.flush()
-    #
-    # reserved space
-    L = 0
-    R = 0
-    T = 0
-    B = 0
-    #
-    if dock_position == 1:
-        B = dock_height
-        # 
-        this_window.change_property(_display.intern_atom('_NET_WM_STRUT'),
-                                    _display.intern_atom('CARDINAL'),
-                                    32, [L, R, T, B])
-        # #
-        # x = 0
-        # # y = x+WINW-1
-        # y = WINH - dock_height
-        # # left, right, top, bottom,
-        # # left_start_y, left_end_y, right_start_y, right_end_y,
-        # # top_start_x, top_end_x, bottom_start_x, bottom_end_x
-        # this_window.change_property(_display.intern_atom('_NET_WM_STRUT_PARTIAL'),
-                            # _display.intern_atom('CARDINAL'), 32,
-                           	# [L, R, T, B, 0, 0, 0, 0, x, y, T, B],
-                           	# X.PropModeReplace)
-    elif dock_position == 0:
-        T = dock_height
-        # 
-        this_window.change_property(_display.intern_atom('_NET_WM_STRUT'),
-                                    _display.intern_atom('CARDINAL'),
-                                    32, [L, R, T, B])
-        # #
-        # x = 0
-        # y = 0
-        # lys1 = 0
-        # lye1 = 0
-        # rys = 0
-        # rye = 0
-        # tsx = 0
-        # tex = 0
-        # # left, right, top, bottom,
-        # # left_start_y, left_end_y, right_start_y, right_end_y,
-        # # top_start_x, top_end_x, bottom_start_x, bottom_end_x
-        # this_window.change_property(_display.intern_atom('_NET_WM_STRUT_PARTIAL'),
-                            # _display.intern_atom('CARDINAL'), 32,
-                           	# [L, R, T, B, 0, 0, 0, 0, x, y, T, B],
-                           	# X.PropModeReplace)
-    
-    
-    # this_window.change_property(_display.intern_atom("_NET_WM_WINDOW_TYPE"),
-    #         Xatom.ATOM, 32, [_display.intern_atom("_NET_WM_WINDOW_TYPE_DOCK")])
-    
-    _display.sync()
-    #
-    # sec_window.show()
-    #
-    sx = 0
-    if dock_position == 1:
-        sy = size.height() - dock_height
-    elif dock_position == 0:
-        sy = 0
-    sw = WINW
-    sh = WINH
-    if CENTRALIZE_EL == 2:
-        sec_window.setGeometry(sx, sy, 1, sh)
-    else:
-        sec_window.setGeometry(sx, sy, sw, sh)
-    #
-    sec_window.show()
-    #
-    if CENTRALIZE_EL == 2:
-        sec_width = sec_window.geometry().width()
-        sec_window.move(int((WINW-sec_width)/2), sy)
-    #
-    #############
-    # # move and center the window
-    # if sec_position in [2, 3]:
-        # pass
-    # elif sec_position in [0,1]:
-        # sx = int((size.width() - WINW)/2)
-        # if not fixed_position:
-            # if sec_position == 0:
-                # sy = 0
-            # elif sec_position == 1:
-                # sy = size.height() - WINH
-        # else:
-            # sy = size.height() - WINH
-        # # 
-        # sec_window.resize(WINW, WINH)
-        # sec_window.move(sx, sy)
-        # sec_window.setMaximumWidth(size.width())
-    ############
-    # set new style globally
-    if theme_style:
-        s = QStyleFactory.create(theme_style)
-        app.setStyle(s)
-    # set the icon style globally
-    if icon_theme:
-        QIcon.setThemeName(icon_theme)
-    ################ menu
-    if use_menu:
-        def on_directory_changed():
-            on_pop_menu(app_dirs_user, app_dirs_system)
-        
-        # some applications has been added or removed
-        def directory_changed(edir):
-            global menu_is_changed
-            menu_is_changed += 1
-            if menu_is_changed == 1:
-                on_directory_changed()
-        # check for changes in the application directories
-        fPath = app_dirs_system + app_dirs_user
-        fileSystemWatcher = QFileSystemWatcher(fPath)
-        fileSystemWatcher.directoryChanged.connect(directory_changed)
-    ############ calendar
-    if use_clock:
-        def file_changed(efile):
-            global list_events_all
-            list_events_all = []
-            get_events()
-        
-        # check for changes in the calendar file
-        if os.path.exists(fopen):
-            epath = QFileInfo(QFile(fopen)).absoluteFilePath()
-            fileSystemWatcher.addPath(epath)
-            fileSystemWatcher.fileChanged.connect(file_changed)
-    ################
-    # ewmh.setWmState(this_window, 1, '_NET_WM_STATE_STICKY')
-    # ewmh.setWmState(this_window, 1, '_NET_WM_STATE_SKIP_TASKBAR')
-    # ewmh.setWmState(this_window, 1, '_NET_WM_STATE_SKIP_PAGER')
-    # ewmh.display.flush()
-    # ewmh.display.sync()
-    ################
-    # 
+    _dock.show()
     ret = app.exec_()
-    stopCD = 1
-    sys.exit(ret)
-    
-################################## END #################################
