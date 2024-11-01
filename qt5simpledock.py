@@ -1928,7 +1928,7 @@ class SecondaryWin(QWidget):
             elif 31 < _level < 61:
                 _icon = "audio-volume-high"
                 iicon = QIcon.fromTheme(_icon, QIcon("icons/audio-volume-high.svg"))
-            elif _level >= 100:
+            elif _level <= 100:
                 _icon = "audio-volume-overamplified"
                 iicon = QIcon.fromTheme(_icon, QIcon("icons/audio-volume-overamplified.svg"))
             #
