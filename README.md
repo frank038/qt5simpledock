@@ -16,6 +16,7 @@ This program needs:
 Features:
 - application menu (can add or modify application entries; bookmarks; search functionality; custom button with menu; system buttons)
 - clock/calendar (can read an ics file; can launch an external program for adding/modifying events by double clicking in a day cell, or even event; in the form: PROGRAM yyyymmdd)
+- clock: can be setted a timer for one alarm for the day (right click on the time, also for deleting it); the alarm event is stored in a file
 - virtual desktops (if supported by the window manager)
 - application launchers (using the contextual menu, applications can be pinned and unpinned - a valid desktop file is required; the file delete_me in the folder 'applications' needs to be deleted before using this program)
 - task list with icon support and application comment while hovering on it
