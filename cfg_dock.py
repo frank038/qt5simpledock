@@ -34,6 +34,8 @@ LOST_FOCUS_CLOSE=1
 PLAY_SOUND=0
 # audio player: "NAME" or ""
 A_PLAYER="aplay"
+# alarm sound: 0 disable - 1 sound - 2 notification (with notify-send) - 3 dialog - 4 sound and notification - 5 sound and dialog
+PLAY_ALARM=0
 # use internal clipboard
 USE_CLIPBOARD=1
 # use internal audio control - experimental
