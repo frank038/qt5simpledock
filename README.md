@@ -15,12 +15,12 @@ This program needs:
 
 Features:
 - application menu (can add or modify application entries; bookmarks; search functionality; custom button with menu; system buttons)
-- clock/calendar (can read an ics file; can launch an external program for adding/modifying events by double clicking in a day cell, or even event; in the form: PROGRAM yyyymmdd)
+- clock/calendar (can read an ics file; can launch an external program for adding/modifying events by double clicking in a day cell, or in a shown event; in the form: PROGRAM yyyymmdd)
 - clock: can be setted a timer for one alarm for the day (right click on the time, also for deleting it); the alarm event is stored in a file for future use; delete the alarm the same way
 - virtual desktops (if supported by the window manager)
-- application launchers (using the contextual menu, applications can be pinned and unpinned - a valid desktop file is required; the file delete_me in the folder 'applications' needs to be deleted before using this program)
+- application launchers (using the contextual menu of each menu item entry, applications can be pinned and unpinned - a valid desktop file is required; the file delete_me in the folder 'applications' needs to be deleted before using this program)
 - task list with icon support and application comment while hovering on it
-- four slots for periodical custom messagges (just modify the files in the script folder; they accept both plain text or rich text; see the sample files); can execute programs double clicking with the left mouse button or the middle mouse button. 
+- four slots for periodical custom messagges (just modify the files in the script folder; they accept both plain text or rich text; see the sample files); can execute programs by double clicking with the left mouse button or single click with the middle mouse button. 
 - two slots for custom widgets in the dock, left and right
 - systemtray icons support
 - integrated clipboard (text and images)
