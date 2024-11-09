@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# 0.9.39
+# 0.9.40
 
 from PyQt5.QtCore import (QThread,pyqtSignal,Qt,QTimer,QTime,QDate,QSize,QRect,QCoreApplication,QEvent,QPoint,QFileSystemWatcher,QProcess,QFileInfo,QFile,QDateTime)
 from PyQt5.QtWidgets import (QWidget,QHBoxLayout,QBoxLayout,QLabel,QPushButton,QSizePolicy,QMenu,QVBoxLayout,QTabWidget,QListWidget,QScrollArea,QListWidgetItem,QDialog,QMessageBox,QMenu,qApp,QAction,QDialogButtonBox,QTreeWidget,QTreeWidgetItem,QDesktopWidget,QLineEdit,QFrame,QCalendarWidget,QTableView,QStyleFactory,QApplication,QButtonGroup,QRadioButton,QSlider,QTextEdit,QTextBrowser,QDateTimeEdit,QCheckBox,QComboBox)
@@ -810,6 +810,8 @@ class SecondaryWin(QWidget):
             self.abtn = QPushButton("Set as default")
             self.abtn.clicked.connect(self.on_abtn_clicked)
             self.laudiobox.addWidget(self.abtn)
+            # the stored sink in the file
+            self.start_sink_name = None
             #
             import pulsectl as _pulse
             self.pulse = _pulse.Pulse()
@@ -845,7 +847,7 @@ class SecondaryWin(QWidget):
                 self.micbox.setContentsMargins(4,4,4,4)
                 self.micmenu.setLayout(self.micbox)
                 #
-                self._on_start_mic()
+                # self._on_start_mic()
                 #
                 self.on_microphone()
             #
@@ -1148,7 +1150,7 @@ class SecondaryWin(QWidget):
             # timer
             if PLAY_ALARM > 0:
                 if self.mytimer == None:
-                    self._add_timer = QAction("Add timer")
+                    self._add_timer = QAction("Set the timer")
                     selfMenu.addAction(self._add_timer)
                     self._add_timer.triggered.connect(self.on_add_timer)
                 elif isinstance(self.mytimer, QTimer):
@@ -1683,13 +1685,13 @@ class SecondaryWin(QWidget):
             if os.path.exists(_sink_file_path):
                 with open(_sink_file_path, "r") as _f:
                     _sink_name = _f.readline()
-                _sink_name = _sink_name.strip("\n")
+                self.start_sink_name = _sink_name.strip("\n")
         except Exception as E:
             MyDialog("Error", str(E),None)
         #
-        if _sink_name:
-            if _sink_name != "auto_null":
-                self.default_sink_name = _sink_name
+        if self.start_sink_name:
+            if self.start_sink_name != "auto_null":
+                self.default_sink_name = self.start_sink_name
         #
         for el in self.pulse.sink_list():
             if el.name == _sink_name and el.name != "auto_null":
@@ -1709,8 +1711,8 @@ class SecondaryWin(QWidget):
                             self.pulse.volume_set_all_chans(ell, _vol)
                         except:
                             pass
-        # right click menu - volume
-        self.on_populate_amenu()
+        # # right click menu - volume
+        # self.on_populate_amenu()
         # set the icon and tooltip - volume
         self._set_volume()
     
@@ -1725,12 +1727,25 @@ class SecondaryWin(QWidget):
                     widget.deleteLater()
                     widget = None
         #
+        try:
+            _sink_file_path = os.path.join(curr_path,"sink_default")
+            if os.path.exists(_sink_file_path):
+                with open(_sink_file_path, "r") as _f:
+                    _sink_name = _f.readline()
+                self.start_sink_name = _sink_name.strip("\n")
+        except Exception as E:
+            MyDialog("Error", str(E),None)
+        #
         for ell in self.pulse.sink_list():
             rb0 = QRadioButton(ell.description)
             self.laudiobox.addWidget(rb0)
             rb0.item = ell.name
             if ell.name == self.default_sink_name:
                 rb0.setChecked(True)
+                if ell.name == self.start_sink_name:
+                    self.abtn.setText("Remove as default")
+                else:
+                    self.abtn.setText("Set as default")
             rb0.clicked.connect(self.on_rb0_clicked)
         
     # 
@@ -1756,15 +1771,25 @@ class SecondaryWin(QWidget):
     def on_abtn_clicked(self):
         if not self.default_sink_name or self.default_sink_name == "auto_null":
             return
-        try:
-            with open(os.path.join(curr_path,"sink_default"), "w") as _f:
-                _f.write(str(self.default_sink_name))
-        except Exception as E:
-            MyDialog("Error", str(E), None)
+        #
+        if self.abtn.text() == "Remove as default":
+            try:
+                os.remove(os.path.join(curr_path,"sink_default"))
+                self.start_sink_name = None
+            except Exception as E:
+                MyDialog("Error", str(E), None)
+        else:
+            try:
+                with open(os.path.join(curr_path,"sink_default"), "w") as _f:
+                    _f.write(str(self.default_sink_name))
+            except Exception as E:
+                MyDialog("Error", str(E), None)
+        #
+        self.amenu.close()
     
     #
-    def _on_start_mic(self):
-        self.on_populate_micmenu()
+    # def _on_start_mic(self):
+        # self.on_populate_micmenu()
     
     # show or hide the microphone icon
     def on_microphone(self):
@@ -1805,6 +1830,7 @@ class SecondaryWin(QWidget):
     
     #
     def on_microphone_changed(self):
+        return
         # widgets
         _list_chbtn = []
         for i in range(self.micbox.count()):
@@ -1842,6 +1868,8 @@ class SecondaryWin(QWidget):
     
     # right click menu - mic
     def on_mic2(self, _pos):
+        self.on_populate_micmenu()
+        #
         self.micmenu.adjustSize()
         self.micmenu.updateGeometry()
         menu_width = self.micmenu.geometry().width()
@@ -1882,7 +1910,7 @@ class SecondaryWin(QWidget):
     def on_list_audio(self, _el, _t):
         # sink: remove - new
         if _t in [101,102]:
-            self.on_populate_amenu()
+            # self.on_populate_amenu()
             self._set_volume()
         # volume changed
         elif _t == 103:
@@ -1893,7 +1921,8 @@ class SecondaryWin(QWidget):
         # source
         elif _t in [201,202]:
             if USE_MICROPHONE:
-                self.on_populate_micmenu()
+                # self.on_populate_micmenu()
+                self.on_microphone()
         elif _t == 203:
             if USE_MICROPHONE:
                 self.on_microphone_changed()
@@ -2016,6 +2045,8 @@ class SecondaryWin(QWidget):
     
     # right click
     def on_volume2(self, _pos):
+        self.on_populate_amenu()
+        #
         self.amenu.adjustSize()
         self.amenu.updateGeometry()
         menu_width = self.amenu.geometry().width()
@@ -5254,7 +5285,7 @@ class TimerWindow(QWidget):
     def __init__(self,w):
         super().__init__()
         self.w = w
-        self.setWindowTitle("Add a timer")
+        self.setWindowTitle("Set the timer")
         layout = QVBoxLayout()
         self.setLayout(layout)
         #
