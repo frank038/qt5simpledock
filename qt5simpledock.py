@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# 0.9.40
+# 0.9.41
 
 from PyQt5.QtCore import (QThread,pyqtSignal,Qt,QTimer,QTime,QDate,QSize,QRect,QCoreApplication,QEvent,QPoint,QFileSystemWatcher,QProcess,QFileInfo,QFile,QDateTime)
 from PyQt5.QtWidgets import (QWidget,QHBoxLayout,QBoxLayout,QLabel,QPushButton,QSizePolicy,QMenu,QVBoxLayout,QTabWidget,QListWidget,QScrollArea,QListWidgetItem,QDialog,QMessageBox,QMenu,qApp,QAction,QDialogButtonBox,QTreeWidget,QTreeWidgetItem,QDesktopWidget,QLineEdit,QFrame,QCalendarWidget,QTableView,QStyleFactory,QApplication,QButtonGroup,QRadioButton,QSlider,QTextEdit,QTextBrowser,QDateTimeEdit,QCheckBox,QComboBox)
@@ -1946,7 +1946,7 @@ class SecondaryWin(QWidget):
             #
             iicon = None
             #
-            if 0 < _level < 31:
+            if 0 <= _level < 31:
                 _icon = "audio-volume-low"
                 iicon = QIcon.fromTheme(_icon, QIcon("icons/audio-volume-low.svg"))
             elif 31 < _level < 61:
@@ -2120,7 +2120,10 @@ class SecondaryWin(QWidget):
         if not _sink:
             return
         _mute_state = not _sink.mute
-        self.pulse.mute(_sink, mute=_mute_state)
+        try:
+            self.pulse.mute(_sink, mute=_mute_state)
+        except:
+            pass
         self._set_volume()
     
 ############# audio end ##############
