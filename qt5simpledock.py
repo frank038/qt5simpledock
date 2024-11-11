@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# 0.9.41
+# 0.9.42
 
 from PyQt5.QtCore import (QThread,pyqtSignal,Qt,QTimer,QTime,QDate,QSize,QRect,QCoreApplication,QEvent,QPoint,QFileSystemWatcher,QProcess,QFileInfo,QFile,QDateTime)
 from PyQt5.QtWidgets import (QWidget,QHBoxLayout,QBoxLayout,QLabel,QPushButton,QSizePolicy,QMenu,QVBoxLayout,QTabWidget,QListWidget,QScrollArea,QListWidgetItem,QDialog,QMessageBox,QMenu,qApp,QAction,QDialogButtonBox,QTreeWidget,QTreeWidgetItem,QDesktopWidget,QLineEdit,QFrame,QCalendarWidget,QTableView,QStyleFactory,QApplication,QButtonGroup,QRadioButton,QSlider,QTextEdit,QTextBrowser,QDateTimeEdit,QCheckBox,QComboBox)
@@ -824,6 +824,26 @@ class SecondaryWin(QWidget):
             self._on_start_vol()
             # needed for right click event
             self.btn_mic = None
+            #
+            # buttons style
+            hpalette = self.palette().mid().color().name()
+            csaa = ("QPushButton::hover:!pressed { border: none;")
+            csab = ("background-color: {};".format(hpalette))
+            csac = ("border-radius: 3px;")
+            csad = ("text-align: center; }")
+            csae = ("QPushButton { text-align: center;  padding: 5px; border: 1px solid #7F7F7F;")
+            csae1 = ("background-color: '{}';".format(self.palette().midlight().color().name()))
+            csae2 = (" }")
+            csaf = ("QPushButton::checked { text-align: center; ")
+            if button_menu_selected_color == "":
+                csag = ("background-color: {};".format(self.palette().midlight().color().name()))
+            else:
+                csag = ("background-color: {};".format(button_menu_selected_color))
+            csah = ("padding: 5px; border-radius: 3px;}")
+            self.btn_csa = csaa+csab+csac+csad+csae+csae1+csae2+csaf+csag+csah
+            self.abtn.setStyleSheet(self.btn_csa)
+            self.mbtn.setStyleSheet(self.btn_csa)
+            #
             if USE_MICROPHONE:
                 #
                 self.btn_mic = QPushButton()
@@ -1162,15 +1182,16 @@ class SecondaryWin(QWidget):
             return
         elif wl == self.btn_mic:
             return
-        else:
+        # else:
+        elif wl == None:
             # scripts
             self._reload_scripts = QAction("Reload scripts")
             selfMenu.addAction(self._reload_scripts)
             self._reload_scripts.triggered.connect(self.on_reload_scripts)
-            # mute notifications
-            self._disable_notifications = QAction("Notifications off/on")
-            selfMenu.addAction(self._disable_notifications)
-            self._disable_notifications.triggered.connect(self.on_disable_notifications)
+            # # mute notifications
+            # self._disable_notifications = QAction("Notifications off/on")
+            # selfMenu.addAction(self._disable_notifications)
+            # self._disable_notifications.triggered.connect(self.on_disable_notifications)
             # exit
             selfMenu.addSeparator()
             reloadAction = QAction("Reload", self)
@@ -1671,14 +1692,18 @@ class SecondaryWin(QWidget):
         self.card_list = self.pulse.card_list()
         # # default sink name
         self.default_sink_name = None
-        self._sink_list = self.pulse.sink_list()
+        try:
+            _sink_list = self.pulse.sink_list()
+        except:
+            self._reload_pulse()
         # the default sink stored
         try:
             _server_info = self.pulse.server_info()
             self.default_sink_name = _server_info.default_sink_name
             del _server_info
         except:
-            pass
+            self._reload_pulse()
+        #
         _sink_name = self.default_sink_name
         try:
             _sink_file_path = os.path.join(curr_path,"sink_default")
@@ -1704,7 +1729,7 @@ class SecondaryWin(QWidget):
             if self.AUDIO_START_LEVEL > 100 or self.AUDIO_START_LEVEL < 0:
                 self.AUDIO_START_LEVEL = 20
             if self.default_sink_name:
-                for ell in self._sink_list:
+                for ell in _sink_list:
                     if ell.name == self.default_sink_name:
                         _vol = round(self.AUDIO_START_LEVEL/100, 2)
                         try:
@@ -1718,6 +1743,11 @@ class SecondaryWin(QWidget):
     
     # rebuild the volume menu
     def on_populate_amenu(self):
+        try:
+            _sink_list = self.pulse.sink_list()
+        except:
+            self._reload_pulse()
+            return
         for i in range(self.laudiobox.count()):
             if self.laudiobox.itemAt(i) != None:
                 widget = self.laudiobox.itemAt(i).widget()
@@ -1736,7 +1766,7 @@ class SecondaryWin(QWidget):
         except Exception as E:
             MyDialog("Error", str(E),None)
         #
-        for ell in self.pulse.sink_list():
+        for ell in _sink_list:
             rb0 = QRadioButton(ell.description)
             self.laudiobox.addWidget(rb0)
             rb0.item = ell.name
@@ -1751,19 +1781,27 @@ class SecondaryWin(QWidget):
     # 
     def on_rb0_clicked(self, _bool):
         _item = None
+        try:
+            _sink_list = self.pulse.sink_list()
+        except:
+            self._reload_pulse()
+            return
         if hasattr(self.sender(), "item"):
             _item = self.sender().item
         if not _item:
             return
         #
         _sink = None
-        for ell in self.pulse.sink_list():
+        for ell in _sink_list:
             if ell.name == _item:
                 _sink = ell
                 break
         #
-        self.pulse.sink_default_set(_sink)
-        self.default_sink_name = _item
+        try:
+            self.pulse.sink_default_set(_sink)
+            self.default_sink_name = _item
+        except:
+            self._reload_pulse()
         self.amenu.close()
         
     
@@ -1793,8 +1831,14 @@ class SecondaryWin(QWidget):
     
     # show or hide the microphone icon
     def on_microphone(self):
+        try:
+            _source_list = self.pulse.source_list()
+        except:
+            self._reload_pulse()
+            return
+        #
         _count = 0
-        for el in self.pulse.source_list():
+        for el in _source_list:
             if not el.name.endswith(".monitor"):
                 _count += 1
         if _count > 0:
@@ -1804,6 +1848,12 @@ class SecondaryWin(QWidget):
         self.btn_mic.hide()
     
     def on_populate_micmenu(self):
+        try:
+            _source_list = self.pulse.source_list()
+        except:
+            self._reload_pulse()
+            return
+        #
         for i in range(self.micbox.count()):
             if self.micbox.itemAt(i) != None:
                 widget = self.micbox.itemAt(i).widget()
@@ -1813,7 +1863,7 @@ class SecondaryWin(QWidget):
                     widget.deleteLater()
                     widget = None
         #
-        for el in self.pulse.source_list():
+        for el in _source_list:
             # skip monitors
             if not el.name.endswith(".monitor"):
                 rb1 = QCheckBox(el.description)
@@ -1831,21 +1881,26 @@ class SecondaryWin(QWidget):
     #
     def on_microphone_changed(self):
         return
-        # widgets
-        _list_chbtn = []
-        for i in range(self.micbox.count()):
-            if self.micbox.itemAt(i) != None:
-                widget = self.micbox.itemAt(i).widget()
-                if isinstance(widget, QCheckBox):
-                    _list_chbtn.append(widget)
-        #
-        for ell in self.pulse.source_list():
-            if ell.name.endswith('monitor'):
-                continue
-            for ww in _list_chbtn:
-                if ww.item == ell.name:
-                    _state = ell.mute
-                    ww.setChecked(not _state)
+        # try:
+            # _source_list = self.pulse.source_list()
+        # except:
+            # self._reload_pulse()
+            # return
+        # # widgets
+        # _list_chbtn = []
+        # for i in range(self.micbox.count()):
+            # if self.micbox.itemAt(i) != None:
+                # widget = self.micbox.itemAt(i).widget()
+                # if isinstance(widget, QCheckBox):
+                    # _list_chbtn.append(widget)
+        # #
+        # for ell in _source_list:
+            # if ell.name.endswith('monitor'):
+                # continue
+            # for ww in _list_chbtn:
+                # if ww.item == ell.name:
+                    # _state = ell.mute
+                    # ww.setChecked(not _state)
     
     # mic
     def on_rb1_clicked(self, _bool):
@@ -1854,17 +1909,23 @@ class SecondaryWin(QWidget):
         else:
             return
         _source = None
-        for el in self.pulse.source_list():
-            if el.name == _item:
-                _source = el
-                break
-        if _source:
-            self._mute_mic(_source, self.sender().isChecked())
+        try:
+            for el in self.pulse.source_list():
+                if el.name == _item:
+                    _source = el
+                    break
+            if _source:
+                self._mute_mic(_source, self.sender().isChecked())
+        except:
+            self._reload_pulse()
     
     # mute mic
     def _mute_mic(self, _source, _state):
         _mute_state = not _state
-        self.pulse.mute(_source, mute=_mute_state)
+        try:
+            self.pulse.mute(_source, mute=_mute_state)
+        except:
+            self._reload_pulse()
     
     # right click menu - mic
     def on_mic2(self, _pos):
@@ -1904,8 +1965,8 @@ class SecondaryWin(QWidget):
             self.on_list_audio(_list[1], 201)
         elif _list[0] == "new-source":
             self.on_list_audio(_list[1], 202)
-        elif _list[0] == "change-source":
-            self.on_list_audio(_list[1], 203)
+        # elif _list[0] == "change-source":
+            # self.on_list_audio(_list[1], 203)
     
     def on_list_audio(self, _el, _t):
         # sink: remove - new
@@ -1923,16 +1984,20 @@ class SecondaryWin(QWidget):
             if USE_MICROPHONE:
                 # self.on_populate_micmenu()
                 self.on_microphone()
-        elif _t == 203:
-            if USE_MICROPHONE:
-                self.on_microphone_changed()
+        # elif _t == 203:
+            # if USE_MICROPHONE:
+                # self.on_microphone_changed()
     #
     def _set_volume(self):
         _sink = None
-        for el in self.pulse.sink_list():
-            if el.name == self.default_sink_name:
-                _sink = el
-                break
+        try:
+            for el in self.pulse.sink_list():
+                if el.name == self.default_sink_name:
+                    _sink = el
+                    break
+        except:
+            self._reload_pulse()
+            return
         #
         if _sink:
             # 
@@ -1998,7 +2063,12 @@ class SecondaryWin(QWidget):
     # left click
     def on_volume1(self, _pos):
         sdink = None
-        for el in self._sink_list:
+        try:
+            _sink_list = self.pulse.sink_list()
+        except:
+            self._reload_pulse()
+            return
+        for el in _sink_list:
             if el.name == self.default_sink_name:
                 dsink = el
                 break
@@ -2072,48 +2142,59 @@ class SecondaryWin(QWidget):
     # event.angleDelta() : negative down - positive up
     def on_volume_change(self, _direction):
         dsink = None
-        for el in self._sink_list:
+        try:
+            _sink_list = self.pulse.sink_list()
+        except:
+            self._reload_pulse()
+            return
+        for el in _sink_list:
             if el.name == self.default_sink_name:
                 dsink = el
                 break
         if dsink == None:
             return
         #
+        _vol = None
         if _direction == "slider":
             if dsink:
                 _vol = round(((self.mslider.value()//AUDIO_STEP)*AUDIO_STEP)/100, 2)
-                try:
-                    self.pulse.volume_set_all_chans(dsink, _vol)
-                    self._set_volume()
-                except:
-                    pass
         else:
             # volume : 0.0 - 1.0
             if _direction.y() < 0:
                 if dsink:
-                    _vol = round(self.pulse.volume_get_all_chans(dsink),2) - (AUDIO_STEP/100)
-                    if _vol >= 0:
-                        try:
-                            self.pulse.volume_set_all_chans(dsink, _vol)
-                            self._set_volume()
-                        except:
-                            pass
+                    try:
+                        _vol = round(self.pulse.volume_get_all_chans(dsink),2) - (AUDIO_STEP/100)
+                    except:
+                        self._reload_pulse()
+                        return
+                    if _vol < 0:
+                        _vol = 0
             # volume +
             elif _direction.y() > 0:
                 if dsink:
-                    _vol = round(self.pulse.volume_get_all_chans(dsink),2) + (AUDIO_STEP/100)
+                    try:
+                        _vol = round(self.pulse.volume_get_all_chans(dsink),2) + (AUDIO_STEP/100)
+                    except:
+                        self._reload_pulse()
+                        return
                     if _vol > 1:
                         _vol = 1.0
-                    if _vol <= 1:
-                        try:
-                            self.pulse.volume_set_all_chans(dsink, _vol)
-                            self._set_volume()
-                        except:
-                            pass
+        #
+        if _vol:
+            try:
+                self.pulse.volume_set_all_chans(dsink, _vol)
+                self._set_volume()
+            except:
+                self._reload_pulse()
     
     def _mute_audio(self):
         _sink = None
-        for el in self._sink_list:
+        try:
+            _sink_list = self.pulse.sink_list()
+        except:
+            self._reload_pulse()
+            return
+        for el in _sink_list:
             if el.name == self.default_sink_name:
                 _sink = el
                 break
@@ -2123,8 +2204,12 @@ class SecondaryWin(QWidget):
         try:
             self.pulse.mute(_sink, mute=_mute_state)
         except:
-            pass
+            self._reload_pulse()
         self._set_volume()
+    
+    def _reload_pulse(self):
+        del self.pulse
+        self.pulse = _pulse.Pulse()
     
 ############# audio end ##############
 
@@ -3674,9 +3759,10 @@ class audioThread(QThread):
                         self.sig.emit(["new-sink", ev.index])
                 # source
                 elif ev.facility == pulse.event_facilities[8]:
-                    if ev.t == self.pulse.PulseEventTypeEnum.change:
-                        self.sig.emit(["change-source", ev.index])
-                    elif ev.t == self.pulse.PulseEventTypeEnum.remove:
+                    # if ev.t == self.pulse.PulseEventTypeEnum.change:
+                        # self.sig.emit(["change-source", ev.index])
+                    # el
+                    if ev.t == self.pulse.PulseEventTypeEnum.remove:
                         self.sig.emit(["remove-source", ev.index])
                     elif ev.t == self.pulse.PulseEventTypeEnum.new:
                         self.sig.emit(["new-source", ev.index])
@@ -3858,6 +3944,26 @@ class showDialog(QDialog):
         self.buttonBox = QDialogButtonBox(QBtn)
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
+        #
+        # buttons style
+        hpalette = self.palette().mid().color().name()
+        csaa = ("QPushButton::hover:!pressed { border: none;")
+        csab = ("background-color: {};".format(hpalette))
+        csac = ("border-radius: 3px;")
+        csad = ("text-align: center; }")
+        csae = ("QPushButton { text-align: center;  padding: 5px; border: 1px solid #7F7F7F;")
+        csae1 = ("background-color: '{}';".format(self.palette().midlight().color().name()))
+        csae2 = (" }")
+        csaf = ("QPushButton::checked { text-align: center; ")
+        if button_menu_selected_color == "":
+            csag = ("background-color: {};".format(self.palette().midlight().color().name()))
+        else:
+            csag = ("background-color: {};".format(button_menu_selected_color))
+        csah = ("padding: 5px; border-radius: 3px;}")
+        self.btn_csa = csaa+csab+csac+csad+csae+csae1+csae2+csaf+csag+csah
+        for _w in self.buttonBox.children():
+            if isinstance(_w, QPushButton):
+                _w.setStyleSheet(self.btn_csa)
         #
         self.layout = QVBoxLayout()
         lay2 = QHBoxLayout()
