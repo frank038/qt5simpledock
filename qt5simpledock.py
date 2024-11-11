@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# 0.9.42
+# 0.9.43
 
 from PyQt5.QtCore import (QThread,pyqtSignal,Qt,QTimer,QTime,QDate,QSize,QRect,QCoreApplication,QEvent,QPoint,QFileSystemWatcher,QProcess,QFileInfo,QFile,QDateTime)
 from PyQt5.QtWidgets import (QWidget,QHBoxLayout,QBoxLayout,QLabel,QPushButton,QSizePolicy,QMenu,QVBoxLayout,QTabWidget,QListWidget,QScrollArea,QListWidgetItem,QDialog,QMessageBox,QMenu,qApp,QAction,QDialogButtonBox,QTreeWidget,QTreeWidgetItem,QDesktopWidget,QLineEdit,QFrame,QCalendarWidget,QTableView,QStyleFactory,QApplication,QButtonGroup,QRadioButton,QSlider,QTextEdit,QTextBrowser,QDateTimeEdit,QCheckBox,QComboBox)
@@ -411,13 +411,11 @@ class SecondaryWin(QWidget):
     
     webcam_signal = pyqtSignal(list)
     
-    def __init__(self, position, _app, _close_signal, _parent):
+    def __init__(self, position, _app):
         super(SecondaryWin, self).__init__()
         global app
         app = _app
         self.position = position
-        self._close_signal = _close_signal
-        self._parent = _parent
         #
         self.setWindowFlags(self.windowFlags() | Qt.WindowDoesNotAcceptFocus | Qt.FramelessWindowHint)
         self.setAttribute(Qt.WA_X11NetWmWindowTypeDock)
@@ -1543,8 +1541,6 @@ class SecondaryWin(QWidget):
         notifier = pyinotify.ThreadedNotifier(self.wm, EventHandler(_obj=self.on_dev_change))
         global _notifier
         _notifier = notifier
-        # to qt5desktop2.py
-        self._close_signal.emit(notifier)
         ########
         for dd in self.list_camera_start:
             self.on_add_webcam(dd)
@@ -5431,6 +5427,25 @@ class TimerWindow(QWidget):
         self.btn_accept_pressed = None
         self.btn_accept.clicked.connect(self.on_btn_accept)
         #
+        # buttons style
+        hpalette = self.palette().mid().color().name()
+        csaa = ("QPushButton::hover:!pressed { border: none;")
+        csab = ("background-color: {};".format(hpalette))
+        csac = ("border-radius: 3px;")
+        csad = ("text-align: center; }")
+        csae = ("QPushButton { text-align: center;  padding: 5px; border: 1px solid #7F7F7F;")
+        csae1 = ("background-color: '{}';".format(self.palette().midlight().color().name()))
+        csae2 = (" }")
+        csaf = ("QPushButton::checked { text-align: center; ")
+        if button_menu_selected_color == "":
+            csag = ("background-color: {};".format(self.palette().midlight().color().name()))
+        else:
+            csag = ("background-color: {};".format(button_menu_selected_color))
+        csah = ("padding: 5px; border-radius: 3px;}")
+        self.btn_csa = csaa+csab+csac+csad+csae+csae1+csae2+csaf+csag+csah
+        self.btn_cancel.setStyleSheet(self.btn_csa)
+        self.btn_accept.setStyleSheet(self.btn_csa)
+        #
         self._value = None
     
     def on_date_time(self):
@@ -5470,6 +5485,29 @@ class MyDialog(QMessageBox):
         elif args[0] == "Question":
             self.setIcon(QMessageBox.Question)
             self.setStandardButtons(QMessageBox.Yes|QMessageBox.Cancel)
+        #
+        # buttons style
+        hpalette = self.palette().mid().color().name()
+        csaa = ("QPushButton::hover:!pressed { border: none;")
+        csab = ("background-color: {};".format(hpalette))
+        csac = ("border-radius: 3px;")
+        csad = ("text-align: center; }")
+        csae = ("QPushButton { text-align: center;  padding: 5px; border: 1px solid #7F7F7F;")
+        csae1 = ("background-color: '{}';".format(self.palette().midlight().color().name()))
+        csae2 = (" }")
+        csaf = ("QPushButton::checked { text-align: center; ")
+        if button_menu_selected_color == "":
+            csag = ("background-color: {};".format(self.palette().midlight().color().name()))
+        else:
+            csag = ("background-color: {};".format(button_menu_selected_color))
+        csah = ("padding: 5px; border-radius: 3px;}")
+        self.btn_csa = csaa+csab+csac+csad+csae+csae1+csae2+csaf+csag+csah
+        for _w in self.children():
+            if isinstance(_w, QDialogButtonBox):
+                for _ww in _w.children():
+                    if isinstance(_ww, QPushButton):
+                        _ww.setStyleSheet(self.btn_csa)
+        #
         self.setWindowIcon(QIcon("icons/clipman.svg"))
         self.setWindowTitle(args[0])
         self.resize(dialWidth,100)
@@ -5496,7 +5534,7 @@ if __name__ == '__main__':
     size = screen.size()
     WINW = size.width()
     WINH = size.height()
-    _dock = SecondaryWin(1, app, None, None)
+    _dock = SecondaryWin(1, app)
     if dock_position == 0:
         _dock.setGeometry(0,0,WINW,dock_height)
     elif dock_position == 1:
