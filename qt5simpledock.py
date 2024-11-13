@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# 0.9.46
+# 0.9.47
 
 from PyQt5.QtCore import (QThread,pyqtSignal,Qt,QTimer,QTime,QDate,QSize,QRect,QCoreApplication,QEvent,QPoint,QFileSystemWatcher,QProcess,QFileInfo,QFile,QDateTime)
 from PyQt5.QtWidgets import (QWidget,QHBoxLayout,QBoxLayout,QLabel,QPushButton,QSizePolicy,QMenu,QVBoxLayout,QTabWidget,QListWidget,QScrollArea,QListWidgetItem,QDialog,QMessageBox,QMenu,qApp,QAction,QDialogButtonBox,QTreeWidget,QTreeWidgetItem,QDesktopWidget,QLineEdit,QFrame,QCalendarWidget,QTableView,QStyleFactory,QApplication,QButtonGroup,QRadioButton,QSlider,QTextEdit,QTextBrowser,QDateTimeEdit,QCheckBox,QComboBox)
@@ -3061,7 +3061,8 @@ class SecondaryWin(QWidget):
         stopCD = 1
         global data_run
         data_run = 0
-        _notifier.stop()
+        if use_webcam:
+            _notifier.stop()
         qApp.quit()
 
     def restart(self):
@@ -3069,7 +3070,8 @@ class SecondaryWin(QWidget):
         stopCD = 1
         global data_run
         data_run = 0
-        _notifier.stop()
+        if use_webcam:
+            _notifier.stop()
         QCoreApplication.quit()
         status = QProcess.startDetached(sys.executable, sys.argv)
     
